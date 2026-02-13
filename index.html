@@ -432,7 +432,7 @@
                                 <tbody id="subs-section-header">
                                     <tr class="section-header-row clickable-row" onclick="toggleSubsSection()">
                                         <td class="frozen-col section-header">
-                                            <span id="subs-section-toggle-icon">▼</span> LS Subs
+                                            <span id="subs-section-toggle-icon">▼</span> SUBS
                                         </td>
                                         <td colspan="9" class="mh-col section-header"></td>
                                         <td class="mh-col mh-col-keep section-header numeric" id="subs-section-total-mh">0</td>
@@ -452,6 +452,10 @@
                                     <tr class="summary-row indent-level-1 clickable-row" onclick="toggleSubsRow('ls-subs')">
                                         <td class="frozen-col indent-1">
                                             <span id="ls-subs-toggle-icon">▼</span> Survey Subs
+                                            <span class="acc-pct-wrapper" onclick="event.stopPropagation();">
+                                                <input type="number" id="survey-subs-pct" value="0.25" min="0" max="10" step="0.01" 
+                                                       class="acc-pct-input" title="% of Assumed Construction Cost">%
+                                            </span>
                                         </td>
                                         <td colspan="9" class="mh-col"></td>
                                         <td class="mh-col mh-col-keep numeric" id="ls-subs-total-mh">0</td>
@@ -474,6 +478,10 @@
                                     <tr class="summary-row indent-level-1 clickable-row" onclick="toggleSubsRow('survey')">
                                         <td class="frozen-col indent-1">
                                             <span id="survey-toggle-icon">▼</span> Subsurface Utility Subs
+                                            <span class="acc-pct-wrapper" onclick="event.stopPropagation();">
+                                                <input type="number" id="subsurface-utility-subs-pct" value="0.25" min="0" max="10" step="0.01" 
+                                                       class="acc-pct-input" title="% of Assumed Construction Cost">%
+                                            </span>
                                         </td>
                                         <td colspan="9" class="mh-col"></td>
                                         <td class="mh-col mh-col-keep numeric" id="survey-total-mh">0</td>
@@ -496,6 +504,10 @@
                                     <tr class="summary-row indent-level-1 clickable-row" onclick="toggleSubsRow('subsurface-utility')">
                                         <td class="frozen-col indent-1">
                                             <span id="subsurface-utility-toggle-icon">▼</span> Geotech Drilling Subs
+                                            <span class="acc-pct-wrapper" onclick="event.stopPropagation();">
+                                                <input type="number" id="geotech-subs-pct" value="0.5" min="0" max="10" step="0.01" 
+                                                       class="acc-pct-input" title="% of Assumed Construction Cost">%
+                                            </span>
                                         </td>
                                         <td colspan="9" class="mh-col"></td>
                                         <td class="mh-col mh-col-keep numeric" id="subsurface-utility-total-mh">0</td>
@@ -563,6 +575,10 @@
                                     <tr class="summary-row indent-level-1 clickable-row" onclick="toggleSubsRow('odcs')">
                                         <td class="frozen-col indent-1">
                                             <span id="odcs-toggle-icon">▼</span> ODC'S
+                                            <span class="acc-pct-wrapper" onclick="event.stopPropagation();">
+                                                <input type="number" id="odcs-pct" value="0.25" min="0" max="10" step="0.01" 
+                                                       class="acc-pct-input" title="% of Assumed Construction Cost">%
+                                            </span>
                                         </td>
                                         <td colspan="9" class="mh-col"></td>
                                         <td class="mh-col mh-col-keep numeric" id="odcs-total-mh">0</td>
@@ -1902,6 +1918,13 @@
             </div>
             
             <div class="modal-base-body">
+                <!-- No duration message (shown when Design Duration not set in Cost Parameters) -->
+                <div id="escalation-no-duration-msg" class="escalation-no-duration-msg" style="display: none;">
+                    <p>Design duration is required to calculate escalation. Please enter <strong>Design Duration</strong> in the <strong>Cost Calculation Parameters</strong> section (Budget step), then open this breakdown again.</p>
+                    <button type="button" class="btn btn-primary" onclick="closeEscalationModal()">OK</button>
+                </div>
+
+                <div id="escalation-modal-content">
                 <!-- Formula Explanation -->
                 <div class="escalation-formula-section">
                     <h4>Compounded Escalation Formula</h4>
@@ -1931,7 +1954,7 @@
 
                 <!-- Bell Curve Chart -->
                 <div class="escalation-chart-section">
-                    <h4>Hour Distribution (Bell Curve)</h4>
+                    <h4>Raw Labor Cost Distribution (Bell Curve)</h4>
                     <div style="position: relative; height: 200px; width: 100%;">
                         <canvas id="escalation-bell-curve-chart"></canvas>
                     </div>
@@ -1944,8 +1967,8 @@
                         <thead>
                             <tr>
                                 <th>Year</th>
-                                <th>Hours</th>
-                                <th title="Click to edit and override the bell curve distribution">Hour Distribution (%) <span style="font-size: 9px; color: #ffc107;">✎</span></th>
+                                <th>Raw Labor Cost</th>
+                                <th title="Click to edit and override the bell curve distribution">Cost Distribution (%) <span style="font-size: 9px; color: #ffc107;">✎</span></th>
                                 <th>Effective Escalation</th>
                                 <th>Rate (%/yr)</th>
                                 <th>Compounded Factor</th>
@@ -1976,6 +1999,7 @@
                     <button class="btn" onclick="resetEscalationToDefault()">Reset to Default</button>
                     <button class="btn btn-secondary" onclick="resetHourDistribution()" title="Reset hour distribution to bell curve">Reset Distribution</button>
                     <button class="btn btn-primary" onclick="applyEscalationChanges()">Apply Changes</button>
+                </div>
                 </div>
             </div>
         </div>

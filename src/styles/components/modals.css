@@ -331,6 +331,17 @@
     overflow-y: auto;
 }
 
+.escalation-no-duration-msg {
+    padding: 24px 16px;
+    text-align: center;
+}
+
+.escalation-no-duration-msg p {
+    margin-bottom: 20px;
+    color: var(--color-text, #e0e0e0);
+    line-height: 1.5;
+}
+
 .escalation-details-btn {
     background: rgba(92, 107, 192, 0.2);
     border: 1px solid #5c6bc0;

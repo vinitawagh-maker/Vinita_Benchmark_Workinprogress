@@ -1135,6 +1135,14 @@
     table-layout: auto; /* Allow columns to size based on content */
 }
 
+/* ESDC/TSCD: hide "All Rate" cell — only selected data is shown */
+.unified-estimate-table td.esdc-tscd-no-all {
+    color: transparent;
+    font-size: 0;
+    line-height: 0;
+    user-select: none;
+}
+
 /* Frozen Discipline Column */
 .unified-estimate-table .frozen-col {
     position: sticky;
@@ -1384,6 +1392,42 @@
     background-color: #ff5252;
 }
 
+/* Assumed Construction Cost Percentage Inputs */
+.acc-pct-wrapper {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 6px;
+    font-size: 9px;
+    color: #666;
+    font-weight: normal;
+    gap: 1px;
+}
+
+.acc-pct-input {
+    width: 32px;
+    padding: 1px 2px;
+    font-size: 9px;
+    border: 1px solid #999;
+    border-radius: 2px;
+    text-align: right;
+    height: 14px;
+    background: #e8e8e8;
+    color: #333;
+    -moz-appearance: textfield;
+}
+
+.acc-pct-input::-webkit-inner-spin-button,
+.acc-pct-input::-webkit-outer-spin-button {
+    opacity: 1;
+    height: 12px;
+}
+
+.acc-pct-input:focus {
+    outline: none;
+    border-color: #1976d2;
+    background: #fff;
+}
+
 /* Indirects Divisor Input */
 .indirects-divisor-wrapper {
     display: inline-flex;
@@ -1425,6 +1469,46 @@
     outline: none;
     border-color: #1976d2;
     background: #fff;
+}
+
+/* Assumed Construction Cost Percentage Inputs */
+.acc-pct-wrapper {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 8px;
+    font-size: 10px;
+    color: #666;
+    font-weight: normal;
+    gap: 1px;
+}
+
+.acc-pct-input {
+    width: 38px;
+    padding: 1px 2px;
+    font-size: 10px;
+    border: 1px solid #999;
+    border-radius: 2px;
+    text-align: right;
+    height: 16px;
+    background: #e8f5e9;
+    color: #333;
+    -moz-appearance: textfield;
+}
+
+.acc-pct-input::-webkit-inner-spin-button,
+.acc-pct-input::-webkit-outer-spin-button {
+    opacity: 1;
+    height: 14px;
+}
+
+.acc-pct-input:focus {
+    outline: none;
+    border-color: #4CAF50;
+    background: #fff;
+}
+
+.acc-pct-input:hover {
+    border-color: #4CAF50;
 }
 
 /* IPC Toggle Switch */

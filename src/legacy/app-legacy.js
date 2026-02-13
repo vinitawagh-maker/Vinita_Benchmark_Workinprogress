@@ -713,39 +713,52 @@ let projectData = {
         function openEscalationModal() {
             const modal = document.getElementById('escalation-modal');
             if (!modal) return;
-            
+
+            const noDurationMsg = document.getElementById('escalation-no-duration-msg');
+            const modalContent = document.getElementById('escalation-modal-content');
+
+            // Get duration from Cost Calculation Parameters (Budget step)
+            const durationInput = document.getElementById('calc-design-duration');
+            const durationVal = durationInput ? durationInput.value : '';
+            const durationMonths = parseFloat(durationVal);
+
+            const hasDuration = durationVal !== '' && !isNaN(durationMonths) && durationMonths > 0;
+
+            if (!hasDuration) {
+                if (noDurationMsg) noDurationMsg.style.display = '';
+                if (modalContent) modalContent.style.display = 'none';
+                modal.classList.add('open');
+                return;
+            }
+
+            if (noDurationMsg) noDurationMsg.style.display = 'none';
+            if (modalContent) modalContent.style.display = '';
+
             // Get current values from the main form
             const escalationRateInput = document.getElementById('unified-escalation');
-            const durationInput = document.getElementById('calc-design-duration');
-            
             escalationData.baseRate = parseFloat(escalationRateInput?.value) || 5;
-            // Get duration in months directly from the cost parameters
-            const durationMonths = parseFloat(durationInput?.value) || 12;
             escalationData.durationMonths = durationMonths;
             escalationData.years = Math.ceil(durationMonths / 12);
             if (escalationData.years < 1) escalationData.years = 1;
             if (escalationData.years > 10) escalationData.years = 10;
-            
+
             // Get total hours from the table
             const totalMHElement = document.getElementById('kie-labor-total-mh');
             escalationData.totalHours = parseFloat(totalMHElement?.textContent?.replace(/,/g, '')) || 0;
-            
+
             // Update modal inputs
             document.getElementById('escalation-base-rate').value = escalationData.baseRate;
-            // Display duration in months
             document.getElementById('escalation-duration-months').value = durationMonths;
-            
+
             // Set NTP date to today if not already set
             const ntpDateInput = document.getElementById('escalation-ntp-date');
             if (ntpDateInput && !ntpDateInput.value) {
                 const today = new Date();
-                const todayStr = today.toISOString().split('T')[0]; // Format: YYYY-MM-DD
+                const todayStr = today.toISOString().split('T')[0];
                 ntpDateInput.value = todayStr;
             }
-            
-            // Calculate and render
+
             recalculateEscalation();
-            
             modal.classList.add('open');
         }
 
@@ -760,30 +773,47 @@ let projectData = {
         /**
          * Recalculates escalation based on current inputs
          * Uses monthly bell curve distribution with fiscal year logic (March to March)
+         * Base: Total Raw Labor for Directs + Indirects (Cost-based, not hours)
          */
         function recalculateEscalation() {
+            const noDurationMsg = document.getElementById('escalation-no-duration-msg');
+            const modalContent = document.getElementById('escalation-modal-content');
+            const durationInput = document.getElementById('escalation-duration-months');
+            const durationVal = durationInput ? durationInput.value : '';
+            const durationMonths = parseInt(durationVal, 10);
+            const hasDuration = durationVal !== '' && !isNaN(durationMonths) && durationMonths > 0;
+
+            if (!hasDuration) {
+                if (noDurationMsg) noDurationMsg.style.display = '';
+                if (modalContent) modalContent.style.display = 'none';
+                return;
+            }
+
+            if (noDurationMsg) noDurationMsg.style.display = 'none';
+            if (modalContent) modalContent.style.display = '';
+
             const baseRate = parseFloat(document.getElementById('escalation-base-rate')?.value) || 5;
-            const durationMonths = parseInt(document.getElementById('escalation-duration-months')?.value) || 36;
             const years = Math.ceil(durationMonths / 12);
-            
+
             escalationData.baseRate = baseRate;
             escalationData.years = years;
             escalationData.durationMonths = durationMonths;
             
-            // Get total hours excluding ESDC and TSCD
+            // Get total RAW LABOR for Directs and Indirects (Cost-based escalation)
+            const directsRawLabor = parseFloat(document.getElementById('unified-direct-total-raw-labor')?.textContent?.replace(/[$,]/g, '')) || 0;
+            const indirectsRawLabor = parseFloat(document.getElementById('unified-indirect-total-raw-labor')?.textContent?.replace(/[$,]/g, '')) || 0;
+            const totalRawLaborCost = directsRawLabor + indirectsRawLabor;
+            escalationData.totalRawLaborCost = totalRawLaborCost;
+            
+            // Keep totalHours for reference (but not used for escalation calculation)
             const kieLaborMH = parseFloat(document.getElementById('kie-labor-total-mh')?.textContent?.replace(/,/g, '')) || 0;
-            // Subtract ESDC and TSCD hours if they exist
             const esdcMH = parseFloat(document.getElementById('esdc-total-mh')?.textContent?.replace(/,/g, '')) || 0;
             const tscdMH = parseFloat(document.getElementById('tscd-total-mh')?.textContent?.replace(/,/g, '')) || 0;
             const totalHours = Math.max(0, kieLaborMH - esdcMH - tscdMH);
             escalationData.totalHours = totalHours;
             
-            // Get base cost (Total Revenue from KIE LABOR + SUBS, excluding ESDC/TSCD)
-            const kieLaborCosts = parseFloat(document.getElementById('kie-labor-total-revenue')?.textContent?.replace(/[$,]/g, '')) || 0;
-            const subsCosts = parseFloat(document.getElementById('subs-section-total-revenue')?.textContent?.replace(/[$,]/g, '')) || 0;
-            const esdcRevenue = parseFloat(document.getElementById('esdc-total-revenue')?.textContent?.replace(/[$,]/g, '')) || 0;
-            const tscdRevenue = parseFloat(document.getElementById('tscd-total-revenue')?.textContent?.replace(/[$,]/g, '')) || 0;
-            const baseCost = Math.max(0, kieLaborCosts + subsCosts - esdcRevenue - tscdRevenue);
+            // Base cost for escalation = Total Raw Labor for Directs + Indirects
+            const baseCost = totalRawLaborCost;
             
             // Get NTP date
             const ntpDateInput = document.getElementById('escalation-ntp-date');
@@ -827,8 +857,10 @@ let projectData = {
                 const monthDate = new Date(ntpDate);
                 monthDate.setMonth(monthDate.getMonth() + m);
                 
-                const monthHours = totalHours * monthlyDistribution[m];
-                const monthBaseCost = baseCost * monthlyDistribution[m];
+                // Distribute raw labor cost using bell curve (Cost-based escalation)
+                const monthRawLaborCost = baseCost * monthlyDistribution[m];
+                const monthHours = totalHours * monthlyDistribution[m]; // Keep for reference
+                const monthBaseCost = monthRawLaborCost; // Base cost = raw labor cost for escalation
                 
                 // Determine fiscal year for this month
                 // Fiscal year = the year of the March that ENDS this fiscal year
@@ -874,6 +906,8 @@ let projectData = {
                     date: new Date(monthDate),
                     hours: monthHours,
                     hourPercent: monthlyDistribution[m] * 100,
+                    rawLaborCost: monthRawLaborCost,
+                    costPercent: monthlyDistribution[m] * 100,
                     baseCost: monthBaseCost,
                     escalationYears: escalationYears,
                     escalationFactor: escalationFactor,
@@ -883,9 +917,10 @@ let projectData = {
                 
                 // Aggregate by fiscal year
                 if (!fiscalYearData[fiscalYear]) {
-                    fiscalYearData[fiscalYear] = { hours: 0, baseCost: 0, escalationAmount: 0 };
+                    fiscalYearData[fiscalYear] = { hours: 0, rawLaborCost: 0, baseCost: 0, escalationAmount: 0 };
                 }
                 fiscalYearData[fiscalYear].hours += monthHours;
+                fiscalYearData[fiscalYear].rawLaborCost += monthRawLaborCost;
                 fiscalYearData[fiscalYear].baseCost += monthBaseCost;
                 fiscalYearData[fiscalYear].escalationAmount += escalationAmount;
             }
@@ -893,6 +928,7 @@ let projectData = {
             // Convert fiscal year data to yearly breakdown for table
             let yearNum = 1;
             for (const [fy, data] of Object.entries(fiscalYearData).sort((a, b) => parseInt(a[0]) - parseInt(b[0]))) {
+                const costPercent = (data.rawLaborCost / baseCost) * 100 || 0;
                 const hourPercent = (data.hours / totalHours) * 100 || 0;
                 const effectiveYears = yearNum === 1 ? 0 : yearNum - 1;
                 
@@ -901,6 +937,8 @@ let projectData = {
                     fiscalYear: parseInt(fy),
                     hours: data.hours,
                     hourPercent: hourPercent,
+                    rawLaborCost: data.rawLaborCost,
+                    costPercent: costPercent,
                     rate: baseRate,
                     effectiveYears: effectiveYears,
                     compoundedFactor: data.baseCost > 0 ? data.escalationAmount / data.baseCost : 0,
@@ -967,31 +1005,32 @@ let projectData = {
 
         /**
          * Renders the escalation breakdown table
+         * Now shows Raw Labor Cost instead of Hours (Cost-based escalation)
          */
         function renderEscalationTable() {
             const tbody = document.getElementById('escalation-breakdown-tbody');
             if (!tbody) return;
             
             let html = '';
-            let totalHours = 0;
+            let totalRawLaborCost = 0;
             let totalAmount = 0;
             let totalPercent = 0;
             
             escalationData.yearlyBreakdown.forEach(row => {
-                totalHours += row.hours;
+                totalRawLaborCost += row.rawLaborCost || 0;
                 totalAmount += row.escalationAmount;
-                totalPercent += row.hourPercent;
+                totalPercent += row.costPercent || row.hourPercent;
                 
                 const manualValue = row.manualOverride !== undefined && row.manualOverride !== null && row.manualOverride !== '' 
                     ? parseFloat(row.manualOverride).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
                     : '';
                 
-                // Check if this year has a manual hour distribution override
-                const hasHourOverride = escalationData.hourDistributionOverrides && 
+                // Check if this year has a manual cost distribution override
+                const hasCostOverride = escalationData.hourDistributionOverrides && 
                     escalationData.hourDistributionOverrides[row.year] !== undefined;
-                const hourPercentValue = hasHourOverride 
+                const costPercentValue = hasCostOverride 
                     ? escalationData.hourDistributionOverrides[row.year] 
-                    : row.hourPercent;
+                    : (row.costPercent || row.hourPercent);
                 
                 // Highlight Year 1 with no escalation
                 const isNoEscalation = row.effectiveYears === 0;
@@ -1002,10 +1041,10 @@ let projectData = {
                 html += `
                     <tr ${rowStyle}>
                         <td>Year ${row.year}${escalationNote}</td>
-                        <td>${Math.round(row.hours).toLocaleString()}</td>
+                        <td>$${Math.round(row.rawLaborCost || 0).toLocaleString()}</td>
                         <td>
-                            <input type="number" value="${hourPercentValue.toFixed(1)}" min="0" max="100" step="0.1" 
-                                   style="width: 60px; text-align: right; ${hasHourOverride ? 'background: #fff3cd; border-color: #ffc107;' : ''}"
+                            <input type="number" value="${costPercentValue.toFixed(1)}" min="0" max="100" step="0.1" 
+                                   style="width: 60px; text-align: right; ${hasCostOverride ? 'background: #fff3cd; border-color: #ffc107;' : ''}"
                                    onchange="updateYearHourDistribution(${row.year}, this.value)"
                                    title="Edit to override bell curve distribution">%
                         </td>
@@ -1029,7 +1068,8 @@ let projectData = {
             // Update totals - show warning if percentages don't sum to 100%
             const percentWarning = Math.abs(totalPercent - 100) > 0.5 ? 
                 ` <span style="color: #ff9800; font-size: 10px;">(${totalPercent.toFixed(1)}%)</span>` : '';
-            document.getElementById('escalation-modal-total-hours').textContent = Math.round(totalHours).toLocaleString();
+            // Show total raw labor cost instead of hours
+            document.getElementById('escalation-modal-total-hours').textContent = '$' + Math.round(totalRawLaborCost).toLocaleString();
             document.getElementById('escalation-modal-total-amount').textContent = '$' + Math.round(totalAmount).toLocaleString();
         }
 
@@ -1075,20 +1115,18 @@ let projectData = {
         }
 
         /**
-         * Recalculate escalation using manual hour distribution overrides
+         * Recalculate escalation using manual cost distribution overrides
+         * Uses Raw Labor Cost for Directs + Indirects (Cost-based escalation)
          */
         function recalculateEscalationWithOverrides() {
             const overrides = escalationData.hourDistributionOverrides || {};
             const years = escalationData.years || 3;
-            const totalHours = escalationData.totalHours || 0;
             const baseRate = escalationData.baseRate || 5;
             
-            // Get base cost
-            const kieLaborCosts = parseFloat(document.getElementById('kie-labor-total-revenue')?.textContent?.replace(/[$,]/g, '')) || 0;
-            const subsCosts = parseFloat(document.getElementById('subs-section-total-revenue')?.textContent?.replace(/[$,]/g, '')) || 0;
-            const esdcRevenue = parseFloat(document.getElementById('esdc-total-revenue')?.textContent?.replace(/[$,]/g, '')) || 0;
-            const tscdRevenue = parseFloat(document.getElementById('tscd-total-revenue')?.textContent?.replace(/[$,]/g, '')) || 0;
-            const baseCost = Math.max(0, kieLaborCosts + subsCosts - esdcRevenue - tscdRevenue);
+            // Get total RAW LABOR for Directs and Indirects (Cost-based escalation)
+            const directsRawLabor = parseFloat(document.getElementById('unified-direct-total-raw-labor')?.textContent?.replace(/[$,]/g, '')) || 0;
+            const indirectsRawLabor = parseFloat(document.getElementById('unified-indirect-total-raw-labor')?.textContent?.replace(/[$,]/g, '')) || 0;
+            const baseCost = directsRawLabor + indirectsRawLabor;
             
             // Calculate distribution - use overrides where set, bell curve otherwise
             const bellCurve = calculateBellCurveDistribution(years);
@@ -1204,15 +1242,16 @@ let projectData = {
             if (monthlyData.length === 0) return;
             
             const labels = monthlyData.map(row => row.label);
-            const hoursData = monthlyData.map(row => Math.round(row.hours));
+            // Use raw labor COST distribution instead of hours
+            const costData = monthlyData.map(row => Math.round(row.rawLaborCost));
             const escalationData2 = monthlyData.map(row => Math.round(row.escalationAmount));
             
             // Calculate max values for better scaling
-            const maxHours = Math.max(...hoursData);
+            const maxCost = Math.max(...costData);
             const maxEscalation = Math.max(...escalationData2);
             
             // Add 10% padding to the max for better visualization
-            const hoursMax = Math.ceil(maxHours * 1.1);
+            const costMax = Math.ceil(maxCost * 1.1);
             const escalationMax = Math.ceil(maxEscalation * 1.1);
             
             // Reduce point size for many data points
@@ -1224,8 +1263,8 @@ let projectData = {
                     labels: labels,
                     datasets: [
                         {
-                            label: 'Hours Distribution (Bell Curve)',
-                            data: hoursData,
+                            label: 'Raw Labor Cost Distribution ($)',
+                            data: costData,
                             backgroundColor: 'rgba(92, 107, 192, 0.7)',
                             borderColor: 'rgba(92, 107, 192, 1)',
                             borderWidth: 1,
@@ -1283,8 +1322,8 @@ let projectData = {
                                 label: function(context) {
                                     const idx = context.dataIndex;
                                     const monthData = monthlyData[idx];
-                                    if (context.dataset.label.includes('Hours')) {
-                                        return `Hours: ${context.raw.toLocaleString()} (${monthData.hourPercent.toFixed(1)}%)`;
+                                    if (context.dataset.label.includes('Raw Labor')) {
+                                        return `Raw Labor: $${context.raw.toLocaleString()} (${monthData.costPercent.toFixed(1)}%)`;
                                     } else {
                                         const escalYears = monthData.escalationYears;
                                         return `Escalation: $${context.raw.toLocaleString()} (${escalYears} yr${escalYears !== 1 ? 's' : ''})`;
@@ -1321,16 +1360,16 @@ let projectData = {
                             type: 'linear',
                             position: 'left',
                             beginAtZero: true,
-                            max: hoursMax > 0 ? hoursMax : undefined,
+                            max: costMax > 0 ? costMax : undefined,
                             title: {
                                 display: true,
-                                text: 'Hours (Bell Curve)',
+                                text: 'Raw Labor Cost ($)',
                                 color: '#5c6bc0'
                             },
                             ticks: {
                                 color: '#5c6bc0',
                                 callback: function(value) {
-                                    return value.toLocaleString();
+                                    return '$' + value.toLocaleString();
                                 }
                             },
                             grid: {
@@ -2306,56 +2345,59 @@ let projectData = {
         // MH BENCHMARK COST ESTIMATOR CONFIGURATION
         // ============================================
         
-        // Mapping of discipline IDs to their JSON benchmark files
-        // Use relative paths (no leading /) to work with GitHub Pages subdirectory deployment
-        const BENCHMARK_FILE_MAPPING_ALL_OTHER = {
-            drainage: './data/benchmarking/All Other Projects/benchmarking-drainage.json',
-            mot: './data/benchmarking/All Other Projects/benchmarking-mot.json',
-            roadway: './data/benchmarking/All Other Projects/benchmarking-roadway.json',
-            traffic: './data/benchmarking/All Other Projects/benchmarking-traffic.json',
-            utilities: './data/benchmarking/All Other Projects/benchmarking-utilities.json',
-            retainingWalls: './data/benchmarking/All Other Projects/benchmarking-retainingwalls.json',
-            noiseWalls: './data/benchmarking/All Other Projects/benchmarking-noisewalls.json',
-            bridgesPCGirder: './data/benchmarking/All Other Projects/benchmarking-bridges.json',
-            bridgesSteel: './data/benchmarking/All Other Projects/benchmarking-bridges.json',
-            bridgesRehab: './data/benchmarking/All Other Projects/benchmarking-bridges.json',
-            miscStructures: './data/benchmarking/All Other Projects/benchmarking-miscstructures.json',
-            geotechnical: './data/benchmarking/All Other Projects/benchmarking-geotechnical.json',
-            systems: './data/benchmarking/All Other Projects/benchmarking-systems.json',
-            track: './data/benchmarking/All Other Projects/benchmarking-track.json',
-            esdc: './data/benchmarking/All Other Projects/benchmarking-esdc.json',
-            tscd: './data/benchmarking/All Other Projects/benchmarking-tscd.json',
-            digitalDelivery: './data/benchmarking/Wall/JSON Wall/Dig_Engg.json'
-        };
-
         function getBaseUrl() {
             var b = (typeof window !== 'undefined' && window.__BASE_URL__) ? window.__BASE_URL__ : '/';
             return String(b).replace(/\/$/, '');
         }
-        // Wall Projects mapping (separate JSON files in Wall subdirectory)
-        // Use base URL so paths work on GitHub Pages (/Design_Estimate/)
+        /** Resolve benchmark path to full URL at fetch time so base URL is always current. */
+        function getBenchmarkFileUrl(path) {
+            if (typeof path !== 'string' || path.startsWith('http') || path.startsWith('//')) return path;
+            var base = getBaseUrl();
+            return base + (path.startsWith('/') ? path : '/' + path);
+        }
+
+        // Highway/Bridge Projects: path only (files live under public/data/benchmarking/All Other Projects/). URL resolved when fetching.
+        const BENCHMARK_FILE_MAPPING_HIGHWAY_BRIDGE = {
+            drainage: '/data/benchmarking/All Other Projects/benchmarking-drainage.json',
+            mot: '/data/benchmarking/All Other Projects/benchmarking-mot.json',
+            roadway: '/data/benchmarking/All Other Projects/benchmarking-roadway.json',
+            traffic: '/data/benchmarking/All Other Projects/benchmarking-traffic.json',
+            utilities: '/data/benchmarking/All Other Projects/benchmarking-utilities.json',
+            retainingWalls: '/data/benchmarking/All Other Projects/benchmarking-retainingwalls.json',
+            noiseWalls: '/data/benchmarking/All Other Projects/benchmarking-noisewalls.json',
+            bridgesPCGirder: '/data/benchmarking/All Other Projects/benchmarking-bridges.json',
+            bridgesSteel: '/data/benchmarking/All Other Projects/benchmarking-bridges.json',
+            bridgesRehab: '/data/benchmarking/All Other Projects/benchmarking-bridges.json',
+            miscStructures: '/data/benchmarking/All Other Projects/benchmarking-miscstructures.json',
+            geotechnical: '/data/benchmarking/All Other Projects/benchmarking-geotechnical.json',
+            systems: '/data/benchmarking/All Other Projects/benchmarking-systems.json',
+            track: '/data/benchmarking/All Other Projects/benchmarking-track.json',
+            esdc: '/data/benchmarking/All Other Projects/ESDC and TSCD/ESDC_HI.json',
+            tscd: '/data/benchmarking/All Other Projects/ESDC and TSCD/TSCD_HI.json',
+            digitalDelivery: '/data/benchmarking/Wall/JSON Wall/Dig_Engg.json'
+        };
         const BENCHMARK_FILE_MAPPING_BORDER_WALL = {
-            drainage: getBaseUrl() + '/data/benchmarking/Wall/JSON Wall/Drainage.json',
-            mot: getBaseUrl() + '/data/benchmarking/Wall/JSON Wall/Directs.json',
-            roadway: getBaseUrl() + '/data/benchmarking/Wall/JSON Wall/roadway.json',
-            traffic: getBaseUrl() + '/data/benchmarking/Wall/JSON Wall/Directs.json',
-            utilities: getBaseUrl() + '/data/benchmarking/Wall/JSON Wall/Directs.json',
-            retainingWalls: getBaseUrl() + '/data/benchmarking/Wall/JSON Wall/Structures.json',
-            bridgesPCGirder: getBaseUrl() + '/data/benchmarking/Wall/JSON Wall/Structures.json',
-            bridgesSteel: getBaseUrl() + '/data/benchmarking/Wall/JSON Wall/Structures.json',
-            bridgesRehab: getBaseUrl() + '/data/benchmarking/Wall/JSON Wall/Structures.json',
-            miscStructures: getBaseUrl() + '/data/benchmarking/Wall/JSON Wall/Structures.json',
-            geotechnical: getBaseUrl() + '/data/benchmarking/Wall/JSON Wall/Geotech.json',
-            systems: getBaseUrl() + '/data/benchmarking/Wall/JSON Wall/Elec_Systems.json',
-            track: getBaseUrl() + '/data/benchmarking/Wall/JSON Wall/roadway.json',
-            esdc: getBaseUrl() + '/data/benchmarking/Wall/JSON Wall/Dig_Engg.json',
-            tscd: getBaseUrl() + '/data/benchmarking/Wall/JSON Wall/TSCd.json',
-            digitalDelivery: getBaseUrl() + '/data/benchmarking/Wall/JSON Wall/Dig_Engg.json'
+            drainage: '/data/benchmarking/Wall/JSON Wall/Drainage.json',
+            mot: '/data/benchmarking/Wall/JSON Wall/Directs.json',
+            roadway: '/data/benchmarking/Wall/JSON Wall/roadway.json',
+            traffic: '/data/benchmarking/Wall/JSON Wall/Directs.json',
+            utilities: '/data/benchmarking/Wall/JSON Wall/Directs.json',
+            retainingWalls: '/data/benchmarking/Wall/JSON Wall/Structures.json',
+            bridgesPCGirder: '/data/benchmarking/Wall/JSON Wall/Structures.json',
+            bridgesSteel: '/data/benchmarking/Wall/JSON Wall/Structures.json',
+            bridgesRehab: '/data/benchmarking/Wall/JSON Wall/Structures.json',
+            miscStructures: '/data/benchmarking/Wall/JSON Wall/Structures.json',
+            geotechnical: '/data/benchmarking/Wall/JSON Wall/Geotech.json',
+            systems: '/data/benchmarking/Wall/JSON Wall/Elec_Systems.json',
+            track: '/data/benchmarking/Wall/JSON Wall/roadway.json',
+            esdc: '/data/benchmarking/Wall/JSON Wall/Dig_Engg.json',
+            tscd: '/data/benchmarking/Wall/JSON Wall/TSCd.json',
+            digitalDelivery: '/data/benchmarking/Wall/JSON Wall/Dig_Engg.json'
         };
 
         // Active benchmark dataset selection
-        let activeBenchmarkDataset = 'all-other';
-        let BENCHMARK_FILE_MAPPING = { ...BENCHMARK_FILE_MAPPING_ALL_OTHER };
+        let activeBenchmarkDataset = 'all-other'; // value for "Highway/Bridge Projects" in UI
+        let BENCHMARK_FILE_MAPPING = { ...BENCHMARK_FILE_MAPPING_HIGHWAY_BRIDGE };
 
         // Cache for loaded benchmark data
         let benchmarkDataCache = {};
@@ -2698,6 +2740,61 @@ let projectData = {
             return rate * factor;
         }
 
+        /** Assumed hourly rate ($/hr) for ESDC and TSCD used for MH and revenue calcs */
+        const ESDC_TSCD_HOURLY_RATE = 64.5;
+
+        /** Default % of Assumed Construction Cost for subs/ODCs. Geotech Drilling = 0.50%; rest = 0.25%. */
+        const DEFAULT_SURVEY_SUBS_PCT = 0.25;
+        const DEFAULT_SUBSURFACE_UTILITY_SUBS_PCT = 0.25;
+        const DEFAULT_GEOTECH_SUBS_PCT = 0.5;
+        const DEFAULT_ODCS_PCT = 0.25;
+
+        /**
+         * Get production % from Selected Projects power curve for ESDC/TSCD (Excel trendline method).
+         * Curve: x = Revenue (K$), y = Production (%). Coefficients a, b are calculated from selected projects.
+         * Solves P = a * (Revenue_K)^b with Revenue_K = AssumedCost_K * P / 100 => P = [a * (AssumedCost_K/100)^b]^(1/(1-b)).
+         * @param {string} discId - 'esdc' or 'tscd'
+         * @param {number} assumedConstructionCostK - Assumed construction cost in thousands (K$)
+         * @returns {number|null} Production % (e.g. 1.19 for 1.19%) or null
+         */
+        function getProductionPctFromSelectedCurve(discId, assumedConstructionCostK) {
+            if (discId !== 'esdc' && discId !== 'tscd') return null;
+            const costK = Number(assumedConstructionCostK);
+            if (!(costK > 0)) return null;
+            const benchmarks = getBenchmarkDataSync(discId);
+            if (!benchmarks || !benchmarks.projects) return null;
+            const selectedProjects = benchmarks.projects.filter(p => p.applicable);
+            if (selectedProjects.length < 2) return null;
+            // Excel trendline: x = Revenue (K$), y = Production (%). Build points from selected projects.
+            const points = selectedProjects
+                .map(p => {
+                    const x = p.esdc_cost ?? p.cost ?? 0;   // Revenue in K$
+                    const y = p.production_pct ?? p.rate ?? 0; // Production %
+                    return { x, y };
+                })
+                .filter(p => p.x > 0 && p.y > 0);
+            if (points.length < 2) return null;
+            const reg = PowerRegression.calculate(points);
+            let pct = null;
+            if (reg.valid && typeof reg.a === 'number' && Number.isFinite(reg.a) && reg.a > 0 &&
+                typeof reg.b === 'number' && Number.isFinite(reg.b) && reg.b < 1) {
+                // P = a * (Revenue_K)^b, Revenue_K = costK * P / 100 => P = a * (costK*P/100)^b
+                // => P^(1-b) = a * (costK/100)^b => P = [a * (costK/100)^b]^(1/(1-b))
+                const exponent = 1 / (1 - reg.b);
+                const base = reg.a * Math.pow(costK / 100, reg.b);
+                if (base > 0 && Number.isFinite(exponent)) {
+                    pct = Math.pow(base, exponent);
+                    if (typeof pct !== 'number' || !Number.isFinite(pct) || pct <= 0) pct = null;
+                }
+            }
+            if (pct == null) {
+                // Fallback: average production % of selected projects
+                const sum = selectedProjects.reduce((s, p) => s + (p.production_pct ?? p.rate ?? 0), 0);
+                pct = selectedProjects.length > 0 ? sum / selectedProjects.length : null;
+            }
+            return pct;
+        }
+
         /**
          * Get rate from Selected Projects regression curve at a given quantity (y = a*x^b).
          * Falls back to log-log interpolation if regression invalid.
@@ -2816,9 +2913,9 @@ let projectData = {
                 selectedRegression = PowerRegression.calculate(selectedPoints);
             }
             
-            // Smart X-axis scaling: focus on where data is dense
-            // Use 90th percentile of quantities with 20% buffer
-            const quantities = allPoints.map(p => p.x).sort((a, b) => a - b);
+            // Smart X-axis scaling: focus on where data is dense (for ESDC/TSCD use selected only)
+            const pointsForScale = isRevenueBased ? selectedPoints : allPoints;
+            const quantities = pointsForScale.map(p => p.x).sort((a, b) => a - b);
             const p90Index = Math.floor(quantities.length * 0.9);
             const p90Value = quantities[p90Index] || quantities[quantities.length - 1] || 100000;
             const xMax = p90Value * 1.2;
@@ -2838,6 +2935,19 @@ let projectData = {
             const allR2El = document.getElementById('benchmark-r2-all');
             const selR2El = document.getElementById('benchmark-r2-selected');
             
+            // ESDC/TSCD: only show selected data (no "All Projects"); use same dot colors as other disciplines (blue)
+            const showAllData = !isRevenueBased;
+            const legendAllEl = document.getElementById('benchmark-legend-all');
+            const equationAllWrap = document.getElementById('benchmark-equation-all-wrap');
+            if (legendAllEl) legendAllEl.style.display = showAllData ? '' : 'none';
+            if (equationAllWrap) equationAllWrap.style.display = showAllData ? '' : 'none';
+            const legendSelectedDot = document.querySelector('.benchmark-chart-legend .legend-dot.selected-projects');
+            if (legendSelectedDot) {
+                legendSelectedDot.style.background = isRevenueBased ? '#4a90d9' : '#e07c3a';
+            }
+            const eqSelectedEl = document.getElementById('benchmark-eq-selected');
+            if (eqSelectedEl) eqSelectedEl.style.color = isRevenueBased ? '#4a90d9' : '#e07c3a';
+
             if (allEqEl) {
                 allEqEl.textContent = allRegression.valid
                     ? PowerRegression.formatEquation(allRegression.a, allRegression.b)
@@ -2855,61 +2965,26 @@ let projectData = {
                 selR2El.textContent = selectedRegression.valid ? `R² = ${selectedRegression.r2.toFixed(4)}` : '';
             }
             
-            // Chart datasets
-            const datasets = [
-                // All projects scatter points
-                {
-                    label: 'All Projects',
-                    data: allPoints,
-                    backgroundColor: 'rgba(74, 144, 217, 0.5)', // Reduced opacity for visibility
-                    borderColor: 'rgba(74, 144, 217, 0.9)',
-                    borderWidth: 2,
-                    pointRadius: 6,
-                    pointHoverRadius: 8,
-                    showLine: false,
-                    order: 2
-                },
-                // Selected projects scatter points
-                {
-                    label: 'Selected Projects',
-                    data: selectedPoints,
-                    backgroundColor: 'rgba(224, 124, 58, 0.5)', // Reduced opacity for visibility
-                    borderColor: 'rgba(224, 124, 58, 0.9)',
-                    borderWidth: 2,
-                    pointRadius: 7,
-                    pointHoverRadius: 9,
-                    showLine: false,
-                    order: 1
-                },
-                // All projects regression curve
-                {
-                    label: 'All Projects Trend',
-                    data: allCurvePoints,
-                    borderColor: 'rgba(74, 144, 217, 0.5)',
-                    borderWidth: 2,
-                    borderDash: [5, 5],
-                    pointRadius: 0,
-                    showLine: true,
-                    fill: false,
-                    order: 4
-                },
-                // Selected projects regression curve
-                {
-                    label: 'Selected Projects Trend',
-                    data: selectedCurvePoints,
-                    borderColor: 'rgba(224, 124, 58, 0.7)',
-                    borderWidth: 2,
-                    borderDash: [3, 3],
-                    pointRadius: 0,
-                    showLine: true,
-                    fill: false,
-                    order: 3
-                }
-            ];
+            // Chart datasets (for ESDC/TSCD only Selected; for others All + Selected)
+            const datasets = [];
+            if (showAllData) {
+                datasets.push(
+                    { label: 'All Projects', data: allPoints, backgroundColor: 'rgba(74, 144, 217, 0.5)', borderColor: 'rgba(74, 144, 217, 0.9)', borderWidth: 2, pointRadius: 6, pointHoverRadius: 8, showLine: false, order: 2 },
+                    { label: 'All Projects Trend', data: allCurvePoints, borderColor: 'rgba(74, 144, 217, 0.5)', borderWidth: 2, borderDash: [5, 5], pointRadius: 0, showLine: true, fill: false, order: 4 }
+                );
+            }
+            // Same colors as other disciplines: blue #4a90d9 (74,144,217) for selected when ESDC/TSCD; orange for others
+            const selectedColor = isRevenueBased ? { bg: 'rgba(74, 144, 217, 0.5)', border: 'rgba(74, 144, 217, 0.9)', line: 'rgba(74, 144, 217, 0.7)' } : { bg: 'rgba(224, 124, 58, 0.5)', border: 'rgba(224, 124, 58, 0.9)', line: 'rgba(224, 124, 58, 0.7)' };
+            datasets.push(
+                { label: 'Selected Projects', data: selectedPoints, backgroundColor: selectedColor.bg, borderColor: selectedColor.border, borderWidth: 2, pointRadius: 7, pointHoverRadius: 9, showLine: false, order: 1 },
+                { label: 'Selected Projects Trend', data: selectedCurvePoints, borderColor: selectedColor.line, borderWidth: 2, borderDash: [3, 3], pointRadius: 0, showLine: true, fill: false, order: 3 }
+            );
             
-            // Y-axis max: use the highest curve value with buffer
-            const allYValues = [...allPoints.map(p => p.y), ...allCurvePoints.map(p => p.y)];
-            const yMax = Math.max(...allYValues) * 1.1 || (isRevenueBased ? 10000 : 100);
+            // Y-axis max: use the highest curve value with buffer (for ESDC/TSCD use selected only)
+            const yValues = showAllData
+                ? [...allPoints.map(p => p.y), ...allCurvePoints.map(p => p.y)]
+                : [...selectedPoints.map(p => p.y), ...selectedCurvePoints.map(p => p.y)];
+            const yMax = Math.max(...yValues) * 1.1 || (isRevenueBased ? 10000 : 100);
             
             const chartConfig = {
                 type: 'scatter',
@@ -3188,26 +3263,25 @@ ${reasoning}`;
                 console.log('Loading benchmark data from JSON files...');
                 const loadedData = {};
 
-                // Load all unique JSON files
+                // Load all unique JSON files (resolve URL at fetch time so base path is correct)
                 const uniqueFiles = [...new Set(Object.values(BENCHMARK_FILE_MAPPING))];
                 const fileDataMap = {};
 
                 for (const filePath of uniqueFiles) {
                     try {
-                        const response = await fetch(filePath);
+                        const url = getBenchmarkFileUrl(filePath);
+                        const response = await fetch(url);
                         if (response.ok) {
                             const rawData = await response.json();
 
                             // Check if this is Wall format (array) or standard format (object)
                             if (Array.isArray(rawData)) {
-                                // Parse Wall tabular format - returns array of discipline objects
                                 fileDataMap[filePath] = parseWallFormat(rawData);
                             } else {
-                                // Standard format - wrap in array for consistent handling
                                 fileDataMap[filePath] = [rawData];
                             }
                         } else {
-                            console.warn(`Failed to load benchmark file: ${filePath}`);
+                            console.warn(`Failed to load benchmark file: ${url} (status ${response.status})`);
                         }
                     } catch (error) {
                         console.warn(`Error loading benchmark file ${filePath}:`, error);
@@ -3340,13 +3414,21 @@ ${reasoning}`;
                         }
                     }
                 } else {
-                    // All Other Projects: standard format with predefined discipline mapping
+                    // Highway/Bridge Projects: standard format with predefined discipline mapping
                     for (const [disciplineId, filePath] of Object.entries(BENCHMARK_FILE_MAPPING)) {
                         const fileDataArray = fileDataMap[filePath];
                         if (!Array.isArray(fileDataArray) || fileDataArray.length === 0) continue;
 
                         const fileData = fileDataArray[0]; // Standard format has one discipline per file
-                        const projects = fileData.projects || fileData.structures || fileData.project_structures || [];
+                        
+                        // Handle new ESDC/TSCD format with 'rows' array and field names with spaces
+                        let projects = fileData.projects || fileData.structures || fileData.project_structures || [];
+                        
+                        // Check for new ESDC/TSCD format (has 'rows' array and 'sheet' field)
+                        const isNewEsdcTscdFormat = fileData.rows && fileData.sheet && (disciplineId === 'esdc' || disciplineId === 'tscd');
+                        if (isNewEsdcTscdFormat) {
+                            projects = fileData.rows;
+                        }
 
                         // Transform projects to the expected format
                         const transformedProjects = projects.map((p, index) => {
@@ -3355,12 +3437,20 @@ ${reasoning}`;
                             let mh = p.fct_mhrs || p.mh || 0;
                             let quantity = p.eqty || p.quantity || 0;
 
-                            // For ESDC/TSCD, handle percentage rates
-                            // Keep rate as percentage (e.g., 1.19 for 1.19%) - will be divided by 100 in calculations
+                            // For ESDC/TSCD, handle both old and new formats
                             if (disciplineId === 'esdc' || disciplineId === 'tscd') {
-                                rate = p.production_pct || 0; // Keep as percentage (e.g., 1.19%)
-                                mh = p.esdc_cost || p.cost || 0; // This is actually revenue in K$
-                                quantity = p.eqty || p.anticipated_cost || p.projectCost || 0; // Project cost in K$
+                                if (isNewEsdcTscdFormat) {
+                                    // New format: field names have spaces, Production is decimal (e.g., 0.0119 = 1.19%)
+                                    // Convert decimal to percentage (multiply by 100)
+                                    rate = (p['Production'] || 0) * 100; // 0.0119 → 1.19%
+                                    mh = p['ESDC Cost'] || 0; // Revenue in K$
+                                    quantity = p['eQTY'] || 0; // Project cost in K$
+                                } else {
+                                    // Old format: production_pct is already percentage (1.19 for 1.19%)
+                                    rate = p.production_pct || 0;
+                                    mh = p.esdc_cost || p.cost || 0; // Revenue in K$
+                                    quantity = p.eqty || p.anticipated_cost || p.projectCost || 0; // Project cost in K$
+                                }
                             }
 
                             // For bridges, filter by type
@@ -3374,43 +3464,118 @@ ${reasoning}`;
                                 return null; // Skip non-rehab bridges
                             }
 
+                            // Handle new ESDC/TSCD format field names
+                            let projectName, projectUnit, projectMarket, isApplicable, projectCity, projectState, projectCountry;
+                            
+                            if (isNewEsdcTscdFormat) {
+                                // New format: field names with spaces; skip rows with no project name (keep full list for TSCD/ESDC)
+                                const rawProject = p['Project'];
+                                if (rawProject == null || String(rawProject).trim() === '') return null;
+                                projectName = String(rawProject).trim();
+                                projectUnit = p['Unit'] || 'K$';
+                                projectMarket = p['Market'] || '';
+                                // ESDC/TSCD: only "Yes" in applicable column = selected; default unselected so list shows whole list with only Yes checked
+                                isApplicable = false;
+                                const applicableVal = p['Applicable Job'] ?? p['Applicable?'] ?? p['Applicable'];
+                                if (applicableVal === 'Yes' || applicableVal === true || (typeof applicableVal === 'string' && String(applicableVal).trim().toLowerCase() === 'yes')) {
+                                    isApplicable = true;
+                                }
+                                // City, State is combined in new format
+                                const cityState = p['City, State'] || '';
+                                const cityStateParts = cityState.split(',').map(s => s.trim());
+                                projectCity = cityStateParts[0] || '';
+                                projectState = cityStateParts[1] || '';
+                                projectCountry = p['Country'] || 'USA';
+                            } else {
+                                // Old format
+                                projectName = p.project || p.structure_name || 'Unknown Project';
+                                projectUnit = p.uom || fileData.eqty_metric?.uom || '';
+                                projectMarket = p.market || '';
+                                // For ESDC/TSCD only "Yes" (or true) in applicable column = selected; rest = unselected
+                                if (disciplineId === 'esdc' || disciplineId === 'tscd') {
+                                    const v = p.applicable_job;
+                                    isApplicable = v === true || (typeof v === 'string' && String(v).trim().toLowerCase() === 'yes');
+                                } else {
+                                    isApplicable = p.applicable_job !== undefined ? p.applicable_job : true;
+                                }
+                                projectCity = p.city || '';
+                                projectState = p.state || '';
+                                projectCountry = p.country || 'USA';
+                            }
+                            
                             const transformedProject = {
-                                id: p.project?.toLowerCase().replace(/\s+/g, '_').substring(0, 20) || `proj_${index}`,
-                                name: p.project || p.structure_name || 'Unknown Project',
+                                id: projectName.toLowerCase().replace(/\s+/g, '_').substring(0, 20) || `proj_${index}`,
+                                name: projectName,
                                 mh: mh,
                                 quantity: quantity,
-                                unit: p.uom || fileData.eqty_metric?.uom || '',
+                                unit: projectUnit,
                                 rate: rate,
-                                type: p.market?.includes('Transit') ? 'transit' : 'highway',
+                                type: projectMarket.includes('Transit') ? 'transit' : 'highway',
                                 complexity: 'medium',
-                                applicable: p.applicable_job !== undefined ? p.applicable_job : true,
+                                applicable: isApplicable,
                                 // Additional metadata
-                                city: p.city,
-                                state: p.state,
-                                country: p.country,
+                                city: projectCity,
+                                state: projectState,
+                                country: projectCountry,
                                 notes: p.notes
                             };
                             
                             // For ESDC/TSCD, add additional revenue-specific fields
                             if (disciplineId === 'esdc' || disciplineId === 'tscd') {
-                                transformedProject.esdc_cost = p.esdc_cost || 0; // Revenue in K$
-                                transformedProject.anticipated_cost = p.eqty || 0; // Project cost in K$
-                                transformedProject.production_pct = p.production_pct || 0; // % of project cost
-                                transformedProject.cost = p.esdc_cost || 0; // Alias for revenue
-                                transformedProject.projectCost = p.eqty || 0; // Alias for project cost
+                                if (isNewEsdcTscdFormat) {
+                                    // New format with field names with spaces
+                                    const esdcCostVal = p['ESDC Cost'] || 0;
+                                    const eqtyVal = p['eQTY'] || 0;
+                                    const productionPct = (p['Production'] || 0) * 100; // Convert decimal to percentage
+                                    transformedProject.esdc_cost = esdcCostVal; // Revenue in K$
+                                    transformedProject.anticipated_cost = eqtyVal; // Project cost in K$
+                                    transformedProject.production_pct = productionPct; // % of project cost
+                                    transformedProject.cost = esdcCostVal; // Alias for revenue
+                                    transformedProject.projectCost = eqtyVal; // Alias for project cost
+                                } else {
+                                    // Old format
+                                    transformedProject.esdc_cost = p.esdc_cost || 0; // Revenue in K$
+                                    transformedProject.anticipated_cost = p.eqty || 0; // Project cost in K$
+                                    transformedProject.production_pct = p.production_pct || 0; // % of project cost
+                                    transformedProject.cost = p.esdc_cost || 0; // Alias for revenue
+                                    transformedProject.projectCost = p.eqty || 0; // Alias for project cost
+                                }
                             }
                             
                             return transformedProject;
                         }).filter(p => p !== null);
 
+                        // ESDC: exactly 44 projects from Excel A5:A48 (same list as when benchmark icon is used).
+                        if (disciplineId === 'esdc' && isNewEsdcTscdFormat) {
+                            transformedProjects = transformedProjects.slice(0, 44);
+                        }
+                        // TSCD: 109 projects from Excel A5:A113. Use first 109 projects only when benchmark icon is used.
+                        if (disciplineId === 'tscd' && isNewEsdcTscdFormat) {
+                            transformedProjects = transformedProjects.slice(0, 109);
+                        }
+
                         // Calculate statistical rates
                         const rateStats = BenchmarkStats.calculateRateStats(transformedProjects);
 
-                        const metadata = {
-                            discipline: fileData.discipline,
-                            eqtyMetric: fileData.eqty_metric,
-                            serviceCategory: fileData.service_category
-                        };
+                        // Build metadata - handle new ESDC/TSCD format
+                        let metadata;
+                        if (isNewEsdcTscdFormat) {
+                            // New format: use sheet name and create appropriate metric info
+                            const sheetName = fileData.sheet || disciplineId.toUpperCase();
+                            metadata = {
+                                discipline: sheetName === 'ESDC' 
+                                    ? 'Engineering Services During Construction (ESDC)' 
+                                    : 'Technical Support and Coordination (TSCD)',
+                                eqtyMetric: { name: 'Anticipated Project Cost', uom: 'K$' },
+                                serviceCategory: sheetName
+                            };
+                        } else {
+                            metadata = {
+                                discipline: fileData.discipline,
+                                eqtyMetric: fileData.eqty_metric,
+                                serviceCategory: fileData.service_category
+                            };
+                        }
                         if (typeof fileData.all_rate === 'number' && Number.isFinite(fileData.all_rate)) metadata.all_rate = fileData.all_rate;
                         if (typeof fileData.all_curve_factor === 'number' && Number.isFinite(fileData.all_curve_factor) && fileData.all_curve_factor > 0) metadata.all_curve_factor = fileData.all_curve_factor;
                         else if (fileData.all_curve && typeof fileData.all_curve.factor === 'number' && Number.isFinite(fileData.all_curve.factor) && fileData.all_curve.factor > 0) metadata.all_curve_factor = fileData.all_curve.factor;
@@ -3444,6 +3609,8 @@ ${reasoning}`;
                 benchmarkDataCache = loadedData;
                 benchmarkDataLoaded = true;
                 console.log('Benchmark data loaded successfully:', Object.keys(loadedData));
+                if (loadedData.esdc) console.log('ESDC projects in cache:', loadedData.esdc.projects?.length);
+                if (loadedData.tscd) console.log('TSCD projects in cache:', loadedData.tscd.projects?.length);
                 return loadedData;
             })();
             
@@ -3459,7 +3626,7 @@ ${reasoning}`;
         }
 
         /**
-         * Get benchmark data synchronously (returns cached data or null)
+         * Get benchmark data synchronously (returns cached data or fallback)
          */
         function getBenchmarkDataSync(disciplineId) {
             return benchmarkDataCache[disciplineId] || HISTORICAL_BENCHMARKS[disciplineId] || null;
@@ -3836,6 +4003,7 @@ ${reasoning}`;
                 defaultRate: 0.0099,
                 customRate: 0.0103
             },
+            // TSCD fallback: same as ESDC — full list with only "Applicable Job" = Yes selected (match TSCD_HI.json)
             tscd: {
                 projects: [
                     { id: 'sec820', name: 'IH 820 Southeast Connector', cost: 7812.04, projectCost: 2006033.03, unit: 'K$', rate: 0.0039, market: 'Transportation, Highway', applicable: true },
@@ -3845,20 +4013,20 @@ ${reasoning}`;
                     { id: 'turcot', name: 'Turcot', cost: 9542.25, projectCost: 1784779.80, unit: 'K$', rate: 0.0053, market: 'Transportation, Highway', applicable: true },
                     { id: 'swcalgary', name: 'Southwest Calgary Ring Road', cost: 2905.56, projectCost: 1310255.12, unit: 'K$', rate: 0.0022, market: 'Transportation, Highway', applicable: true },
                     { id: 'goethals', name: 'Goethals Bridge Replacement', cost: 1935.06, projectCost: 1091231.60, unit: 'K$', rate: 0.0018, market: 'Transportation, Bridges', applicable: true },
-                    { id: 'midtown', name: 'Midtown Express', cost: 1552.51, projectCost: 914940.51, unit: 'K$', rate: 0.0017, market: 'Transportation, Highway', applicable: true },
-                    { id: 'bwe', name: 'Border West Expressway', cost: 1858.64, projectCost: 691683.83, unit: 'K$', rate: 0.0027, market: 'Transportation, Highway', applicable: true },
-                    { id: 'neon', name: 'Project Neon', cost: 931.75, projectCost: 628296.99, unit: 'K$', rate: 0.0015, market: 'Transportation, Highway', applicable: true },
-                    { id: '30crossing', name: '30 Crossing', cost: 1551.47, projectCost: 497061.58, unit: 'K$', rate: 0.0031, market: 'Transportation, Bridges', applicable: true },
-                    { id: 'selmon', name: 'Selmon Expressway Extension', cost: 1955.92, projectCost: 262650.00, unit: 'K$', rate: 0.0074, market: 'Transportation, Highway', applicable: true },
-                    { id: 'flyway470', name: 'Flyway 470', cost: 898.39, projectCost: 256515.18, unit: 'K$', rate: 0.0035, market: 'Transportation, Highway', applicable: true },
-                    { id: 'mvc', name: 'MVC 4100 South to SR-201', cost: 131.57, projectCost: 229983.74, unit: 'K$', rate: 0.0006, market: 'Transportation, Highway', applicable: true },
-                    { id: 'tlicho', name: 'Tlicho All-Season Road', cost: 216.41, projectCost: 183706.28, unit: 'K$', rate: 0.0012, market: 'Transportation, Highway', applicable: true },
-                    { id: 'i10cap', name: 'I-10 Capital Corridor', cost: 1776.12, projectCost: 159847.91, unit: 'K$', rate: 0.0111, market: 'Transportation, Highway', applicable: true },
-                    { id: 'nashville', name: 'Nashville Connector', cost: 361.46, projectCost: 148878.92, unit: 'K$', rate: 0.0024, market: 'Transportation, Bridges', applicable: true },
-                    { id: 'moosejaw', name: 'Moosejaw', cost: 759.58, projectCost: 148722.83, unit: 'K$', rate: 0.0051, market: 'Transportation, Highway', applicable: true },
-                    { id: 'bigthompson', name: 'Big Thompson', cost: 235.58, projectCost: 146038.94, unit: 'K$', rate: 0.0016, market: 'Transportation, Highway', applicable: true },
-                    { id: 'kingston', name: 'Kingston Third Crossing', cost: 1140.54, projectCost: 144336.50, unit: 'K$', rate: 0.0079, market: 'Transportation, Bridges', applicable: true },
-                    { id: 'porter', name: 'Porter Road', cost: 770.65, projectCost: 112340.79, unit: 'K$', rate: 0.0069, market: 'Transportation, Highway', applicable: true }
+                    { id: 'midtown', name: 'Midtown Express', cost: 1552.51, projectCost: 914940.51, unit: 'K$', rate: 0.0017, market: 'Transportation, Highway', applicable: false },
+                    { id: 'bwe', name: 'Border West Expressway', cost: 1858.64, projectCost: 691683.83, unit: 'K$', rate: 0.0027, market: 'Transportation, Highway', applicable: false },
+                    { id: 'neon', name: 'Project Neon', cost: 931.75, projectCost: 628296.99, unit: 'K$', rate: 0.0015, market: 'Transportation, Highway', applicable: false },
+                    { id: '30crossing', name: '30 Crossing', cost: 1551.47, projectCost: 497061.58, unit: 'K$', rate: 0.0031, market: 'Transportation, Bridges', applicable: false },
+                    { id: 'selmon', name: 'Selmon Expressway Extension', cost: 1955.92, projectCost: 262650.00, unit: 'K$', rate: 0.0074, market: 'Transportation, Highway', applicable: false },
+                    { id: 'flyway470', name: 'Flyway 470', cost: 898.39, projectCost: 256515.18, unit: 'K$', rate: 0.0035, market: 'Transportation, Highway', applicable: false },
+                    { id: 'mvc', name: 'MVC 4100 South to SR-201', cost: 131.57, projectCost: 229983.74, unit: 'K$', rate: 0.0006, market: 'Transportation, Highway', applicable: false },
+                    { id: 'tlicho', name: 'Tlicho All-Season Road', cost: 216.41, projectCost: 183706.28, unit: 'K$', rate: 0.0012, market: 'Transportation, Highway', applicable: false },
+                    { id: 'i10cap', name: 'I-10 Capital Corridor', cost: 1776.12, projectCost: 159847.91, unit: 'K$', rate: 0.0111, market: 'Transportation, Highway', applicable: false },
+                    { id: 'nashville', name: 'Nashville Connector', cost: 361.46, projectCost: 148878.92, unit: 'K$', rate: 0.0024, market: 'Transportation, Bridges', applicable: false },
+                    { id: 'moosejaw', name: 'Moosejaw', cost: 759.58, projectCost: 148722.83, unit: 'K$', rate: 0.0051, market: 'Transportation, Highway', applicable: false },
+                    { id: 'bigthompson', name: 'Big Thompson', cost: 235.58, projectCost: 146038.94, unit: 'K$', rate: 0.0016, market: 'Transportation, Highway', applicable: false },
+                    { id: 'kingston', name: 'Kingston Third Crossing', cost: 1140.54, projectCost: 144336.50, unit: 'K$', rate: 0.0079, market: 'Transportation, Bridges', applicable: false },
+                    { id: 'porter', name: 'Porter Road', cost: 770.65, projectCost: 112340.79, unit: 'K$', rate: 0.0069, market: 'Transportation, Highway', applicable: false }
                 ],
                 defaultRate: 0.0026,
                 customRate: 0.0031
@@ -4240,8 +4408,8 @@ ${reasoning}`;
             const gna = rawLabor * (gnaRate / 100);
             const margin = rawLabor * (marginPercent / 100);
             
-            // Get weighted hourly rate for this discipline (default to $150/hr for ESDC/TSCD)
-            const weightedRate = 68; // Using $68/hr as typical rate for ESDC/TSCD services
+            // Get weighted hourly rate for this discipline (ESDC/TSCD use $64.50/hr)
+            const weightedRate = ESDC_TSCD_HOURLY_RATE;
             
             // Calculate hours from Raw Labor
             const mh = Math.round(rawLabor / weightedRate);
@@ -4409,7 +4577,7 @@ ${reasoning}`;
         // ============================================
 
         /**
-         * Handle benchmark dataset change (All Other Projects vs Wall Projects)
+         * Handle benchmark dataset change (Highway/Bridge Projects vs Wall Projects)
          */
         async function handleBenchmarkDatasetChange() {
             const select = document.getElementById('benchmark-dataset');
@@ -4422,7 +4590,7 @@ ${reasoning}`;
             if (newDataset === 'border-wall') {
                 BENCHMARK_FILE_MAPPING = { ...BENCHMARK_FILE_MAPPING_BORDER_WALL };
             } else {
-                BENCHMARK_FILE_MAPPING = { ...BENCHMARK_FILE_MAPPING_ALL_OTHER };
+                BENCHMARK_FILE_MAPPING = { ...BENCHMARK_FILE_MAPPING_HIGHWAY_BRIDGE };
             }
 
             // Clear the cache to force reload of new dataset
@@ -4455,8 +4623,10 @@ ${reasoning}`;
         function selectAllBenchmarks() {
             let updated = 0;
 
-            // Loop through all disciplines
+            // Loop through all disciplines (ESDC/TSCD excluded: selection comes from Applicable? = Yes only)
             for (const discId of Object.keys(mhEstimateState.disciplines)) {
+                if (discId === 'esdc' || discId === 'tscd') continue;
+
                 const state = mhEstimateState.disciplines[discId];
                 if (!state.active) continue;
 
@@ -4488,10 +4658,12 @@ ${reasoning}`;
                     const rateElem = document.getElementById(`unified-rate-${discId}`);
                     if (rateElem) rateElem.textContent = formatRate(result.rate, unit);
                     const allRateEl = document.getElementById(`unified-rate-all-${discId}`);
-                    if (allRateEl && result.allRate != null) allRateEl.textContent = formatRate(result.allRate, unit);
+                    if (discId !== 'esdc' && discId !== 'tscd' && allRateEl && result.allRate != null) allRateEl.textContent = formatRate(result.allRate, unit);
+                    if (discId === 'esdc' || discId === 'tscd') { if (allRateEl) allRateEl.textContent = '—'; }
                     const wideOpenEl = document.getElementById(`unified-wide-open-mh-${discId}`);
                     const customMHEl = document.getElementById(`unified-custom-mh-${discId}`);
-                    if (wideOpenEl) wideOpenEl.textContent = formatMH(Math.round(state.quantity * (state.allRate != null ? state.allRate : result.allRate || 0)));
+                    const wideOpenRate = (discId === 'esdc' || discId === 'tscd') ? result.rate : (state.allRate != null ? state.allRate : result.allRate || 0);
+                    if (wideOpenEl) wideOpenEl.textContent = formatMH(Math.round(state.quantity * wideOpenRate));
                     if (customMHEl) customMHEl.textContent = formatMH(result.mh);
 
                     // Recalculate costs
@@ -4539,7 +4711,7 @@ ${reasoning}`;
                 'bridgesPCGirder', 'bridgesSteel', 'bridgesRehab',
                 'miscStructures', 'geotechnical',
                 'systems', 'track', 'environmental',
-                'digitalDelivery', 'esdc', 'tscd'
+                'digitalDelivery'
             ];
             
             for (const discId of disciplineOrder) {
@@ -5270,7 +5442,7 @@ ${reasoning}`;
                                 <div class="benchmark-chart-header">
                                     <h4 id="benchmark-chart-title">📈 ${(singleDiscipline === 'esdc' || singleDiscipline === 'tscd') ? 'Revenue vs Project Cost' : 'Rate vs Quantity'}</h4>
                                     <div class="benchmark-chart-legend">
-                                        <div class="legend-item">
+                                        <div class="legend-item" id="benchmark-legend-all">
                                             <span class="legend-dot all-projects"></span>
                                             <span class="legend-label">All Projects</span>
                                         </div>
@@ -5285,7 +5457,7 @@ ${reasoning}`;
                                     <canvas id="benchmark-chart-canvas"></canvas>
                                 </div>
                                 <div class="benchmark-chart-equations">
-                                    <div class="benchmark-equation">
+                                    <div class="benchmark-equation" id="benchmark-equation-all-wrap">
                                         <div class="equation-label">All Projects</div>
                                         <div class="equation-formula all-projects" id="benchmark-eq-all">—</div>
                                         <div class="equation-r2" id="benchmark-r2-all"></div>
@@ -5495,10 +5667,12 @@ ${reasoning}`;
                         if (unifiedRateElem) {
                             unifiedRateElem.textContent = formatRate(state.rate, unit);
                         }
-                        if (unifiedRateAllElem && state.allRate != null) {
-                            unifiedRateAllElem.textContent = formatRate(state.allRate, unit);
+                        if (unifiedRateAllElem) {
+                            if (discId === 'esdc' || discId === 'tscd') unifiedRateAllElem.textContent = '—';
+                            else if (state.allRate != null) unifiedRateAllElem.textContent = formatRate(state.allRate, unit);
                         }
-                        const wideOpenMH = Math.round(qty * (state.allRate != null ? state.allRate : allMean));
+                        const wideOpenRate = (discId === 'esdc' || discId === 'tscd') ? state.rate : (state.allRate != null ? state.allRate : allMean);
+                        const wideOpenMH = Math.round(qty * wideOpenRate);
                         const customMH = state.mh;
                         const unifiedWideOpenEl = document.getElementById(`unified-wide-open-mh-${discId}`);
                         const unifiedCustomMHEl = document.getElementById(`unified-custom-mh-${discId}`);
@@ -5641,8 +5815,7 @@ ${reasoning}`;
                 disciplineOrder = Object.keys(benchmarkDataCache);
                 console.log('Loading Wall disciplines:', disciplineOrder);
             } else {
-                // All Other Projects: use standard 16 disciplines
-                // ESDC and TSCD are excluded - they have their own separate sections
+                // Highway/Bridge Projects: standard disciplines; ESDC/TSCD appear only below (main cost table with chart icon), not under Labor/Directs
                 disciplineOrder = [
                     'roadway', 'drainage', 'mot', 'traffic', 'utilities',
                     'retainingWalls', 'noiseWalls',
@@ -5673,16 +5846,20 @@ ${reasoning}`;
                 // Get all available projects for this discipline (full project objects)
                 const allProjects = benchmarks && benchmarks.projects ? benchmarks.projects : [];
 
-                // Force ALL projects to be applicable/selected by default
-                if (allProjects.length > 0) {
+                // Force ALL projects to be applicable/selected by default (except ESDC/TSCD: use JSON "Applicable Job" or Excel tab)
+                if (allProjects.length > 0 && discId !== 'esdc' && discId !== 'tscd') {
                     allProjects.forEach(project => {
                         project.applicable = true;  // Force all to true, overriding any false values
                     });
                 }
 
-                // Calculate rate from all projects
-                const calculatedRate = allProjects.length > 0
-                    ? BenchmarkStats.calculateRateStats(allProjects).mean
+                // Calculate rate: for ESDC/TSCD use only applicable (selected) projects; for others use all projects
+                const isEsdcTscd = (discId === 'esdc' || discId === 'tscd');
+                const rateSourceProjects = isEsdcTscd
+                    ? allProjects.filter(p => p.applicable)
+                    : allProjects;
+                const calculatedRate = rateSourceProjects.length > 0
+                    ? BenchmarkStats.calculateRateStats(rateSourceProjects).mean
                     : defaultRate;
 
                 // Initialize state if not exists
@@ -5690,14 +5867,14 @@ ${reasoning}`;
                     mhEstimateState.disciplines[discId] = {
                         active: true,
                         quantity: 0,
-                        rate: calculatedRate,  // Use calculated rate from all projects
+                        rate: calculatedRate,
                         mh: 0,
-                        l4Percentage: 60,  // Default to Medium complexity
+                        l4Percentage: 60,
                         laborCost: 0,
                         burdenCost: 0,
                         gnaCost: 0,
                         totalCost: 0,
-                        selectedProjects: allProjects  // Default to all projects selected (full objects)
+                        selectedProjects: allProjects
                     };
                 }
 
@@ -5705,22 +5882,36 @@ ${reasoning}`;
                 tbody.appendChild(row);
             }
 
+            // Apply default subs/ODC percentages from constants (single source of truth for first load)
+            const setDefaultIfUnset = (id, defaultVal, optionalOldDefault) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                const num = parseFloat(el.value);
+                const isUnset = el.value === '' || num === 0.25 || (optionalOldDefault != null && num === optionalOldDefault);
+                if (isUnset) el.value = defaultVal;
+            };
+            setDefaultIfUnset('survey-subs-pct', DEFAULT_SURVEY_SUBS_PCT);
+            setDefaultIfUnset('subsurface-utility-subs-pct', DEFAULT_SUBSURFACE_UTILITY_SUBS_PCT);
+            setDefaultIfUnset('geotech-subs-pct', DEFAULT_GEOTECH_SUBS_PCT, 0.25);
+            setDefaultIfUnset('odcs-pct', DEFAULT_ODCS_PCT);
+
             // Setup event listeners for cost parameters
             setupUnifiedEventListeners();
 
             // Apply initial complexity setting from dropdown
             applyGlobalComplexity();
 
-            // Force all benchmarks to be selected and rates calculated
-            // This ensures All Rate and Selected Rate match on page load
+            // Force all benchmarks to be selected and rates calculated (ESDC/TSCD excluded: selection = "Yes" in Applicable column only)
             for (const discId of Object.keys(mhEstimateState.disciplines)) {
+                if (discId === 'esdc' || discId === 'tscd') continue;
+
                 const state = mhEstimateState.disciplines[discId];
                 if (!state.active) continue;
 
-                // Get benchmarks and ensure all are applicable
+                // Get benchmarks and ensure all are applicable (only for non–ESDC/TSCD disciplines)
                 const benchmarks = getBenchmarkDataSync(discId);
                 if (benchmarks && benchmarks.projects) {
-                    benchmarks.projects.forEach(p => p.applicable = true);
+                    benchmarks.projects.forEach(p => { p.applicable = true; });
                 }
 
                 // Update display even with quantity 0 to show the correct rate
@@ -5749,14 +5940,15 @@ ${reasoning}`;
 
             const state = mhEstimateState.disciplines[discId];
             const allProjects = benchmarks ? benchmarks.projects || [] : [];
+            const isEsdcTscd = (discId === 'esdc' || discId === 'tscd');
             let allProjectsRate = allProjects.length > 0 ? BenchmarkStats.calculateRateStats(allProjects).mean : 0;
-            if (discId !== 'esdc' && discId !== 'tscd' && state.quantity > 0 && allProjects.length >= 2) {
+            if (!isEsdcTscd && state.quantity > 0 && allProjects.length >= 2) {
                 const curveRate = getRateFromAllProjectsCurve(discId, state.quantity);
                 if (curveRate != null) allProjectsRate = curveRate;
             }
 
             // Selected rate: use the same as All Rate initially (since all projects are selected by default)
-            // This will be updated when user changes selection or enters quantity
+            // For ESDC/TSCD we only use selected data (no "All")
             const selectedRate = state.rate || allProjectsRate;
 
             // Use data from JSON when available, fallback to config
@@ -5783,30 +5975,41 @@ ${reasoning}`;
             const accountCode = (benchmarks && benchmarks.account_code) ? benchmarks.account_code : (config.accountCode || '—');
             const unit = (benchmarks && benchmarks.eqty_metric && benchmarks.eqty_metric.uom) ? benchmarks.eqty_metric.uom : config.unit;
 
-            row.innerHTML = `
-                <td class="frozen-col">${disciplineName}</td>
-                <td class="mh-col">${accountCode}</td>
-                <td class="mh-col numeric">
+            // ESDC/TSCD: benchmark picker next to description; quantity from assumed cost (read-only "—" in table)
+            const descCell = isEsdcTscd
+                ? `<td class="frozen-col">${disciplineName} <button class="btn-benchmark-select" onclick="showDisciplineBenchmark('${discId}')" title="Select benchmark projects">📊 Select</button></td>`
+                : `<td class="frozen-col">${disciplineName}</td>`;
+            const qtyCell = isEsdcTscd
+                ? `<td class="mh-col numeric" title="Uses Assumed Construction Cost from Cost Parameters">—</td>`
+                : `<td class="mh-col numeric">
                     <input type="text" class="qty-input" id="unified-qty-${discId}"
                            value="${(state.quantity || 0).toLocaleString('en-US')}" inputmode="numeric"
                            oninput="(function(d){ clearTimeout(window._uqD[d]); window._uqD=window._uqD||{}; window._uqD[d]=setTimeout(function(){ updateUnifiedQuantity(d); }, 350); })('${discId}')"
                            onchange="updateUnifiedQuantity('${discId}')"
                            onblur="updateUnifiedQuantity('${discId}')">
-                </td>
-                <td class="mh-col">${unit}</td>
-                <td class="mh-col">
+                </td>`;
+            const benchmarkCell = isEsdcTscd
+                ? `<td class="mh-col" title="Picker is next to discipline name">—</td>`
+                : `<td class="mh-col">
                     <button class="btn-benchmark-select" onclick="showDisciplineBenchmark('${discId}')">
                         📊 Select
                     </button>
-                </td>
-                <td class="mh-col numeric">
-                    <span id="unified-rate-all-${discId}">${formatRate(allProjectsRate, unit)}</span>
+                </td>`;
+
+            row.innerHTML = `
+                ${descCell}
+                <td class="mh-col">${accountCode}</td>
+                ${qtyCell}
+                <td class="mh-col">${unit}</td>
+                ${benchmarkCell}
+                <td class="mh-col numeric ${isEsdcTscd ? 'esdc-tscd-no-all' : ''}" ${isEsdcTscd ? 'title="Not used for ESDC/TSCD — only selected projects"' : ''}>
+                    <span id="unified-rate-all-${discId}">${isEsdcTscd ? '—' : formatRate(allProjectsRate, unit)}</span>
                 </td>
                 <td class="mh-col numeric">
                     <span id="unified-rate-${discId}">${formatRate(selectedRate, unit)}</span>
                 </td>
                 <td class="mh-col numeric">
-                    <span id="unified-wide-open-mh-${discId}">${formatMH(Math.round(((state.allRate != null ? state.allRate : allProjectsRate) || 0) * (state.quantity || 0)))}</span>
+                    <span id="unified-wide-open-mh-${discId}">${formatMH(Math.round(((isEsdcTscd ? selectedRate : (state.allRate != null ? state.allRate : allProjectsRate)) || 0) * (state.quantity || 0)))}</span>
                 </td>
                 <td class="mh-col numeric">
                     <span id="unified-custom-mh-${discId}">${formatMH(state.mh || Math.round((state.quantity || 0) * (selectedRate || 0)))}</span>
@@ -5928,10 +6131,12 @@ ${reasoning}`;
                 }
             }
 
-            // All Rate = from All Projects power curve at this quantity (same basis as benchmark chart / Excel)
+            // All Rate = from All Projects power curve (not used for ESDC/TSCD — only selected data)
             const allRateEl = document.getElementById(`unified-rate-all-${discId}`);
             if (allRateEl) {
-                if (quantity > 0 && discId !== 'esdc' && discId !== 'tscd' && benchmarks?.projects?.length >= 2) {
+                if (discId === 'esdc' || discId === 'tscd') {
+                    allRateEl.textContent = '—';
+                } else if (quantity > 0 && benchmarks?.projects?.length >= 2) {
                     const curveRate = getRateFromAllProjectsCurve(discId, quantity);
                     if (curveRate != null) {
                         state.allRate = curveRate;
@@ -5955,8 +6160,10 @@ ${reasoning}`;
                 rateElem.textContent = formatRate(result.rate, unit);
             }
 
-            // Wide Open MHs = All Rate × Quantity (All Rate from All curve at this quantity)
-            const allRateForWideOpen = (state.allRate != null ? state.allRate : (quantity > 0 && benchmarks?.projects?.length >= 2 ? getRateFromAllProjectsCurve(discId, quantity) : null)) || result.allRate || 0;
+            // Wide Open MHs = for ESDC/TSCD use Selected Rate only; else All Rate × Quantity
+            const allRateForWideOpen = (discId === 'esdc' || discId === 'tscd')
+                ? result.rate
+                : (state.allRate != null ? state.allRate : (quantity > 0 && benchmarks?.projects?.length >= 2 ? getRateFromAllProjectsCurve(discId, quantity) : null)) || result.allRate || 0;
             const wideOpenMH = Math.round(quantity * allRateForWideOpen);
             const customMH = result.mh;
             const wideOpenEl = document.getElementById(`unified-wide-open-mh-${discId}`);
@@ -6202,6 +6409,7 @@ ${reasoning}`;
                         }
                         var projectSynonyms = { 'sec 820': ['820', 'ih 820', 'ih 820 southeast'], 'sec820': ['820', 'ih 820'] };
                         for (const discId of Object.keys(notesByDiscipline)) {
+                            if (discId === 'esdc' || discId === 'tscd') continue; // ESDC/TSCD selection = Applicable column "Yes" or ESDC/TSCD sheet only
                             const benchmarks = getBenchmarkDataSync(discId);
                             if (!benchmarks || !benchmarks.projects || benchmarks.projects.length === 0) continue;
                             const allNoteText = notesByDiscipline[discId].join(' ');
@@ -6245,16 +6453,177 @@ ${reasoning}`;
                             if (applied === 0) applied++;
                         }
                     }
+                    // === Parse ESDC and TSCD sheets to select projects ===
+                    let esdcTscdSelections = { esdc: [], tscd: [] };
+                    // Get all sheet names (SheetNames array or keys of Sheets object; normalize for matching)
+                    var allSheetNames = Array.isArray(workbook.SheetNames) ? workbook.SheetNames : Object.keys(workbook.Sheets || {});
+                    function normalizeSheetName(n) {
+                        return String(n || '').replace(/\s+/g, ' ').trim().toLowerCase().replace(/[\u200b-\u200f\ufeff]/g, '');
+                    }
+                    function findSheetByName(sheetNames, key) {
+                        const k = key.toLowerCase();
+                        for (var i = 0; i < sheetNames.length; i++) {
+                            var norm = normalizeSheetName(sheetNames[i]);
+                            if (norm === k || norm.startsWith(k) || norm.includes(k)) return sheetNames[i];
+                        }
+                        return undefined;
+                    }
+                    function isApplicableYes(val) {
+                        var v = String(val || '').trim().toLowerCase();
+                        return v === 'yes' || v === 'y' || v === 'true' || v === '1' || v === 'x';
+                    }
+                    var esdcSheetName = findSheetByName(allSheetNames, 'esdc');
+                    if (esdcSheetName) {
+                        const esdcSheet = workbook.Sheets[esdcSheetName];
+                        const esdcRows = XLSXLib.utils.sheet_to_json(esdcSheet, { header: 1, defval: '' });
+                        let projectColIdx = 0;
+                        let applicableColIdx = -1;
+                        let dataStartRow = 0;
+                        if (esdcRows.length > 0) {
+                            // Header can be on row 1–4 (Excel); try each until we find Project + Applicable
+                            for (var hr = 0; hr <= 3 && hr < esdcRows.length; hr++) {
+                                var headerRow = esdcRows[hr];
+                                if (!Array.isArray(headerRow)) continue;
+                                projectColIdx = 0;
+                                applicableColIdx = -1;
+                                for (var c = 0; c < headerRow.length; c++) {
+                                    var cellVal = String(headerRow[c] || '').toLowerCase().trim();
+                                    if (cellVal === 'project' || cellVal === 'project name' || cellVal.includes('project')) {
+                                        projectColIdx = c;
+                                    }
+                                    if (cellVal === 'applicable job' || cellVal === 'applicable' || cellVal === 'applicable?' || cellVal === 'yes' || cellVal.includes('applicable')) {
+                                        applicableColIdx = c;
+                                    }
+                                }
+                                if (applicableColIdx >= 0) {
+                                    dataStartRow = hr + 1;
+                                    break;
+                                }
+                            }
+                            // Extract project names only for rows marked "Yes" (ESDC tab: only selected projects)
+                            if (applicableColIdx >= 0) {
+                                for (let r = dataStartRow; r < esdcRows.length; r++) {
+                                    const row = esdcRows[r];
+                                    if (Array.isArray(row) && row[projectColIdx]) {
+                                        const applicableVal = String(row[applicableColIdx] || '').trim();
+                                        if (!isApplicableYes(applicableVal)) continue;
+                                        const projName = String(row[projectColIdx]).trim();
+                                        if (projName && projName.toLowerCase() !== 'project') {
+                                            esdcTscdSelections.esdc.push(projName);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        console.log('ESDC sheet "' + esdcSheetName + '" found with ' + esdcTscdSelections.esdc.length + ' projects (Yes only)');
+                    } else {
+                        console.log('ESDC sheet not found. Tab names in workbook: ' + allSheetNames.map(function(n) { return '"' + n + '"'; }).join(', '));
+                    }
+
+                    var tscdSheetName = findSheetByName(allSheetNames, 'tscd');
+                    if (tscdSheetName) {
+                        const tscdSheet = workbook.Sheets[tscdSheetName];
+                        const tscdRows = XLSXLib.utils.sheet_to_json(tscdSheet, { header: 1, defval: '' });
+                        // Find the Project column and the column that marks "Yes" (Applicable Job, Applicable, or Yes)
+                        let projectColIdx = 0;
+                        let applicableColIdx = -1;
+                        let dataStartRow = 0;
+                        if (tscdRows.length > 0) {
+                            // Header can be on row 1–4 (Excel); try each until we find Project + Applicable
+                            for (var hrT = 0; hrT <= 3 && hrT < tscdRows.length; hrT++) {
+                                var headerRowT = tscdRows[hrT];
+                                if (!Array.isArray(headerRowT)) continue;
+                                projectColIdx = 0;
+                                applicableColIdx = -1;
+                                for (var ct = 0; ct < headerRowT.length; ct++) {
+                                    var cellValT = String(headerRowT[ct] || '').toLowerCase().trim();
+                                    if (cellValT === 'project' || cellValT === 'project name' || cellValT.includes('project')) {
+                                        projectColIdx = ct;
+                                    }
+                                    if (cellValT === 'applicable job' || cellValT === 'applicable' || cellValT === 'applicable?' || cellValT === 'yes' || cellValT.includes('applicable')) {
+                                        applicableColIdx = ct;
+                                    }
+                                }
+                                if (applicableColIdx >= 0) {
+                                    dataStartRow = hrT + 1;
+                                    break;
+                                }
+                            }
+                            // Extract project names only for rows marked "Yes" (TSCD tab: only selected projects)
+                            if (applicableColIdx >= 0) {
+                                for (let r = dataStartRow; r < tscdRows.length; r++) {
+                                    const row = tscdRows[r];
+                                    if (Array.isArray(row) && row[projectColIdx]) {
+                                        const applicableVal = String(row[applicableColIdx] || '').trim();
+                                        if (!isApplicableYes(applicableVal)) continue;
+                                        const projName = String(row[projectColIdx]).trim();
+                                        if (projName && projName.toLowerCase() !== 'project') {
+                                            esdcTscdSelections.tscd.push(projName);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        console.log('TSCD sheet "' + tscdSheetName + '" found with ' + esdcTscdSelections.tscd.length + ' projects (Yes only)');
+                    } else {
+                        console.log('TSCD sheet not found. Tab names in workbook: ' + allSheetNames.map(function(n) { return '"' + n + '"'; }).join(', '));
+                    }
+
+                    // Apply ESDC/TSCD project selections: full list, only the N names from Excel (e.g. 21) selected
+                    let esdcMatched = 0, tscdMatched = 0;
+                    let esdcProcessed = false, tscdProcessed = false;
+                    for (const discId of ['esdc', 'tscd']) {
+                        const projectNamesToSelect = esdcTscdSelections[discId];
+                        if (projectNamesToSelect.length > 0) {
+                            if (discId === 'esdc') esdcProcessed = true;
+                            else tscdProcessed = true;
+                        }
+                        if (projectNamesToSelect.length === 0) continue;
+
+                        const benchmarks = getBenchmarkDataSync(discId);
+                        if (!benchmarks || !benchmarks.projects || benchmarks.projects.length === 0) continue;
+
+                        benchmarks.projects.forEach(p => { p.applicable = false; });
+
+                        let matchedCount = 0;
+                        for (const targetName of projectNamesToSelect) {
+                            const targetNorm = String(targetName || '').trim().toLowerCase();
+                            if (!targetNorm) continue;
+                            for (const project of benchmarks.projects) {
+                                const projNorm = String(project.name || project.project || '').trim().toLowerCase();
+                                const exactMatch = projNorm === targetNorm;
+                                const projectContainsTarget = targetNorm.length >= 3 && projNorm.includes(targetNorm);
+                                const targetContainsProject = projNorm.length >= 3 && targetNorm.includes(projNorm);
+                                if (exactMatch || projectContainsTarget || targetContainsProject) {
+                                    project.applicable = true;
+                                    matchedCount++;
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (discId === 'esdc') esdcMatched = matchedCount;
+                        else tscdMatched = matchedCount;
+                        if (matchedCount > 0) {
+                            console.log(`${discId.toUpperCase()}: Selected ${matchedCount} projects from ${projectNamesToSelect.length} names in Excel (full list: ${benchmarks.projects.length} projects)`);
+                        }
+                    }
                     fileInput.value = '';
-                    if (Object.keys(notesByDiscipline).length > 0 && typeof applyBenchmarkSelection === 'function') {
+                    if ((Object.keys(notesByDiscipline).length > 0 || esdcMatched > 0 || tscdMatched > 0) && typeof applyBenchmarkSelection === 'function') {
                         applyBenchmarkSelection();
                     }
-                    if (applied > 0 || Object.keys(notesByDiscipline).length > 0) {
+                    if (applied > 0 || Object.keys(notesByDiscipline).length > 0 || esdcProcessed || tscdProcessed) {
                         updateUnifiedSummary();
                         saveToLocalStorage();
                         let msg = 'Dillon file imported.';
                         if (applied > 0) msg += '\n• ' + applied + ' of 13 quantity field(s) updated.';
                         if (Object.keys(notesByDiscipline).length > 0) msg += '\n• Benchmark project selection from Notes applied for ' + Object.keys(notesByDiscipline).length + ' discipline(s).';
+                        // Always show ESDC and TSCD so user sees both every time
+                        if (esdcProcessed || tscdProcessed) {
+                            msg += '\n• ESDC and TSCD from Excel: ESDC ' + (esdcProcessed ? esdcMatched + ' project(s) selected' : 'sheet not in file') + '; TSCD ' + (tscdProcessed ? tscdMatched + ' project(s) selected' : 'sheet not in file') + '.';
+                        } else {
+                            msg += '\n• ESDC and TSCD: no ESDC/TSCD sheets found in Excel, or sheets have no "Applicable Job" column / no "Yes" rows.';
+                        }
                         alert(msg);
                     } else {
                         var hint = 'Summary MH sheet should have a "Discipline" (or "Category") column and a "Key quantity" (or "Quantity") column. Data starts in the row below the header.';
@@ -6409,9 +6778,9 @@ ${reasoning}`;
             const l4Pct = (state.l4Percentage !== undefined && state.l4Percentage !== null) ? state.l4Percentage : 30;
             const lowPct = (100 - l4Pct) / 100;  // Junior percentage
             const highPct = l4Pct / 100;         // Senior percentage
-            // ESDC/TSCD use fixed $68/hr rate; other disciplines use calculated weighted rate
+            // ESDC/TSCD use fixed $64.50/hr rate; other disciplines use calculated weighted rate
             const weightedRate = (discId === 'esdc' || discId === 'tscd') 
-                ? 68 
+                ? ESDC_TSCD_HOURLY_RATE 
                 : (resources.lowRate * lowPct) + (resources.highRate * highPct);
 
             // Get global parameters
@@ -6472,8 +6841,10 @@ ${reasoning}`;
             state.totalRevenue = totalRevenue;
             state.weightedRate = weightedRate;
 
-            // Update display with weighted rate and resource codes (only if elements exist)
-            const rateDisplay = `$${weightedRate.toFixed(2)}<br><span style="font-size: 8px; color: #666;">${Math.round(lowPct * 100)}% ${resources.lowCode} + ${Math.round(highPct * 100)}% ${resources.highCode}</span>`;
+            // Update display with weighted rate (ESDC/TSCD: fixed $64.50; others: show L4 breakdown)
+            const rateDisplay = (discId === 'esdc' || discId === 'tscd')
+                ? `$${ESDC_TSCD_HOURLY_RATE.toFixed(2)}`
+                : `$${weightedRate.toFixed(2)}<br><span style="font-size: 8px; color: #666;">${Math.round(lowPct * 100)}% ${resources.lowCode} + ${Math.round(highPct * 100)}% ${resources.highCode}</span>`;
             const hourlyRateElem = document.getElementById(`unified-hourly-rate-${discId}`);
             if (hourlyRateElem) {
                 hourlyRateElem.innerHTML = rateDisplay;
@@ -6562,7 +6933,7 @@ ${reasoning}`;
             state.active = assumedCostM > 0;
             state.quantity = assumedCostM;
             state.mh = result.mh;
-            state.rate = 68; // $68/hr
+            state.rate = ESDC_TSCD_HOURLY_RATE; // $64.50/hr for ESDC/TSCD
             state.rawLabor = result.rawLabor;
             state.burden = result.burden;
             state.gna = result.gna;
@@ -6584,7 +6955,7 @@ ${reasoning}`;
             const costEl = document.getElementById('unified-cost-digitalDelivery');
             
             if (mhEl) mhEl.textContent = formatMH(result.mh);
-            if (rateEl) rateEl.textContent = '$68.00';
+            if (rateEl) rateEl.textContent = '$' + ESDC_TSCD_HOURLY_RATE.toFixed(2);
             if (qtyEl) qtyEl.value = assumedCostM > 0 ? '$' + assumedCostM.toFixed(1) + 'M' : '0';
             if (rawLaborEl) rawLaborEl.textContent = '$' + Math.round(result.rawLabor).toLocaleString('en-US');
             if (burdenEl) burdenEl.textContent = '$' + Math.round(result.burden).toLocaleString('en-US');
@@ -6874,8 +7245,10 @@ ${reasoning}`;
                 '$' + Math.round(kieLaborTotalCosts).toLocaleString('en-US');
 
             // Calculate SUBS expenses based on Assumed Construction Cost
-            // LS SUBS: 0.5% of Assumed Construction Cost
-            const lsSubsExpenses = assumedConstructionCost * 0.005;
+            // Each row reads from its corresponding percentage input
+            // "Survey Subs" row (updates ls-subs-* elements) uses survey-subs-pct
+            const surveySubsPctForLsSubs = parseFloat(document.getElementById('survey-subs-pct')?.value) || DEFAULT_SURVEY_SUBS_PCT;
+            const lsSubsExpenses = assumedConstructionCost * (surveySubsPctForLsSubs / 100);
 
             // Update LS SUBS row
             const lsSubsTotalCosts = lsSubsExpenses; // Only expenses, no labor
@@ -6893,8 +7266,9 @@ ${reasoning}`;
             document.getElementById('ls-subs-total-cost').textContent =
                 '$' + Math.round(lsSubsTotalCosts).toLocaleString('en-US');
 
-            // SURVEY: 0.25% of Assumed Construction Cost
-            const surveyExpenses = assumedConstructionCost * 0.0025;
+            // "Subsurface Utility Subs" row (updates survey-* elements) uses subsurface-utility-subs-pct
+            const subsurfaceUtilitySubsPct = parseFloat(document.getElementById('subsurface-utility-subs-pct')?.value) || DEFAULT_SUBSURFACE_UTILITY_SUBS_PCT;
+            const surveyExpenses = assumedConstructionCost * (subsurfaceUtilitySubsPct / 100);
 
             // Update SURVEY row
             const surveyTotalCosts = surveyExpenses; // Only expenses, no labor
@@ -6912,8 +7286,9 @@ ${reasoning}`;
             document.getElementById('survey-total-cost').textContent =
                 '$' + Math.round(surveyTotalCosts).toLocaleString('en-US');
 
-            // SUBSURFACE UTILITY SUBS: 0.25% of Assumed Construction Cost
-            const subsurfaceUtilityExpenses = assumedConstructionCost * 0.0025;
+            // "Geotech Drilling Subs" row (updates subsurface-utility-* elements) uses geotech-subs-pct
+            const geotechSubsPct = parseFloat(document.getElementById('geotech-subs-pct')?.value) || DEFAULT_GEOTECH_SUBS_PCT;
+            const subsurfaceUtilityExpenses = assumedConstructionCost * (geotechSubsPct / 100);
 
             // Update SUBSURFACE UTILITY SUBS row
             const subsurfaceUtilityTotalCosts = subsurfaceUtilityExpenses; // Only expenses, no labor
@@ -6984,8 +7359,9 @@ ${reasoning}`;
             document.getElementById('ipc-total-cost').textContent =
                 '$' + Math.round(ipcTotalCosts).toLocaleString('en-US');
 
-            // Calculate ODC as 0.25% of Assumed Construction Cost
-            const odcsExpenses = assumedConstructionCost * 0.0025; // 0.25%
+            // Calculate ODC: Read percentage from UI input
+            const odcsPct = parseFloat(document.getElementById('odcs-pct')?.value) || DEFAULT_ODCS_PCT;
+            const odcsExpenses = assumedConstructionCost * (odcsPct / 100);
 
             // Update ODC'S row
             const odcsTotalCosts = odcsExpenses; // Only expenses, no labor
@@ -7087,43 +7463,38 @@ ${reasoning}`;
             // (assumedConstructionCost already defined at top of function)
 
             // Helper function to calculate ESDC/TSCD from Assumed Construction Cost
+            // Uses SELECTED power curve: production % at assumed cost, then Revenue = Assumed × (production %), MH = Raw Labor / $64.50
             function calculateServiceRevenue(discId) {
                 const benchmarks = getBenchmarkDataSync(discId);
                 if (!benchmarks || assumedConstructionCost <= 0) {
                     return { mh: 0, rate: 0, revenue: 0, rawLabor: 0, burden: 0, gna: 0, margin: 0 };
                 }
 
-                // Get selected projects' average rate (production_pct)
-                const selectedProjects = benchmarks.projects.filter(p => p.applicable);
-                let avgRate = 0;
-                if (selectedProjects.length > 0) {
-                    const totalRate = selectedProjects.reduce((sum, p) => sum + (p.rate || p.production_pct || 0), 0);
-                    avgRate = totalRate / selectedProjects.length;
-                } else {
-                    avgRate = benchmarks.customRate || 1; // Default 1%
+                // Production % from SELECTED power curve at assumed construction cost (x = project cost in K$)
+                const assumedCostK = assumedConstructionCost / 1000;
+                let productionPct = getProductionPctFromSelectedCurve(discId, assumedCostK);
+                if (productionPct == null || productionPct <= 0) {
+                    const selectedProjects = benchmarks.projects.filter(p => p.applicable);
+                    if (selectedProjects.length > 0) {
+                        const totalRate = selectedProjects.reduce((sum, p) => sum + (p.rate || p.production_pct || 0), 0);
+                        productionPct = totalRate / selectedProjects.length;
+                    } else {
+                        productionPct = benchmarks.customRate || 1;
+                    }
                 }
 
-                // Revenue = Assumed Construction Cost × (Rate% / 100)
-                const revenue = assumedConstructionCost * (avgRate / 100);
+                // Revenue = Assumed Construction Cost × (production % / 100)
+                const revenue = assumedConstructionCost * (productionPct / 100);
 
-                // Back-calculate from Revenue:
                 // Raw Labor = Revenue / KIE Multiplier
                 const rawLabor = revenue / kieMultiplier;
-                
-                // Burden = Raw Labor × Burden Rate
                 const burden = rawLabor * (burdenRate / 100);
-                
-                // G&A = Raw Labor × G&A Rate
                 const gna = rawLabor * (gnaRate / 100);
-                
-                // Margin = Raw Labor × Margin %
                 const margin = rawLabor * (marginPercent / 100);
-                
-                // Est MH = Raw Labor / Weighted Hourly Rate (use $68/hr for ESDC/TSCD services)
-                const weightedRate = 68;
-                const mh = Math.round(rawLabor / weightedRate);
+                // Est MH = Raw Labor / ESDC-TSCD hourly rate ($64.50)
+                const mh = Math.round(rawLabor / ESDC_TSCD_HOURLY_RATE);
 
-                return { mh, rate: avgRate, revenue, rawLabor, burden, gna, margin };
+                return { mh, rate: productionPct, revenue, rawLabor, burden, gna, margin };
             }
 
             // ESDC calculation
@@ -7223,7 +7594,7 @@ ${reasoning}`;
                 recalcTimer = setTimeout(recalculateAllUnifiedCosts, 300);
             };
 
-            const costParams = ['unified-burden', 'unified-gna', 'unified-contingency', 'unified-ipc-fee', 'unified-escalation', 'calc-est-construction-cost', 'calc-assumed-construction-cost', 'calc-kie-multiplier', 'calc-sub-multiplier', 'indirects-divisor', 'calc-design-duration'];
+            const costParams = ['unified-burden', 'unified-gna', 'unified-contingency', 'unified-ipc-fee', 'unified-escalation', 'calc-est-construction-cost', 'calc-assumed-construction-cost', 'calc-kie-multiplier', 'calc-sub-multiplier', 'indirects-divisor', 'calc-design-duration', 'survey-subs-pct', 'subsurface-utility-subs-pct', 'geotech-subs-pct', 'odcs-pct'];
             costParams.forEach(id => {
                 const elem = document.getElementById(id);
                 if (elem) {
@@ -7411,9 +7782,12 @@ ${reasoning}`;
                     // Update display
                     const mhElem = document.getElementById(`unified-mh-${discId}`);
                     if (mhElem) mhElem.textContent = formatMH(result.mh);
+                    const allRateEl = document.getElementById(`unified-rate-all-${discId}`);
+                    if (discId === 'esdc' || discId === 'tscd') { if (allRateEl) allRateEl.textContent = '—'; }
                     const wideOpenEl = document.getElementById(`unified-wide-open-mh-${discId}`);
                     const customMHEl = document.getElementById(`unified-custom-mh-${discId}`);
-                    if (wideOpenEl) wideOpenEl.textContent = formatMH(Math.round(state.quantity * (state.allRate != null ? state.allRate : result.allRate || 0)));
+                    const wideOpenRate = (discId === 'esdc' || discId === 'tscd') ? result.rate : (state.allRate != null ? state.allRate : result.allRate || 0);
+                    if (wideOpenEl) wideOpenEl.textContent = formatMH(Math.round(state.quantity * wideOpenRate));
                     if (customMHEl) customMHEl.textContent = formatMH(result.mh);
 
                     // Update complexity breakdown
@@ -7856,8 +8230,11 @@ ${reasoning}`;
             setTimeout(checkForSavedData, 500);
 
             // Force all benchmarks to be selected after localStorage loads; use curve when quantity > 0
+            // ESDC and TSCD are excluded: their selection comes from JSON "Applicable Job" = "Yes" or from Excel ESDC/TSCD tab upload
             setTimeout(() => {
                 for (const discId of Object.keys(mhEstimateState.disciplines)) {
+                    if (discId === 'esdc' || discId === 'tscd') continue;
+
                     const state = mhEstimateState.disciplines[discId];
                     if (!state.active) continue;
 
@@ -8270,7 +8647,7 @@ ${reasoning}`;
                 'bridgesPCGirder', 'bridgesSteel', 'bridgesRehab',
                 'miscStructures', 'geotechnical',
                 'systems', 'track', 'environmental',
-                'digitalDelivery', 'esdc', 'tscd'
+                'digitalDelivery'
             ];
             const mhDisciplines = disciplineOrder
                 .map(id => DISCIPLINE_CONFIG[id]?.name)
@@ -15628,7 +16005,7 @@ Chunks: ${JSON.stringify(complexFieldsOnly, null, 2)}`;
                     }
                 };
             } else {
-                // All Other Projects: standard mapping
+                // Highway/Bridge Projects: standard mapping
                 quantityMapping = {
                     'roadway': { qty: quantities.roadwayLengthLF || 0, reasoningKey: 'roadwayLengthLF' },
                     'drainage': { qty: quantities.projectAreaAC || 0, reasoningKey: 'projectAreaAC' },
