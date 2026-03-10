@@ -6767,10 +6767,18 @@ ${reasoning}`;
             const result = calculateMiscStructuresMH(rdwyMH, drnMH, trfMH, msState.selectedProjects || null);
             msState.mh = result.mh;
             msState.rate = result.rate;
-            // Update the quantity input to show the auto-populated base MH
+            // Update quantity inputs in both the MH estimator panel and the unified table
             const qtyInput = document.getElementById('mh-qty-miscStructures');
             if (qtyInput) qtyInput.value = baseMH.toLocaleString('en-US');
+            const unifiedQtyEl = document.getElementById('unified-qty-miscStructures');
+            if (unifiedQtyEl) unifiedQtyEl.value = baseMH.toLocaleString('en-US');
+            // Update MH display in unified table
+            const unifiedMhEl = document.getElementById('unified-mh-miscStructures');
+            if (unifiedMhEl) unifiedMhEl.textContent = formatMH(result.mh);
+            const unifiedCustomMhEl = document.getElementById('unified-custom-mh-miscStructures');
+            if (unifiedCustomMhEl) unifiedCustomMhEl.textContent = formatMH(result.mh);
             updateMHRowDisplay('miscStructures', msState);
+            recalculateUnifiedCosts('miscStructures');
             recalculateTotalMH();
         }
 
@@ -7989,6 +7997,11 @@ ${reasoning}`;
             recalculateUnifiedCosts(discId);
             updateUnifiedSummary();
             saveToLocalStorage();
+
+            // Misc Structures quantity = Roadway + Drainage + Traffic MH — update live
+            if (discId === 'roadway' || discId === 'drainage' || discId === 'traffic') {
+                recalculateMiscStructures();
+            }
         }
 
         /**
