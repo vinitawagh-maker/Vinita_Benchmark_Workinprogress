@@ -6763,7 +6763,8 @@ ${reasoning}`;
             const trfMH  = mhEstimateState.disciplines.traffic?.mh || 0;
             const baseMH = rdwyMH + drnMH + trfMH;
             msState.quantity = baseMH;
-            const result = calculateMiscStructuresMH(rdwyMH, drnMH, trfMH);
+            // Use user-selected benchmark projects if available, otherwise fall back to applicable projects
+            const result = calculateMiscStructuresMH(rdwyMH, drnMH, trfMH, msState.selectedProjects || null);
             msState.mh = result.mh;
             msState.rate = result.rate;
             // Update the quantity input to show the auto-populated base MH
@@ -7443,6 +7444,18 @@ ${reasoning}`;
                         }
                     }
                 }
+            }
+
+            // Handle Misc Structures: store selected projects and recalculate using them
+            const msState = mhEstimateState.disciplines.miscStructures;
+            if (msState && msState.active) {
+                const msBenchmarks = getBenchmarkDataSync('miscStructures');
+                if (msBenchmarks && msBenchmarks.projects) {
+                    msState.selectedProjects = msBenchmarks.projects.filter(p => p.applicable);
+                }
+                recalculateMiscStructures();
+                updateMHRowDisplay('miscStructures', msState);
+                recalculateUnifiedCosts('miscStructures');
             }
 
             recalculateTotalMH();
