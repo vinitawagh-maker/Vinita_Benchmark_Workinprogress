@@ -1084,12 +1084,8 @@ let projectData = {
             const baseDuration = mhEstimateState.designDuration || parseInt(document.getElementById('calc-design-duration')?.value) || 0;
             const baseRate = parseFloat(document.getElementById('escalation-base-rate')?.value) || escalationData.baseRate || 5;
 
-            // Get total escalatable cost (all costs NOT derived from construction cost or IPV)
-            const directsRawLabor = parseFloat(document.getElementById('unified-direct-total-raw-labor')?.textContent?.replace(/[$,]/g, '')) || 0;
-            const indirectsRawLabor = parseFloat(document.getElementById('unified-indirect-total-raw-labor')?.textContent?.replace(/[$,]/g, '')) || 0;
-            const contingencyRawLaborEsc2 = parseFloat(document.getElementById('contingency-total-raw-labor')?.textContent?.replace(/[$,]/g, '')) || 0;
-            const ipcEsc2 = parseFloat(document.getElementById('ipc-total-revenue')?.textContent?.replace(/[$,]/g, '')) || 0;
-            const totalRawLabor = directsRawLabor + indirectsRawLabor + contingencyRawLaborEsc2 + ipcEsc2;
+            // Escalation applied to KIE Labor Raw Labor only (Directs + Indirects combined)
+            const totalRawLabor = parseFloat(document.getElementById('kie-labor-total-raw-labor')?.textContent?.replace(/[$,]/g, '')) || 0;
 
             // Get KIE total revenue (base fee without escalation)
             const kieTotalRevenue = parseFloat(document.getElementById('kie-labor-total-revenue')?.textContent?.replace(/[$,]/g, '')) || 0;
@@ -2111,11 +2107,8 @@ let projectData = {
             
             // Escalate all costs NOT derived from construction cost (Assumed CC) or IPV
             // Excludes: ESDC, TSCD (assumed CC), ODCs (assumed CC), Pursuit & SF (IPV)
-            const directsRawLabor = parseFloat(document.getElementById('unified-direct-total-raw-labor')?.textContent?.replace(/[$,]/g, '')) || 0;
-            const indirectsRawLabor = parseFloat(document.getElementById('unified-indirect-total-raw-labor')?.textContent?.replace(/[$,]/g, '')) || 0;
-            const contingencyRawLaborEsc = parseFloat(document.getElementById('contingency-total-raw-labor')?.textContent?.replace(/[$,]/g, '')) || 0;
-            const ipcEsc = parseFloat(document.getElementById('ipc-total-revenue')?.textContent?.replace(/[$,]/g, '')) || 0;
-            const totalRawLaborCost = directsRawLabor + indirectsRawLabor + contingencyRawLaborEsc + ipcEsc;
+            // Escalation applied to KIE Labor Raw Labor only (Directs + Indirects combined)
+            const totalRawLaborCost = parseFloat(document.getElementById('kie-labor-total-raw-labor')?.textContent?.replace(/[$,]/g, '')) || 0;
             escalationData.totalRawLaborCost = totalRawLaborCost;
             
             // Keep totalHours for reference (but not used for escalation calculation)
@@ -2436,10 +2429,8 @@ let projectData = {
             const years = escalationData.years || 3;
             const baseRate = escalationData.baseRate || 5;
             
-            // Get total RAW LABOR for Directs and Indirects (Cost-based escalation)
-            const directsRawLabor = parseFloat(document.getElementById('unified-direct-total-raw-labor')?.textContent?.replace(/[$,]/g, '')) || 0;
-            const indirectsRawLabor = parseFloat(document.getElementById('unified-indirect-total-raw-labor')?.textContent?.replace(/[$,]/g, '')) || 0;
-            const baseCost = directsRawLabor + indirectsRawLabor;
+            // Escalation applied to KIE Labor Raw Labor only (Directs + Indirects combined)
+            const baseCost = parseFloat(document.getElementById('kie-labor-total-raw-labor')?.textContent?.replace(/[$,]/g, '')) || 0;
             
             // Calculate distribution - use overrides where set, bell curve otherwise
             const bellCurve = calculateBellCurveDistribution(years);
