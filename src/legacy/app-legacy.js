@@ -4120,8 +4120,8 @@ let projectData = {
             if (rate == null) {
                 const allPoints = buildRatePoints(benchmarks.projects, false);
                 if (allPoints.length < 2) return null;
-                if (discId === 'structures') {
-                    // Bridge Structures: linear regression (y = mx + b)
+                const useLinear = (benchmarkCurveType === 'linear' || discId === 'structures');
+                if (useLinear) {
                     const reg = LinearRegression.calculate(allPoints);
                     if (reg.valid) {
                         rate = reg.m * q + reg.b;
@@ -4222,8 +4222,8 @@ let projectData = {
             const selectedPoints = buildRatePoints(selectedProjects, false);
             if (selectedPoints.length < 2) return null;
             let rate = null;
-            if (discId === 'structures') {
-                // Bridge Structures: linear regression (y = mx + b)
+            const useLinearSel = (benchmarkCurveType === 'linear' || discId === 'structures');
+            if (useLinearSel) {
                 const reg = LinearRegression.calculate(selectedPoints);
                 if (reg.valid) {
                     rate = reg.m * q + reg.b;
