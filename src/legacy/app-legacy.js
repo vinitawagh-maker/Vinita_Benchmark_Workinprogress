@@ -837,12 +837,15 @@ let projectData = {
             document.getElementById('escalation-base-rate').value = escalationData.baseRate;
             document.getElementById('escalation-duration-months').value = durationMonths;
 
-            // Set NTP date to today if not already set
+            // Sync NTP date from Cost Calculation Parameters; fall back to today
             const ntpDateInput = document.getElementById('escalation-ntp-date');
-            if (ntpDateInput && !ntpDateInput.value) {
-                const today = new Date();
-                const todayStr = today.toISOString().split('T')[0];
-                ntpDateInput.value = todayStr;
+            const calcNtpDate = document.getElementById('calc-ntp-date')?.value;
+            if (ntpDateInput) {
+                if (calcNtpDate) {
+                    ntpDateInput.value = calcNtpDate;
+                } else if (!ntpDateInput.value) {
+                    ntpDateInput.value = new Date().toISOString().split('T')[0];
+                }
             }
 
             recalculateEscalation();
@@ -2316,15 +2319,19 @@ let projectData = {
         function renderEscalationTable() {
             const tbody = document.getElementById('escalation-breakdown-tbody');
             if (!tbody) return;
-            
+
+            const kieMultiplier = parseFloat(document.getElementById('calc-kie-multiplier')?.value) || 2.85;
+
             let html = '';
             let totalRawLaborCost = 0;
             let totalAmount = 0;
+            let totalRevenue = 0;
             let totalPercent = 0;
             
             escalationData.yearlyBreakdown.forEach(row => {
                 totalRawLaborCost += row.rawLaborCost || 0;
                 totalAmount += row.escalationAmount;
+                totalRevenue += row.escalationAmount * kieMultiplier;
                 totalPercent += row.costPercent || row.hourPercent;
                 
                 const manualValue = row.manualOverride !== undefined && row.manualOverride !== null && row.manualOverride !== '' 
@@ -2361,8 +2368,9 @@ let projectData = {
                         </td>
                         <td>${(row.compoundedFactor * 100).toFixed(2)}%</td>
                         <td>$${Math.round(row.escalationAmount).toLocaleString()}</td>
+                        <td>$${Math.round(row.escalationAmount * kieMultiplier).toLocaleString()}</td>
                         <td>
-                            <input type="text" value="${manualValue}" placeholder="${isNoEscalation ? 'N/A' : 'Auto'}" 
+                            <input type="text" value="${manualValue}" placeholder="${isNoEscalation ? 'N/A' : 'Auto'}"
                                    onchange="updateYearManualOverride(${row.year}, this.value)" ${isNoEscalation ? 'disabled style="background: #f0f0f0;"' : ''}>
                         </td>
                     </tr>
@@ -2377,6 +2385,8 @@ let projectData = {
             // Show total raw labor cost instead of hours
             document.getElementById('escalation-modal-total-hours').textContent = '$' + Math.round(totalRawLaborCost).toLocaleString();
             document.getElementById('escalation-modal-total-amount').textContent = '$' + Math.round(totalAmount).toLocaleString();
+            const revEl = document.getElementById('escalation-modal-total-revenue');
+            if (revEl) revEl.textContent = '$' + Math.round(totalRevenue).toLocaleString();
         }
 
         /**
