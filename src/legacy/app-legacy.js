@@ -668,26 +668,113 @@ let projectData = {
          * Calculates and displays the Margin % based on KIE Multiplier, Burden Rate, and G&A Rate
          * Margin % = KIE Multiplier - 1 (raw labor) - Burden Rate - G&A Rate
          */
+        /** Whether the user has manually overridden the margin % */
+        let marginPercentManualOverride = false;
+
         function calculateMarginPercent() {
+            // If user has manually overridden margin %, don't recalculate from KIE
+            if (marginPercentManualOverride) return;
+
             const kieMultiplierInput = document.getElementById('calc-kie-multiplier');
             const burdenRateInput = document.getElementById('unified-burden');
             const gnaRateInput = document.getElementById('unified-gna');
             const marginPercentOutput = document.getElementById('calc-margin-percent');
-            
+
             if (!kieMultiplierInput || !marginPercentOutput) return;
-            
+
             const kieMultiplier = parseFloat(kieMultiplierInput.value) || 2.85;
-            const burdenRate = (parseFloat(burdenRateInput?.value) || 66) / 100; // Convert 66 to 0.66
-            const gnaRate = (parseFloat(gnaRateInput?.value) || 104) / 100; // Convert 104 to 1.04
-            
+            const burdenRate = (parseFloat(burdenRateInput?.value) || 66) / 100;
+            const gnaRate = (parseFloat(gnaRateInput?.value) || 104) / 100;
+
             // Margin % = KIE Multiplier - Raw Labor (1) - Burden Rate - G&A Rate
             const marginPercent = kieMultiplier - 1 - burdenRate - gnaRate;
-            
-            // Display as percentage
-            marginPercentOutput.value = (marginPercent * 100).toFixed(2) + '%';
-            
-            // Store margin percent for use in calculations
+
+            marginPercentOutput.value = (marginPercent * 100).toFixed(2);
+
             window.calculatedMarginPercent = marginPercent;
+        }
+
+        /**
+         * Toggle Margin % field between auto-calculated (from KIE) and manual override
+         */
+        function toggleMarginPercentEdit(enabled) {
+            const field = document.getElementById('calc-margin-percent');
+            if (!field) return;
+            if (enabled) {
+                field.disabled = false;
+                field.style.backgroundColor = '';
+                field.style.color = '';
+                field.style.cursor = '';
+                marginPercentManualOverride = true;
+            } else {
+                field.disabled = true;
+                field.style.backgroundColor = '#e0e0e0';
+                field.style.color = '#666';
+                field.style.cursor = 'not-allowed';
+                marginPercentManualOverride = false;
+                // Recalculate from KIE multiplier
+                calculateMarginPercent();
+                recalculateAllUnifiedCosts();
+            }
+        }
+
+        /**
+         * Apply manually entered margin % and recalculate all costs
+         */
+        function applyManualMarginPercent() {
+            const field = document.getElementById('calc-margin-percent');
+            if (!field) return;
+            window.calculatedMarginPercent = (parseFloat(field.value) || 0) / 100;
+            recalculateAllUnifiedCosts();
+        }
+
+        /**
+         * Called from the Construction Metrics toggle (toggle-esdc-pct / toggle-tscd-pct).
+         * Syncs the table row toggle and enables/disables the % input, then recalculates.
+         * @param {string} discId - 'esdc' or 'tscd'
+         * @param {boolean} enabled - Whether the override is active
+         */
+        function toggleEsdcTscdPct(discId, enabled) {
+            const inputId = discId === 'esdc' ? 'calc-esdc-pct' : 'calc-tscd-pct';
+            const tableToggleId = discId === 'esdc' ? 'esdc-pct-override-toggle' : 'tscd-pct-override-toggle';
+            const labelId = discId === 'esdc' ? 'esdc-pct-label' : 'tscd-pct-label';
+            // Sync table row toggle
+            const tableToggleEl = document.getElementById(tableToggleId);
+            if (tableToggleEl) tableToggleEl.checked = enabled;
+            // Show/hide "use %" label next to table row toggle
+            const labelEl = document.getElementById(labelId);
+            if (labelEl) labelEl.style.display = enabled ? 'inline' : 'none';
+            toggleFieldEdit(inputId, enabled);
+            recalculateAllUnifiedCosts();
+        }
+
+        /**
+         * Called from the table row toggle (esdc-pct-override-toggle / tscd-pct-override-toggle).
+         * Syncs the Construction Metrics toggle and enables/disables the % input, then recalculates.
+         * @param {string} discId - 'esdc' or 'tscd'
+         * @param {boolean} enabled - Whether the override is active
+         */
+        function toggleEsdcTscdOverride(discId, enabled) {
+            const inputId = discId === 'esdc' ? 'calc-esdc-pct' : 'calc-tscd-pct';
+            const paramToggleId = discId === 'esdc' ? 'toggle-esdc-pct' : 'toggle-tscd-pct';
+            const labelId = discId === 'esdc' ? 'esdc-pct-label' : 'tscd-pct-label';
+            // Sync Construction Metrics toggle
+            const paramToggleEl = document.getElementById(paramToggleId);
+            if (paramToggleEl) paramToggleEl.checked = enabled;
+            // Show/hide "use %" label next to table row toggle
+            const labelEl = document.getElementById(labelId);
+            if (labelEl) labelEl.style.display = enabled ? 'inline' : 'none';
+            toggleFieldEdit(inputId, enabled);
+            recalculateAllUnifiedCosts();
+        }
+
+        function updatePursuitRevenue() {
+            const pct = parseFloat(document.getElementById('pursuit-pct-input')?.value) || 0.25;
+            const ipv = parseFloat(String(document.getElementById('calc-est-construction-cost')?.value || '').replace(/[$,]/g, '')) || 0;
+            const total = ipv * (pct / 100);
+            const revenueEl = document.getElementById('pursuit-total-revenue');
+            if (revenueEl) revenueEl.textContent = '$' + Math.round(total).toLocaleString('en-US');
+            recalculateAllUnifiedCosts();
         }
 
         // ============================================
@@ -770,6 +857,1172 @@ let projectData = {
             if (modal) modal.classList.remove('open');
         }
 
+        // ============================================
+        // SENSITIVITY ANALYSIS MODAL
+        // ============================================
+
+        let sensitivityChart1 = null;
+        let sensitivityChart2 = null;
+        let sensitivityChart3 = null;
+
+        function openSensitivityModal() {
+            const modal = document.getElementById('sensitivity-modal');
+            if (!modal) return;
+
+            const noDataMsg = document.getElementById('sensitivity-no-data-msg');
+            const content = document.getElementById('sensitivity-modal-content');
+
+            // Check if there's any meaningful data
+            const constructionCost = projectData.calculator.totalConstructionCost || 0;
+            const hasActiveDisciplines = Object.values(mhEstimateState.disciplines).some(d => d.mh > 0 || d.totalRevenue > 0);
+
+            if (constructionCost <= 0 && !hasActiveDisciplines) {
+                if (noDataMsg) noDataMsg.style.display = '';
+                if (content) content.style.display = 'none';
+                modal.classList.add('open');
+                return;
+            }
+
+            if (noDataMsg) noDataMsg.style.display = 'none';
+            if (content) content.style.display = '';
+
+            // Reset to first tab and render
+            switchSensitivityTab(0);
+            modal.classList.add('open');
+        }
+
+        function closeSensitivityModal() {
+            const modal = document.getElementById('sensitivity-modal');
+            if (modal) modal.classList.remove('open');
+        }
+
+        function switchSensitivityTab(tabIndex) {
+            // Update tab buttons
+            const tabs = document.querySelectorAll('.sensitivity-tab');
+            tabs.forEach((tab, i) => {
+                tab.classList.toggle('active', i === tabIndex);
+            });
+
+            // Update panels
+            const panels = document.querySelectorAll('.sensitivity-panel');
+            panels.forEach((panel, i) => {
+                panel.classList.toggle('active', i === tabIndex);
+            });
+
+            // Render the selected chart
+            if (tabIndex === 0) renderCostVsFeeChart();
+            else if (tabIndex === 1) renderDurationVsFeeChart();
+            else if (tabIndex === 2) renderMHvsBudgetChart();
+        }
+
+        function parseDollarValue(el) {
+            if (!el) return 0;
+            const text = el.textContent || el.value || '';
+            return parseFloat(text.replace(/[$,]/g, '')) || 0;
+        }
+
+        function renderCostVsFeeChart() {
+            const canvas = document.getElementById('sensitivity-chart-cost-fee');
+            if (!canvas) return;
+
+            if (sensitivityChart1) {
+                sensitivityChart1.destroy();
+                sensitivityChart1 = null;
+            }
+
+            // Read construction-side inputs (same as C2C report)
+            const bidPrice = parseFloat(document.getElementById('calc-est-construction-cost')?.value?.replace(/[^0-9.]/g, '')) || 0;
+            const gnaPercent = parseFloat(document.getElementById('calc-construction-gna')?.value) || 8.5;
+            const marginPercent = parseFloat(document.getElementById('calc-construction-margin')?.value) || 15;
+
+            // Read design-side values from unified cost table
+            const designPrice = parseDollarValue(document.getElementById('grand-total-cost'));
+            const esdcCost = parseDollarValue(document.getElementById('esdc-total-cost'));
+            const tscdCost = parseDollarValue(document.getElementById('tscd-total-cost'));
+            const grandTotalMargin = parseDollarValue(document.getElementById('grand-total-margin'));
+            const grandTotalRevenue = parseDollarValue(document.getElementById('grand-total-revenue'));
+
+            // Read sensitivity modal inputs
+            const pursuitCost = parseFloat(document.getElementById('sensitivity-pursuit-cost')?.value) || 0;
+            const successFeePct = parseFloat(document.getElementById('sensitivity-success-fee')?.value) || 2;
+            const designMarginPct = parseFloat(document.getElementById('sensitivity-design-margin')?.value) || 10;
+
+            // Calculate derived values
+            const successFee = grandTotalRevenue * (successFeePct / 100);
+            const designMargin = grandTotalRevenue * (designMarginPct / 100);
+
+            if (bidPrice <= 0) {
+                document.getElementById('sensitivity-summary-0').innerHTML =
+                    '<p style="color: #888; text-align: center;">Enter a Construction Revenue (Initial Project Value) to see this analysis.</p>';
+                return;
+            }
+
+            // Base Design Cost = Design Price - ESDC - TSCD - Pursuit - Success Fee - Design Margin
+            const baseDesignCost = designPrice - esdcCost - tscdCost - pursuitCost - successFee - designMargin;
+
+            // Project Comparison Cost = Bid Price / ((1 + G&A%) * (1 + Margin%))
+            const basePCC = bidPrice / ((1 + gnaPercent / 100) * (1 + marginPercent / 100));
+
+            // Cost/Cost Ratio = Base Design Cost / PCC
+            const baseRatio = basePCC > 0 ? (baseDesignCost / basePCC) * 100 : 0;
+
+            // Generate data: vary construction revenue -30% to +30%, design cost stays fixed
+            const labels = [];
+            const ratioData = [];
+            const pccData = [];
+            const pointColors = [];
+            const pointRadii = [];
+
+            for (let pct = -30; pct <= 30; pct += 5) {
+                const adjBidPrice = bidPrice * (1 + pct / 100);
+                const adjPCC = adjBidPrice / ((1 + gnaPercent / 100) * (1 + marginPercent / 100));
+                const ratio = adjPCC > 0 ? (baseDesignCost / adjPCC) * 100 : 0;
+
+                labels.push(pct === 0 ? 'Baseline' : `${pct > 0 ? '+' : ''}${pct}%`);
+                ratioData.push(ratio);
+                pccData.push(adjPCC);
+                pointColors.push(pct === 0 ? 'rgba(255, 193, 7, 1)' : 'rgba(92, 107, 192, 1)');
+                pointRadii.push(pct === 0 ? 8 : 4);
+            }
+
+            const ctx = canvas.getContext('2d');
+            sensitivityChart1 = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Cost/Cost Ratio (%)',
+                        data: ratioData,
+                        borderColor: 'rgba(92, 107, 192, 1)',
+                        backgroundColor: 'rgba(92, 107, 192, 0.15)',
+                        fill: true,
+                        tension: 0.3,
+                        borderWidth: 2,
+                        pointBackgroundColor: pointColors,
+                        pointBorderColor: pointColors,
+                        pointRadius: pointRadii,
+                        pointHoverRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(30, 30, 30, 0.95)',
+                            titleColor: '#ffd700',
+                            bodyColor: '#e0e0e0',
+                            borderColor: '#ffd700',
+                            borderWidth: 1,
+                            padding: 12,
+                            callbacks: {
+                                title: (items) => items[0].label,
+                                label: (context) => {
+                                    const idx = context.dataIndex;
+                                    const adjBid = bidPrice * (1 + (-30 + idx * 5) / 100);
+                                    const adjPCC = pccData[idx];
+                                    return [
+                                        `Const. Revenue: $${adjBid.toLocaleString(undefined, {maximumFractionDigits: 0})}`,
+                                        `Project Comparison Cost: $${adjPCC.toLocaleString(undefined, {maximumFractionDigits: 0})}`,
+                                        `Base Design Cost: $${baseDesignCost.toLocaleString(undefined, {maximumFractionDigits: 0})}`,
+                                        `Cost/Cost Ratio: ${context.raw.toFixed(2)}%`
+                                    ];
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: { display: true, text: 'Construction Revenue Variation', color: '#b0b0b0' },
+                            ticks: { color: '#888' },
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                        },
+                        y: {
+                            title: { display: true, text: 'Cost/Cost Ratio (%)', color: '#b0b0b0' },
+                            ticks: {
+                                color: '#888',
+                                callback: (v) => v.toFixed(1) + '%'
+                            },
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                            beginAtZero: false
+                        }
+                    }
+                }
+            });
+
+            // Summary
+            const fmtD = (v) => '$' + Math.round(v).toLocaleString('en-US');
+            document.getElementById('sensitivity-summary-0').innerHTML = `
+                <table class="sensitivity-summary-table">
+                    <tr><th>Metric</th><th>Value</th></tr>
+                    <tr><td>Construction Revenue (Bid Price)</td><td>${fmtD(bidPrice)}</td></tr>
+                    <tr><td>Construction G&A</td><td>${gnaPercent}%</td></tr>
+                    <tr><td>Construction Margin</td><td>${marginPercent}%</td></tr>
+                    <tr><td>Project Comparison Cost</td><td>${fmtD(basePCC)}</td></tr>
+                    <tr><td colspan="2" style="border-top: 1px solid #555;"></td></tr>
+                    <tr><td>Design Price (Grand Total Cost)</td><td>${fmtD(designPrice)}</td></tr>
+                    <tr><td>&minus; ESDC Cost</td><td>${fmtD(esdcCost)}</td></tr>
+                    <tr><td>&minus; TSCD Cost</td><td>${fmtD(tscdCost)}</td></tr>
+                    <tr><td>&minus; Pursuit Cost</td><td>${fmtD(pursuitCost)}</td></tr>
+                    <tr><td>&minus; Success Fee (${successFeePct}%)</td><td>${fmtD(successFee)}</td></tr>
+                    <tr><td>&minus; Design Margin (${designMarginPct}%)</td><td>${fmtD(designMargin)}</td></tr>
+                    <tr class="sensitivity-highlight"><td>Base Design Cost</td><td>${fmtD(baseDesignCost)}</td></tr>
+                    <tr class="sensitivity-highlight"><td>Cost/Cost Ratio</td><td>${baseRatio.toFixed(2)}%</td></tr>
+                </table>`;
+        }
+
+        function renderDurationVsFeeChart() {
+            const canvas = document.getElementById('sensitivity-chart-duration-fee');
+            if (!canvas) return;
+
+            if (sensitivityChart2) {
+                sensitivityChart2.destroy();
+                sensitivityChart2 = null;
+            }
+
+            const baseDuration = mhEstimateState.designDuration || parseInt(document.getElementById('calc-design-duration')?.value) || 0;
+            const baseRate = parseFloat(document.getElementById('escalation-base-rate')?.value) || escalationData.baseRate || 5;
+
+            // Get total escalatable cost (all costs NOT derived from construction cost or IPV)
+            const directsRawLabor = parseFloat(document.getElementById('unified-direct-total-raw-labor')?.textContent?.replace(/[$,]/g, '')) || 0;
+            const indirectsRawLabor = parseFloat(document.getElementById('unified-indirect-total-raw-labor')?.textContent?.replace(/[$,]/g, '')) || 0;
+            const contingencyRawLaborEsc2 = parseFloat(document.getElementById('contingency-total-raw-labor')?.textContent?.replace(/[$,]/g, '')) || 0;
+            const ipcEsc2 = parseFloat(document.getElementById('ipc-total-revenue')?.textContent?.replace(/[$,]/g, '')) || 0;
+            const totalRawLabor = directsRawLabor + indirectsRawLabor + contingencyRawLaborEsc2 + ipcEsc2;
+
+            // Get KIE total revenue (base fee without escalation)
+            const kieTotalRevenue = parseFloat(document.getElementById('kie-labor-total-revenue')?.textContent?.replace(/[$,]/g, '')) || 0;
+
+            if (baseDuration <= 0 || totalRawLabor <= 0) {
+                document.getElementById('sensitivity-summary-1').innerHTML =
+                    '<p style="color: #888; text-align: center;">Set a design duration and configure disciplines to see this analysis.</p>';
+                return;
+            }
+
+            // Get NTP date for escalation calculation
+            const ntpDateInput = document.getElementById('escalation-ntp-date');
+            const ntpDate = ntpDateInput?.value ? new Date(ntpDateInput.value) : new Date();
+
+            // Generate data points: from 50% to 200% of base duration in 2-month steps
+            const minDuration = Math.max(2, Math.round(baseDuration * 0.5));
+            const maxDuration = Math.round(baseDuration * 2);
+            const labels = [];
+            const escalationCosts = [];
+            const totalFees = [];
+            const pointColors = [];
+            const pointRadii = [];
+
+            for (let dur = minDuration; dur <= maxDuration; dur += 2) {
+                const isBaseline = dur === baseDuration || (dur === baseDuration - 1 || dur === baseDuration + 1);
+                labels.push(dur === baseDuration ? `${dur}mo (Base)` : `${dur}mo`);
+
+                // Calculate escalation for this duration
+                const escAmount = calculateEscalationForDuration(dur, totalRawLabor, baseRate, ntpDate);
+                escalationCosts.push(escAmount);
+                totalFees.push(kieTotalRevenue + escAmount);
+
+                pointColors.push(dur === baseDuration ? 'rgba(255, 193, 7, 1)' : 'rgba(92, 107, 192, 1)');
+                pointRadii.push(dur === baseDuration ? 8 : 4);
+            }
+
+            const ctx = canvas.getContext('2d');
+            sensitivityChart2 = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Total Fee + Escalation ($)',
+                            data: totalFees,
+                            borderColor: 'rgba(92, 107, 192, 1)',
+                            backgroundColor: 'rgba(92, 107, 192, 0.15)',
+                            fill: true,
+                            tension: 0.3,
+                            borderWidth: 2,
+                            pointBackgroundColor: pointColors,
+                            pointBorderColor: pointColors,
+                            pointRadius: pointRadii,
+                            pointHoverRadius: 8,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Escalation Only ($)',
+                            data: escalationCosts,
+                            borderColor: 'rgba(255, 193, 7, 0.8)',
+                            backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                            fill: true,
+                            tension: 0.3,
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            pointRadius: 3,
+                            pointHoverRadius: 6,
+                            pointBackgroundColor: 'rgba(255, 193, 7, 1)',
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { position: 'top', labels: { color: '#e0e0e0', font: { size: 11 }, padding: 15 } },
+                        tooltip: {
+                            backgroundColor: 'rgba(30, 30, 30, 0.95)',
+                            titleColor: '#ffd700',
+                            bodyColor: '#e0e0e0',
+                            borderColor: '#ffd700',
+                            borderWidth: 1,
+                            padding: 12,
+                            callbacks: {
+                                label: (context) => {
+                                    const label = context.dataset.label;
+                                    return `${label}: $${context.raw.toLocaleString(undefined, {maximumFractionDigits: 0})}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: { display: true, text: 'Design Duration (months)', color: '#b0b0b0' },
+                            ticks: { color: '#888', maxRotation: 45 },
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                        },
+                        y: {
+                            type: 'linear',
+                            position: 'left',
+                            title: { display: true, text: 'Total Fee + Escalation ($)', color: '#5c6bc0' },
+                            ticks: {
+                                color: '#5c6bc0',
+                                callback: (v) => '$' + (v >= 1000000 ? (v / 1000000).toFixed(2) + 'M' : (v / 1000).toFixed(0) + 'K')
+                            },
+                            grid: { color: 'rgba(92, 107, 192, 0.2)' },
+                            // Don't start from zero — zoom in on the data range to show differences
+                            beginAtZero: false
+                        },
+                        y1: {
+                            type: 'linear',
+                            position: 'right',
+                            title: { display: true, text: 'Escalation Only ($)', color: '#ffc107' },
+                            ticks: {
+                                color: '#ffc107',
+                                callback: (v) => '$' + (v >= 1000000 ? (v / 1000000).toFixed(2) + 'M' : (v / 1000).toFixed(0) + 'K')
+                            },
+                            grid: { drawOnChartArea: false },
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+
+            // Summary
+            const baselineIdx = labels.findIndex(l => l.includes('Base'));
+            const baseEsc = baselineIdx >= 0 ? escalationCosts[baselineIdx] : 0;
+            const baseTotalFee = baselineIdx >= 0 ? totalFees[baselineIdx] : kieTotalRevenue;
+            const minTotalFee = Math.min(...totalFees);
+            const maxTotalFee = Math.max(...totalFees);
+            const fmtK = (v) => '$' + (v >= 1000000 ? (v / 1000000).toFixed(2) + 'M' : (v / 1000).toFixed(0) + 'K');
+            document.getElementById('sensitivity-summary-1').innerHTML = `
+                <table class="sensitivity-summary-table">
+                    <tr><th>Metric</th><th>Value</th></tr>
+                    <tr><td>Baseline Duration</td><td>${baseDuration} months</td></tr>
+                    <tr><td>Base Escalation Rate</td><td>${baseRate}%/yr</td></tr>
+                    <tr class="sensitivity-highlight"><td>Baseline Total Fee</td><td>${fmtK(baseTotalFee)}</td></tr>
+                    <tr><td>Baseline Escalation</td><td>${fmtK(baseEsc)}</td></tr>
+                    <tr><td>Shortest Duration Fee</td><td>${fmtK(minTotalFee)} (${labels[0]})</td></tr>
+                    <tr><td>Longest Duration Fee</td><td>${fmtK(maxTotalFee)} (${labels[labels.length - 1]})</td></tr>
+                    <tr><td>Fee Range</td><td>${fmtK(maxTotalFee - minTotalFee)}</td></tr>
+                </table>`;
+        }
+
+        /**
+         * Calculates total escalation for a given duration (without modifying app state)
+         */
+        function calculateEscalationForDuration(durationMonths, totalRawLabor, baseRate, ntpDate) {
+            if (durationMonths <= 0 || totalRawLabor <= 0) return 0;
+
+            const monthlyDistribution = calculateMonthlyBellCurve(durationMonths);
+
+            // Determine first escalation date (March 1 rule)
+            const ntpMonth = ntpDate.getMonth();
+            const ntpYear = ntpDate.getFullYear();
+            let firstEscalationDate;
+            if (ntpMonth < 2) {
+                firstEscalationDate = new Date(ntpYear, 2, 1);
+            } else {
+                firstEscalationDate = new Date(ntpYear + 1, 2, 1);
+            }
+
+            let totalEscalation = 0;
+            for (let m = 0; m < durationMonths; m++) {
+                const monthDate = new Date(ntpDate);
+                monthDate.setMonth(monthDate.getMonth() + m);
+
+                const monthRawLabor = totalRawLabor * monthlyDistribution[m];
+
+                if (monthDate >= firstEscalationDate) {
+                    let marchCount = 0;
+                    let checkDate = new Date(firstEscalationDate);
+                    while (checkDate <= monthDate) {
+                        if (checkDate.getMonth() === 2 && checkDate.getDate() === 1) {
+                            marchCount++;
+                        }
+                        checkDate.setMonth(checkDate.getMonth() + 1);
+                    }
+                    const escalationFactor = Math.pow(1 + (baseRate / 100), marchCount) - 1;
+                    totalEscalation += monthRawLabor * escalationFactor;
+                }
+            }
+            return totalEscalation;
+        }
+
+        function renderMHvsBudgetChart() {
+            const canvas = document.getElementById('sensitivity-chart-mh-budget');
+            if (!canvas) return;
+
+            if (sensitivityChart3) {
+                sensitivityChart3.destroy();
+                sensitivityChart3 = null;
+            }
+
+            // Get global rates
+            const burdenRate = parseFloat(document.getElementById('unified-burden')?.value) || 66;
+            const gnaRate = parseFloat(document.getElementById('unified-gna')?.value) || 104;
+            const kieMultiplier = parseFloat(document.getElementById('calc-kie-multiplier')?.value) || 2.85;
+            const marginPercent = (kieMultiplier - 1 - (burdenRate / 100) - (gnaRate / 100)) * 100;
+
+            // Gather active disciplines with MH > 0 (exclude ESDC/TSCD since they're revenue-based)
+            const activeDisciplines = [];
+            for (const [discId, state] of Object.entries(mhEstimateState.disciplines)) {
+                if (discId === 'esdc' || discId === 'tscd') continue;
+                if (state.mh > 0 && state.weightedRate > 0) {
+                    const config = typeof DISCIPLINE_CONFIG !== 'undefined' ? DISCIPLINE_CONFIG[discId] : null;
+                    activeDisciplines.push({
+                        id: discId,
+                        name: config?.name || discId,
+                        mh: state.mh,
+                        weightedRate: state.weightedRate
+                    });
+                }
+            }
+
+            if (activeDisciplines.length === 0) {
+                document.getElementById('sensitivity-summary-2').innerHTML =
+                    '<p style="color: #888; text-align: center;">Configure discipline manhours to see this analysis.</p>';
+                return;
+            }
+
+            // Generate data points: -30% to +30% in 5% steps
+            const variations = [];
+            for (let pct = -30; pct <= 30; pct += 5) variations.push(pct);
+
+            const labels = variations.map(pct => pct === 0 ? 'Baseline' : `${pct > 0 ? '+' : ''}${pct}%`);
+            const colors = generateDisciplineColors(activeDisciplines.length);
+
+            // Create a dataset per discipline
+            const datasets = activeDisciplines.map((disc, i) => {
+                const data = variations.map(pct => {
+                    const adjustedMH = disc.mh * (1 + pct / 100);
+                    const rawLabor = adjustedMH * disc.weightedRate;
+                    const burden = rawLabor * (burdenRate / 100);
+                    const gna = rawLabor * (gnaRate / 100);
+                    const margin = rawLabor * (marginPercent / 100);
+                    return rawLabor + burden + gna + margin;
+                });
+                return {
+                    label: disc.name,
+                    data: data,
+                    backgroundColor: colors[i] + 'CC',
+                    borderColor: colors[i],
+                    borderWidth: 1,
+                    borderRadius: 2
+                };
+            });
+
+            const ctx = canvas.getContext('2d');
+            sensitivityChart3 = new Chart(ctx, {
+                type: 'bar',
+                data: { labels, datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top', labels: { color: '#e0e0e0', font: { size: 10 }, padding: 10, usePointStyle: true } },
+                        tooltip: {
+                            backgroundColor: 'rgba(30, 30, 30, 0.95)',
+                            titleColor: '#ffd700',
+                            bodyColor: '#e0e0e0',
+                            borderColor: '#ffd700',
+                            borderWidth: 1,
+                            padding: 12,
+                            mode: 'index',
+                            callbacks: {
+                                label: (context) => `${context.dataset.label}: $${context.raw.toLocaleString(undefined, {maximumFractionDigits: 0})}`,
+                                footer: (tooltipItems) => {
+                                    const total = tooltipItems.reduce((sum, item) => sum + item.raw, 0);
+                                    return `Total: $${total.toLocaleString(undefined, {maximumFractionDigits: 0})}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            stacked: true,
+                            title: { display: true, text: 'MH Variation', color: '#b0b0b0' },
+                            ticks: { color: '#888' },
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                        },
+                        y: {
+                            stacked: true,
+                            title: { display: true, text: 'Total Revenue ($)', color: '#b0b0b0' },
+                            ticks: {
+                                color: '#888',
+                                callback: (v) => '$' + (v >= 1000000 ? (v / 1000000).toFixed(1) + 'M' : (v / 1000).toFixed(0) + 'K')
+                            },
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                        }
+                    }
+                }
+            });
+
+            // Summary table: per-discipline impact at -10%, baseline, +10%
+            const fmtK = (v) => '$' + (v >= 1000000 ? (v / 1000000).toFixed(2) + 'M' : Math.round(v).toLocaleString());
+            const calcRevenue = (disc, pctAdj) => {
+                const mh = disc.mh * (1 + pctAdj / 100);
+                const raw = mh * disc.weightedRate;
+                return raw + raw * (burdenRate / 100) + raw * (gnaRate / 100) + raw * (marginPercent / 100);
+            };
+
+            let rows = activeDisciplines.map(disc => {
+                const rev10Neg = calcRevenue(disc, -10);
+                const revBase = calcRevenue(disc, 0);
+                const rev10Pos = calcRevenue(disc, 10);
+                return `<tr>
+                    <td>${disc.name}</td>
+                    <td>${disc.mh.toLocaleString()} MH</td>
+                    <td>${fmtK(rev10Neg)}</td>
+                    <td class="sensitivity-highlight-cell">${fmtK(revBase)}</td>
+                    <td>${fmtK(rev10Pos)}</td>
+                    <td>${fmtK(rev10Pos - rev10Neg)}</td>
+                </tr>`;
+            }).join('');
+
+            // Totals row
+            const total10Neg = activeDisciplines.reduce((sum, d) => sum + calcRevenue(d, -10), 0);
+            const totalBase = activeDisciplines.reduce((sum, d) => sum + calcRevenue(d, 0), 0);
+            const total10Pos = activeDisciplines.reduce((sum, d) => sum + calcRevenue(d, 10), 0);
+            rows += `<tr class="sensitivity-total-row">
+                <td><strong>TOTAL</strong></td>
+                <td>${activeDisciplines.reduce((s, d) => s + d.mh, 0).toLocaleString()} MH</td>
+                <td>${fmtK(total10Neg)}</td>
+                <td class="sensitivity-highlight-cell">${fmtK(totalBase)}</td>
+                <td>${fmtK(total10Pos)}</td>
+                <td>${fmtK(total10Pos - total10Neg)}</td>
+            </tr>`;
+
+            document.getElementById('sensitivity-summary-2').innerHTML = `
+                <table class="sensitivity-summary-table">
+                    <tr>
+                        <th>Discipline</th>
+                        <th>Base MH</th>
+                        <th>-10% Revenue</th>
+                        <th>Baseline</th>
+                        <th>+10% Revenue</th>
+                        <th>Spread</th>
+                    </tr>
+                    ${rows}
+                </table>`;
+        }
+
+        // ============================================
+        // STRUCTURES DATA ENTRY MODAL
+        // ============================================
+
+        // Cached dropdown options from JSON
+        let structuresDropdownOptions = null;
+
+        async function loadStructuresDropdownOptions() {
+            if (structuresDropdownOptions) return structuresDropdownOptions;
+            try {
+                const benchmarks = getBenchmarkDataSync('structures');
+                if (benchmarks && benchmarks.dropdown_options) {
+                    structuresDropdownOptions = benchmarks.dropdown_options;
+                    return structuresDropdownOptions;
+                }
+                // Fallback: fetch directly
+                const basePath = window.WBS?.constants?.BASE_PATH || '';
+                const mapping = typeof activeBenchmarkDataset !== 'undefined' && activeBenchmarkDataset === 'border-wall'
+                    ? BENCHMARK_FILE_MAPPING_BORDER_WALL
+                    : BENCHMARK_FILE_MAPPING;
+                const url = basePath + (mapping.structures || '/data/benchmarking/All Other Projects/benchmarking-bridges.json');
+                const resp = await fetch(url);
+                const data = await resp.json();
+                if (data.dropdown_options) {
+                    structuresDropdownOptions = data.dropdown_options;
+                }
+            } catch (e) {
+                console.warn('Could not load structures dropdown options:', e);
+            }
+            // Defaults if loading fails
+            if (!structuresDropdownOptions) {
+                structuresDropdownOptions = {
+                    type: ['Box Girder', 'CIP Girder', 'CIP Slab', 'PC Deck', 'PC Girder', 'Steel Girder'],
+                    span_arrangement: ['Multi-Span', 'Single-Span'],
+                    scope: ['New/Reconstruct', 'Unknown', 'Widening/Rehab']
+                };
+            }
+            return structuresDropdownOptions;
+        }
+
+        function buildDropdownHTML(className, options, selectedValue) {
+            const selectStyle = 'background: #1a1a1a; border: 1px solid #444; color: #e0e0e0; padding: 6px 4px; border-radius: 4px; font-family: "JetBrains Mono", monospace; font-size: 11px; width: 100%;';
+            let html = `<select class="${className}" style="${selectStyle}">`;
+            html += '<option value="">--</option>';
+            options.forEach(opt => {
+                const sel = (opt === selectedValue) ? ' selected' : '';
+                html += `<option value="${opt}"${sel}>${opt}</option>`;
+            });
+            html += '</select>';
+            return html;
+        }
+
+        async function openStructuresModal() {
+            const modal = document.getElementById('structures-modal');
+            if (!modal) return;
+
+            const tbody = document.getElementById('structures-entry-tbody');
+            if (!tbody) return;
+
+            // Ensure dropdown options are loaded
+            await loadStructuresDropdownOptions();
+
+            // Load existing entries from state
+            const state = mhEstimateState.disciplines.structures;
+            const entries = (state && state.structureEntries) || [];
+
+            tbody.innerHTML = '';
+            if (entries.length === 0) {
+                appendStructureRow(tbody, '', 0, '', '', '');
+            } else {
+                entries.forEach(entry => {
+                    appendStructureRow(tbody, entry.name || '', entry.eqty || 0, entry.type || '', entry.span_arrangement || '', entry.scope || '');
+                });
+            }
+
+            modal.classList.add('open');
+        }
+
+        function closeStructuresModal() {
+            const modal = document.getElementById('structures-modal');
+            if (modal) modal.classList.remove('open');
+        }
+
+        function appendStructureRow(tbody, name, eqty, type, spanArr, scope) {
+            const opts = structuresDropdownOptions || { type: [], span_arrangement: [], scope: [] };
+            const row = document.createElement('tr');
+            row.style.borderBottom = '1px solid #333';
+            row.innerHTML = `
+                <td style="padding: 6px;">
+                    <input type="text" class="structure-name-input" value="${name}" placeholder="e.g. Bridge B201"
+                           style="width: 100%; background: #1a1a1a; border: 1px solid #444; color: #e0e0e0; padding: 6px 8px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 12px;">
+                </td>
+                <td style="padding: 6px;">
+                    <input type="text" class="structure-eqty-input" value="${eqty > 0 ? eqty.toLocaleString('en-US') : ''}" placeholder="0" inputmode="numeric"
+                           oninput="updateStructureRowForecast(this)"
+                           style="width: 100%; text-align: right; background: #1a1a1a; border: 1px solid #444; color: #e0e0e0; padding: 6px 8px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 12px;">
+                </td>
+                <td style="padding: 6px; text-align: center; color: #aaa; font-size: 12px;">SF</td>
+                <td style="padding: 6px;">${buildDropdownHTML('structure-type-select', opts.type, type)}</td>
+                <td style="padding: 6px;">${buildDropdownHTML('structure-span-select', opts.span_arrangement, spanArr)}</td>
+                <td style="padding: 6px;">${buildDropdownHTML('structure-scope-select', opts.scope, scope)}</td>
+                <td style="padding: 6px; text-align: center;">
+                    <button class="btn-benchmark-select" onclick="openStructureBenchmark(this)" title="View benchmark chart" style="font-size: 12px; padding: 4px 8px; cursor: pointer;">📊</button>
+                </td>
+                <td style="padding: 6px; text-align: right; color: #00ff00; font-family: 'JetBrains Mono', monospace; font-size: 12px;" class="structure-production-cell">—</td>
+                <td style="padding: 6px; text-align: right; color: #ffd700; font-family: 'JetBrains Mono', monospace; font-size: 12px;" class="structure-forecast-mh-cell">—</td>
+                <td style="padding: 6px; text-align: center;">
+                    <button onclick="removeStructureRow(this)" style="background: none; border: none; color: #ff4444; cursor: pointer; font-size: 16px;" title="Remove">&#10005;</button>
+                </td>
+            `;
+            tbody.appendChild(row);
+            // Add change listeners to dropdowns for recalculating forecast
+            row.querySelectorAll('.structure-type-select, .structure-span-select, .structure-scope-select').forEach(sel => {
+                sel.addEventListener('change', () => updateStructureRowForecast(row.querySelector('.structure-eqty-input')));
+            });
+            // Calculate initial forecast if quantity exists
+            if (eqty > 0) {
+                setTimeout(() => updateStructureRowForecast(row.querySelector('.structure-eqty-input')), 50);
+            }
+        }
+
+        function addStructureRow() {
+            const tbody = document.getElementById('structures-entry-tbody');
+            if (tbody) appendStructureRow(tbody, '', 0, '', '', '');
+        }
+
+        function removeStructureRow(btn) {
+            const row = btn.closest('tr');
+            const tbody = row.parentElement;
+            if (tbody.children.length > 1) {
+                row.remove();
+            }
+        }
+
+        /**
+         * Compute Production (rate from linear curve) and Forecast MHs for a structure row.
+         * Filters benchmark data by the row's Type/Span/Scope, runs linear regression on
+         * (eQTY, MH) points, and reads the curve at the entered quantity.
+         * Production = predicted MH from curve; Forecast MHs = same value (y = mx + b where y = MH).
+         */
+        function updateStructureRowForecast(input) {
+            const row = input.closest('tr');
+            if (!row) return;
+            const prodCell = row.querySelector('.structure-production-cell');
+            const forecastCell = row.querySelector('.structure-forecast-mh-cell');
+            if (!prodCell || !forecastCell) return;
+
+            // Parse quantity
+            const rawQty = input.value.replace(/,/g, '');
+            const qty = Number(rawQty);
+            if (!(qty > 0)) {
+                prodCell.textContent = '—';
+                forecastCell.textContent = '—';
+                return;
+            }
+
+            // Get filter values from the row
+            const typeSelect = row.querySelector('.structure-type-select');
+            const spanSelect = row.querySelector('.structure-span-select');
+            const scopeSelect = row.querySelector('.structure-scope-select');
+            const filterType = typeSelect ? typeSelect.value : '';
+            const filterSpan = spanSelect ? spanSelect.value : '';
+            const filterScope = scopeSelect ? scopeSelect.value : '';
+
+            // Fixed production rate: Steel Girder + Single-Span + New/Reconstruct
+            // (insufficient benchmark data – rate locked at 0.3756 MH/EA)
+            if (filterType === 'Steel Girder' && filterSpan === 'Single-Span' && filterScope === 'New/Reconstruct') {
+                const FIXED_PRODUCTION = 0.3756;
+                const predictedMH = FIXED_PRODUCTION * qty;
+                prodCell.textContent = FIXED_PRODUCTION.toFixed(4);
+                forecastCell.textContent = Math.round(predictedMH).toLocaleString();
+                return;
+            }
+
+            // Get benchmark data and filter
+            const benchmarks = getBenchmarkDataSync('structures');
+            if (!benchmarks || !benchmarks.projects) {
+                prodCell.textContent = '—';
+                forecastCell.textContent = '—';
+                return;
+            }
+
+            const filtered = benchmarks.projects.filter(p => {
+                if (filterType && p.structureType !== filterType) return false;
+                if (filterSpan && p.spanArrangement !== filterSpan) return false;
+                return true;
+            });
+
+            // Only use projects whose applicable_job matches the span arrangement
+            const applicable = filtered.filter(p => {
+                if (!p.applicableJob || !filterSpan) return !!p.applicableJob;
+                const ajNorm = p.applicableJob.toString().toLowerCase().replace(/[-\s]+/g, '');
+                const spanNorm = filterSpan.toLowerCase().replace(/[-\s]+/g, '');
+                return ajNorm === spanNorm;
+            });
+
+            // Build points: X = eQTY (SF), Y = FCT MHRs (use applicable projects only)
+            const points = applicable
+                .map(p => ({ x: p.quantity || 0, y: p.mh || 0 }))
+                .filter(p => p.x > 0 && p.y > 0);
+
+            if (points.length < 2) {
+                prodCell.textContent = '—';
+                forecastCell.textContent = '—';
+                return;
+            }
+
+            // Linear regression: MH = m * eQTY + b
+            const reg = LinearRegression.calculate(points);
+            if (!reg.valid) {
+                prodCell.textContent = '—';
+                forecastCell.textContent = '—';
+                return;
+            }
+
+            const predictedMH = reg.m * qty + reg.b;
+            const production = qty > 0 ? predictedMH / qty : 0;
+
+            prodCell.textContent = production > 0 ? production.toFixed(4) : '—';
+            forecastCell.textContent = predictedMH > 0 ? Math.round(predictedMH).toLocaleString() : '—';
+        }
+
+        function saveStructureEntries() {
+            const tbody = document.getElementById('structures-entry-tbody');
+            if (!tbody) return;
+
+            const entries = [];
+            const rows = tbody.querySelectorAll('tr');
+            rows.forEach(row => {
+                const nameInput = row.querySelector('.structure-name-input');
+                const eqtyInput = row.querySelector('.structure-eqty-input');
+                const typeSelect = row.querySelector('.structure-type-select');
+                const spanSelect = row.querySelector('.structure-span-select');
+                const scopeSelect = row.querySelector('.structure-scope-select');
+                const name = (nameInput ? nameInput.value.trim() : '');
+                const eqty = parseFloat(String(eqtyInput ? eqtyInput.value : '0').replace(/[,\s]/g, '')) || 0;
+                const type = typeSelect ? typeSelect.value : '';
+                const span_arrangement = spanSelect ? spanSelect.value : '';
+                const scope = scopeSelect ? scopeSelect.value : '';
+                if (name || eqty > 0) {
+                    entries.push({ name, eqty, type, span_arrangement, scope });
+                }
+            });
+
+            // Save to state
+            const state = mhEstimateState.disciplines.structures;
+            if (state) {
+                state.structureEntries = entries;
+                // Update total quantity
+                const totalSF = entries.reduce((sum, e) => sum + (e.eqty || 0), 0);
+                state.quantity = totalSF;
+
+                // Update quantity display on main table
+                const qtySpan = document.getElementById('unified-qty-structures');
+                if (qtySpan) qtySpan.textContent = totalSF > 0 ? totalSF.toLocaleString('en-US') : '0';
+
+                // Sum forecast MHs from individual structure rows (linear regression per row)
+                let totalForecastMH = 0;
+                rows.forEach(row => {
+                    const forecastCell = row.querySelector('.structure-forecast-mh-cell');
+                    if (forecastCell) {
+                        const val = parseInt(String(forecastCell.textContent).replace(/[,\s—]/g, '')) || 0;
+                        totalForecastMH += val;
+                    }
+                });
+
+                // Use sum of per-structure forecast MHs as Custom MH
+                // Fall back to global regression if no forecasts available
+                if (totalForecastMH > 0) {
+                    state.mh = totalForecastMH;
+                    state.rate = totalSF > 0 ? totalForecastMH / totalSF : 0;
+                } else {
+                    const result = estimateMH('structures', totalSF, state.selectedProjects);
+                    state.mh = result.mh;
+                    state.rate = result.rate;
+                    if (result.allRate != null) state.allRate = result.allRate;
+                }
+
+                // Also compute allRate for Wide Open MH (keeps existing formula)
+                const allRate = getRateFromAllProjectsCurve('structures', totalSF);
+                if (allRate != null) state.allRate = allRate;
+
+                // Update the unified table Custom MH and Wide Open MH displays
+                const customMHEl = document.getElementById('unified-custom-mh-structures');
+                if (customMHEl) customMHEl.textContent = formatMH(state.mh);
+                const wideOpenMH = state.allRate ? Math.round(totalSF * state.allRate) : 0;
+                const wideOpenEl = document.getElementById('unified-wide-open-mh-structures');
+                if (wideOpenEl) wideOpenEl.textContent = formatMH(wideOpenMH);
+                const mhEl = document.getElementById('unified-mh-structures');
+                if (mhEl) mhEl.textContent = formatMH(state.mh);
+
+                // Update the row display (plugs state.mh into MH estimator table)
+                updateMHRowDisplay('structures', state);
+                updateComplexityBreakdown('structures');
+                recalculateAllUnifiedCosts();
+            }
+
+            closeStructuresModal();
+        }
+
+        // ============================================
+        // Per-Structure Benchmark Chart
+        // ============================================
+        let structureBenchmarkChart = null;
+        let structureBenchmarkProjects = [];
+
+        /**
+         * Open a benchmark chart for a specific structure row, filtered by Type + Span Arrangement + Scope
+         */
+        function openStructureBenchmark(btn) {
+            const row = btn.closest('tr');
+            if (!row) return;
+
+            const typeSelect = row.querySelector('.structure-type-select');
+            const spanSelect = row.querySelector('.structure-span-select');
+            const scopeSelect = row.querySelector('.structure-scope-select');
+            const filterType = typeSelect ? typeSelect.value : '';
+            const filterSpan = spanSelect ? spanSelect.value : '';
+            const filterScope = scopeSelect ? scopeSelect.value : '';
+
+            // Get all structures benchmark data
+            const benchmarks = getBenchmarkDataSync('structures');
+            if (!benchmarks || !benchmarks.projects) {
+                alert('Benchmark data not loaded. Please wait for data to load and try again.');
+                return;
+            }
+
+            // Filter projects matching Type + Span (scope not used — applicable_job drives selection)
+            const allProjects = benchmarks.projects;
+            const filtered = allProjects.filter(p => {
+                if (filterType && p.structureType !== filterType) return false;
+                if (filterSpan && p.spanArrangement !== filterSpan) return false;
+                return true;
+            });
+
+            // Store filtered projects — auto-select based on applicable_job matching span arrangement
+            structureBenchmarkProjects = filtered.map((p, i) => {
+                let autoSelect = false;
+                if (p.applicableJob && filterSpan) {
+                    // Normalize: "Single Span" vs "Single-Span" → compare without hyphens/spaces
+                    const ajNorm = p.applicableJob.toString().toLowerCase().replace(/[-\s]+/g, '');
+                    const spanNorm = filterSpan.toLowerCase().replace(/[-\s]+/g, '');
+                    autoSelect = ajNorm === spanNorm;
+                } else if (p.applicableJob && !filterSpan) {
+                    // No span filter: select any project with a non-null applicable_job
+                    autoSelect = true;
+                }
+                return { ...p, _sbIndex: i, _sbApplicable: autoSelect };
+            });
+
+            // Build filter description
+            const filterParts = [];
+            if (filterType) filterParts.push(filterType);
+            if (filterSpan) filterParts.push(filterSpan);
+            if (filterScope) filterParts.push(filterScope);
+            const filterDesc = filterParts.length > 0 ? filterParts.join(' / ') : 'All Types';
+
+            // Build left panel: project checkboxes
+            let projectListHtml = '';
+            if (structureBenchmarkProjects.length === 0) {
+                projectListHtml = `<p style="color: #888; padding: 20px;">No benchmark projects match the selected criteria: ${filterDesc}</p>`;
+            } else {
+                const selectedCount = structureBenchmarkProjects.filter(p => p._sbApplicable).length;
+                projectListHtml = `
+                    <div class="benchmark-discipline-section">
+                        <div class="benchmark-discipline-header" style="cursor: default;">
+                            <span>Structures — ${filterDesc}</span>
+                            <span class="benchmark-count" id="str-benchmark-count">${selectedCount}/${structureBenchmarkProjects.length} selected</span>
+                        </div>
+                        <div class="benchmark-projects" id="str-benchmark-projects">
+                `;
+                for (let i = 0; i < structureBenchmarkProjects.length; i++) {
+                    const p = structureBenchmarkProjects[i];
+                    const checked = p._sbApplicable ? 'checked' : '';
+                    const displayName = p.structureName ? `${p.name} — ${p.structureName}` : p.name;
+                    const ajLabel = p.applicableJob ? ` | Applicable: ${p.applicableJob}` : '';
+                    const stats = `${formatMH(p.mh || 0)} MH | ${(p.quantity || 0).toLocaleString()} SF | Rate: ${(p.rate || 0).toFixed(4)} MH/SF${ajLabel}`;
+                    projectListHtml += `
+                        <label class="benchmark-project-item">
+                            <input type="checkbox" ${checked} onchange="toggleStructureBenchmarkProject(${i})">
+                            <div class="benchmark-project-info">
+                                <span class="project-name">${displayName}</span>
+                                <span class="project-stats">${stats}</span>
+                            </div>
+                        </label>
+                    `;
+                }
+                projectListHtml += `
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Build full modal HTML
+            const html = `
+                <div class="benchmark-modal-content">
+                    <div class="benchmark-modal-header">
+                        <h3>📊 Structure Benchmark — ${filterDesc}</h3>
+                        <p>Showing ${structureBenchmarkProjects.length} projects matching: ${filterDesc}</p>
+                    </div>
+                    <div class="benchmark-modal-body">
+                        <div class="benchmark-modal-left">
+                            <div class="benchmark-disciplines">
+                                ${projectListHtml}
+                            </div>
+                        </div>
+                        <div class="benchmark-modal-right">
+                            <div class="benchmark-chart-container">
+                                <div class="benchmark-chart-header">
+                                    <h4>📈 FCT MHRs vs eQTY</h4>
+                                    <div class="benchmark-chart-legend">
+                                        <div class="legend-item" id="str-benchmark-legend-all">
+                                            <span class="legend-dot all-projects"></span>
+                                            <span class="legend-label">All Matching</span>
+                                        </div>
+                                        <div class="legend-item">
+                                            <span class="legend-dot selected-projects"></span>
+                                            <span class="legend-label">Selected</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="benchmark-chart-canvas-wrapper">
+                                    <canvas id="str-benchmark-chart-canvas"></canvas>
+                                </div>
+                                <div class="benchmark-chart-equations">
+                                    <div class="benchmark-equation" id="str-benchmark-equation-all-wrap">
+                                        <div class="equation-label">All Matching</div>
+                                        <div class="equation-formula all-projects" id="str-benchmark-eq-all">—</div>
+                                        <div class="equation-r2" id="str-benchmark-r2-all"></div>
+                                    </div>
+                                    <div class="benchmark-equation">
+                                        <div class="equation-label">Selected</div>
+                                        <div class="equation-formula selected-projects" id="str-benchmark-eq-selected" style="color: #e07c3a;">—</div>
+                                        <div class="equation-r2" id="str-benchmark-r2-selected"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="benchmark-modal-actions">
+                        <button class="btn btn-sm" onclick="closeStructureBenchmarkModal()">Close</button>
+                    </div>
+                </div>
+            `;
+
+            // Create or update the modal
+            let modal = document.getElementById('str-benchmark-modal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'str-benchmark-modal';
+                modal.className = 'modal-base';
+                modal.style.zIndex = '10001'; // Above structures modal
+                modal.onclick = function(e) { if (e.target === modal) closeStructureBenchmarkModal(); };
+                modal.innerHTML = `<div class="modal-content benchmark-modal-wrapper">${html}</div>`;
+                document.body.appendChild(modal);
+            } else {
+                modal.querySelector('.modal-content').innerHTML = html;
+            }
+            modal.classList.add('open');
+
+            // Initialize chart
+            setTimeout(() => {
+                updateStructureBenchmarkChart();
+            }, 100);
+        }
+
+        /**
+         * Update the structure benchmark scatter chart (X=eQTY, Y=FCT MHRs)
+         */
+        function updateStructureBenchmarkChart() {
+            const canvas = document.getElementById('str-benchmark-chart-canvas');
+            if (!canvas) return;
+
+            const allFiltered = structureBenchmarkProjects;
+            const selected = allFiltered.filter(p => p._sbApplicable);
+
+            // Data points: X = eQTY (quantity), Y = FCT MHRs (mh)
+            const toPoint = (p) => ({ x: p.quantity || 0, y: p.mh || 0, name: p.structureName ? `${p.name} — ${p.structureName}` : p.name });
+            const allPoints = allFiltered.map(toPoint).filter(p => p.x > 0 && p.y > 0);
+            const selectedPoints = selected.map(toPoint).filter(p => p.x > 0 && p.y > 0);
+
+            // Regressions (linear for structures)
+            const allRegression = LinearRegression.calculate(allPoints);
+            const selectedRegression = LinearRegression.calculate(selectedPoints);
+
+            // X-axis scaling
+            const quantities = allPoints.map(p => p.x).sort((a, b) => a - b);
+            const p90Index = Math.floor(quantities.length * 0.9);
+            const p90Value = quantities[p90Index] || quantities[quantities.length - 1] || 100000;
+            const xMax = p90Value * 1.2;
+            const xMin = Math.min(...quantities) * 0.5 || 1;
+
+            // Generate curve points
+            const allCurvePoints = allRegression.valid ? LinearRegression.generateCurve(allRegression.m, allRegression.b, xMin, xMax, 60) : [];
+            const selectedCurvePoints = selectedRegression.valid ? LinearRegression.generateCurve(selectedRegression.m, selectedRegression.b, xMin, xMax, 60) : [];
+
+            // Update equations
+            const allEqEl = document.getElementById('str-benchmark-eq-all');
+            const selEqEl = document.getElementById('str-benchmark-eq-selected');
+            const allR2El = document.getElementById('str-benchmark-r2-all');
+            const selR2El = document.getElementById('str-benchmark-r2-selected');
+            if (allEqEl) allEqEl.textContent = allRegression.valid ? LinearRegression.formatEquation(allRegression.m, allRegression.b) : 'Insufficient data';
+            if (selEqEl) selEqEl.textContent = selectedRegression.valid ? LinearRegression.formatEquation(selectedRegression.m, selectedRegression.b) : 'Insufficient data';
+            if (allR2El) allR2El.textContent = allRegression.valid ? `R² = ${allRegression.r2.toFixed(4)}` : '';
+            if (selR2El) selR2El.textContent = selectedRegression.valid ? `R² = ${selectedRegression.r2.toFixed(4)}` : '';
+
+            // Datasets
+            const datasets = [
+                { label: 'All Matching', data: allPoints, backgroundColor: 'rgba(74, 144, 217, 0.5)', borderColor: 'rgba(74, 144, 217, 0.9)', borderWidth: 2, pointRadius: 6, pointHoverRadius: 8, showLine: false, order: 2 },
+                { label: 'All Matching Trend', data: allCurvePoints, borderColor: 'rgba(74, 144, 217, 0.7)', borderWidth: 2, borderDash: [5, 5], pointRadius: 0, showLine: true, fill: false, order: 4 },
+                { label: 'Selected', data: selectedPoints, backgroundColor: 'rgba(224, 124, 58, 0.5)', borderColor: 'rgba(224, 124, 58, 0.9)', borderWidth: 2, pointRadius: 7, pointHoverRadius: 9, showLine: false, order: 1 },
+                { label: 'Selected Trend', data: selectedCurvePoints, borderColor: 'rgba(224, 124, 58, 0.7)', borderWidth: 2, borderDash: [3, 3], pointRadius: 0, showLine: true, fill: false, order: 3 }
+            ];
+
+            // Y-axis max
+            const yValues = [...allPoints.map(p => p.y), ...allCurvePoints.map(p => p.y)];
+            const yMax = Math.max(...yValues) * 1.1 || 10000;
+
+            const chartConfig = {
+                type: 'scatter',
+                data: { datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'nearest', intersect: true },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const point = context.raw;
+                                    if (point.name) {
+                                        return `${point.name}: ${Number(point.y).toLocaleString()} MH @ ${Number(point.x).toLocaleString()} SF`;
+                                    }
+                                    return `${Number(point.y).toLocaleString()} MH`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'linear', position: 'bottom', min: 0, max: xMax,
+                            title: { display: true, text: 'eQTY (SF)', color: '#888' },
+                            ticks: { color: '#888', callback: (v) => v.toLocaleString() },
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                        },
+                        y: {
+                            type: 'linear', min: 0, max: yMax,
+                            title: { display: true, text: 'FCT MHRs', color: '#888' },
+                            ticks: { color: '#888', callback: (v) => Number(v).toLocaleString() },
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                        }
+                    }
+                }
+            };
+
+            if (structureBenchmarkChart) structureBenchmarkChart.destroy();
+            const ctx = canvas.getContext('2d');
+            structureBenchmarkChart = new Chart(ctx, chartConfig);
+        }
+
+        /**
+         * Toggle a project's selection in the structure benchmark chart
+         */
+        function toggleStructureBenchmarkProject(index) {
+            if (index >= 0 && index < structureBenchmarkProjects.length) {
+                structureBenchmarkProjects[index]._sbApplicable = !structureBenchmarkProjects[index]._sbApplicable;
+                // Update count
+                const count = structureBenchmarkProjects.filter(p => p._sbApplicable).length;
+                const countEl = document.getElementById('str-benchmark-count');
+                if (countEl) countEl.textContent = `${count}/${structureBenchmarkProjects.length} selected`;
+                // Update chart
+                updateStructureBenchmarkChart();
+            }
+        }
+
+        /**
+         * Close the structure benchmark modal
+         */
+        function closeStructureBenchmarkModal() {
+            const modal = document.getElementById('str-benchmark-modal');
+            if (modal) modal.classList.remove('open');
+            if (structureBenchmarkChart) {
+                structureBenchmarkChart.destroy();
+                structureBenchmarkChart = null;
+            }
+        }
+
         /**
          * Recalculates escalation based on current inputs
          * Uses monthly bell curve distribution with fiscal year logic (March to March)
@@ -799,10 +2052,13 @@ let projectData = {
             escalationData.years = years;
             escalationData.durationMonths = durationMonths;
             
-            // Get total RAW LABOR for Directs and Indirects (Cost-based escalation)
+            // Escalate all costs NOT derived from construction cost (Assumed CC) or IPV
+            // Excludes: ESDC, TSCD (assumed CC), ODCs (assumed CC), Pursuit & SF (IPV)
             const directsRawLabor = parseFloat(document.getElementById('unified-direct-total-raw-labor')?.textContent?.replace(/[$,]/g, '')) || 0;
             const indirectsRawLabor = parseFloat(document.getElementById('unified-indirect-total-raw-labor')?.textContent?.replace(/[$,]/g, '')) || 0;
-            const totalRawLaborCost = directsRawLabor + indirectsRawLabor;
+            const contingencyRawLaborEsc = parseFloat(document.getElementById('contingency-total-raw-labor')?.textContent?.replace(/[$,]/g, '')) || 0;
+            const ipcEsc = parseFloat(document.getElementById('ipc-total-revenue')?.textContent?.replace(/[$,]/g, '')) || 0;
+            const totalRawLaborCost = directsRawLabor + indirectsRawLabor + contingencyRawLaborEsc + ipcEsc;
             escalationData.totalRawLaborCost = totalRawLaborCost;
             
             // Keep totalHours for reference (but not used for escalation calculation)
@@ -2365,9 +3621,7 @@ let projectData = {
             utilities: '/data/benchmarking/All Other Projects/benchmarking-utilities.json',
             retainingWalls: '/data/benchmarking/All Other Projects/benchmarking-retainingwalls.json',
             noiseWalls: '/data/benchmarking/All Other Projects/benchmarking-noisewalls.json',
-            bridgesPCGirder: '/data/benchmarking/All Other Projects/benchmarking-bridges.json',
-            bridgesSteel: '/data/benchmarking/All Other Projects/benchmarking-bridges.json',
-            bridgesRehab: '/data/benchmarking/All Other Projects/benchmarking-bridges.json',
+            structures: '/data/benchmarking/All Other Projects/benchmarking-bridges.json',
             miscStructures: '/data/benchmarking/All Other Projects/benchmarking-miscstructures.json',
             geotechnical: '/data/benchmarking/All Other Projects/benchmarking-geotechnical.json',
             systems: '/data/benchmarking/All Other Projects/benchmarking-systems.json',
@@ -2383,9 +3637,7 @@ let projectData = {
             traffic: '/data/benchmarking/Wall/JSON Wall/Directs.json',
             utilities: '/data/benchmarking/Wall/JSON Wall/Directs.json',
             retainingWalls: '/data/benchmarking/Wall/JSON Wall/Structures.json',
-            bridgesPCGirder: '/data/benchmarking/Wall/JSON Wall/Structures.json',
-            bridgesSteel: '/data/benchmarking/Wall/JSON Wall/Structures.json',
-            bridgesRehab: '/data/benchmarking/Wall/JSON Wall/Structures.json',
+            structures: '/data/benchmarking/Wall/JSON Wall/Structures.json',
             miscStructures: '/data/benchmarking/Wall/JSON Wall/Structures.json',
             geotechnical: '/data/benchmarking/Wall/JSON Wall/Geotech.json',
             systems: '/data/benchmarking/Wall/JSON Wall/Elec_Systems.json',
@@ -2458,14 +3710,17 @@ let projectData = {
             // Try direct mappings for common variations
             const mappings = {
                 'bridges': 'bridges',
+                'structures': 'bridges',
                 'retaining walls': 'walls',
                 'noise walls': 'walls',
                 'misc structures': 'bridges',
                 'geotechnical': 'geotechnical',
                 'environmental': 'environmental',
-                'digital delivery': null,
-                'esdc': null,
-                'tscd': null,
+                'digital delivery': 'roadway',
+                'pavement': 'roadway',
+                'landscaping': 'roadway',
+                'esdc': 'esdc',
+                'tscd': 'tscd',
                 'systems': 'track',  // Systems and Track share same resource codes
                 'track': 'track'
             };
@@ -2477,7 +3732,7 @@ let projectData = {
 
             // If mappedKey is explicitly null, return default
             if (mappedKey === null) {
-                return { lowRate: 48.00, highRate: 55.20, lowCode: 'Civ.01', highCode: 'Civ.02' };
+                return { lowRate: 60.00, highRate: 69.00, lowCode: 'Civ.01', highCode: 'Civ.02' };
             }
 
             // Try partial matching - if discipline name contains a key word
@@ -2489,7 +3744,7 @@ let projectData = {
 
             // Default fallback
             console.warn(`No resource rates found for discipline: ${disciplineName}, using default Civ.01/Civ.02`);
-            return { lowRate: 48.00, highRate: 55.20, lowCode: 'Civ.01', highCode: 'Civ.02' };
+            return { lowRate: 60.00, highRate: 69.00, lowCode: 'Civ.01', highCode: 'Civ.02' };
         }
 
         /**
@@ -2655,6 +3910,77 @@ let projectData = {
         };
 
         /**
+         * Linear regression calculator for y = m*x + b curves.
+         * Standard least-squares fit. Used for Bridge Structures benchmarking.
+         */
+        const LinearRegression = {
+            /**
+             * Calculate linear regression coefficients (y = m*x + b)
+             * @param {Array} data - Array of {x, y} points
+             * @returns {Object} { m, b, r2, valid }
+             */
+            calculate: function(data) {
+                const valid = data.filter(p => typeof p.x === 'number' && typeof p.y === 'number' && Number.isFinite(p.x) && Number.isFinite(p.y));
+                if (valid.length < 2) {
+                    return { m: 0, b: 0, r2: 0, valid: false };
+                }
+                const n = valid.length;
+                const sumX = valid.reduce((s, p) => s + p.x, 0);
+                const sumY = valid.reduce((s, p) => s + p.y, 0);
+                const sumXY = valid.reduce((s, p) => s + p.x * p.y, 0);
+                const sumX2 = valid.reduce((s, p) => s + p.x * p.x, 0);
+                const meanX = sumX / n;
+                const meanY = sumY / n;
+                const denom = sumX2 - n * meanX * meanX;
+                if (denom === 0) return { m: 0, b: meanY, r2: 0, valid: false };
+                const m = (sumXY - n * meanX * meanY) / denom;
+                const b = meanY - m * meanX;
+                // R-squared
+                let ssRes = 0, ssTot = 0;
+                for (const p of valid) {
+                    const predicted = m * p.x + b;
+                    ssRes += Math.pow(p.y - predicted, 2);
+                    ssTot += Math.pow(p.y - meanY, 2);
+                }
+                const r2 = ssTot !== 0 ? 1 - (ssRes / ssTot) : 0;
+                return { m, b, r2, valid: true };
+            },
+
+            /**
+             * Generate curve points for plotting
+             * @param {number} m - Slope
+             * @param {number} b - Y-intercept
+             * @param {number} xMin - Start X value
+             * @param {number} xMax - End X value
+             * @param {number} numPoints - Number of points to generate
+             * @returns {Array} Array of {x, y} points
+             */
+            generateCurve: function(m, b, xMin, xMax, numPoints = 50) {
+                const points = [];
+                const step = (xMax - xMin) / (numPoints - 1);
+                for (let i = 0; i < numPoints; i++) {
+                    const x = xMin + i * step;
+                    const y = m * x + b;
+                    points.push({ x, y });
+                }
+                return points;
+            },
+
+            /**
+             * Format regression equation as string
+             * @param {number} m - Slope
+             * @param {number} b - Y-intercept
+             * @returns {string} Formatted equation
+             */
+            formatEquation: function(m, b) {
+                const mStr = Math.abs(m) >= 1 ? m.toFixed(3) : m.toFixed(4);
+                const bStr = Math.abs(b) >= 1 ? Math.abs(b).toFixed(1) : Math.abs(b).toFixed(4);
+                const sign = b >= 0 ? '+' : '-';
+                return `y = ${mStr}x ${sign} ${bStr}`;
+            }
+        };
+
+        /**
          * Build (quantity, rate) points for benchmark curve — same logic as chart
          */
         function buildRatePoints(projects, isRevenueBased) {
@@ -2723,25 +4049,53 @@ let projectData = {
             const benchmarks = getBenchmarkDataSync(discId);
             if (!benchmarks || !benchmarks.projects || benchmarks.projects.length < 2) return null;
             if (discId === 'esdc' || discId === 'tscd') return null;
-            const allPoints = buildRatePoints(benchmarks.projects, false);
-            if (allPoints.length < 2) return null;
-            const reg = PowerRegression.calculate(allPoints);
+
+            const meta = benchmarks.metadata || {};
             let rate = null;
-            if (reg.valid) {
-                rate = reg.a * Math.pow(q, reg.b);
+
+            // Use stored Excel regression coefficients when available (exact match with Excel trendline)
+            if (meta.regression && typeof meta.regression.a === 'number' && typeof meta.regression.b === 'number') {
+                rate = meta.regression.a * Math.pow(q, meta.regression.b);
                 if (typeof rate !== 'number' || !Number.isFinite(rate) || rate <= 0) rate = null;
             }
-            if (rate == null) rate = interpolateRateAtQuantity(allPoints, q);
+
+            // Fall back to computing regression from data points
+            if (rate == null) {
+                const allPoints = buildRatePoints(benchmarks.projects, false);
+                if (allPoints.length < 2) return null;
+                if (discId === 'structures') {
+                    // Bridge Structures: linear regression (y = mx + b)
+                    const reg = LinearRegression.calculate(allPoints);
+                    if (reg.valid) {
+                        rate = reg.m * q + reg.b;
+                        if (typeof rate !== 'number' || !Number.isFinite(rate) || rate <= 0) rate = null;
+                    }
+                } else {
+                    const reg = PowerRegression.calculate(allPoints);
+                    if (reg.valid) {
+                        rate = reg.a * Math.pow(q, reg.b);
+                        if (typeof rate !== 'number' || !Number.isFinite(rate) || rate <= 0) rate = null;
+                    }
+                }
+                if (rate == null) rate = interpolateRateAtQuantity(allPoints, q);
+            }
+
             if (rate == null) return null;
-            const meta = benchmarks.metadata || {};
             let factor = 1;
             if (meta.calc && typeof meta.calc.open === 'number' && Number.isFinite(meta.calc.open) && meta.calc.open > 0) factor = meta.calc.open;
             else if (typeof meta.all_curve_factor === 'number' && Number.isFinite(meta.all_curve_factor) && meta.all_curve_factor > 0) factor = meta.all_curve_factor;
             return rate * factor;
         }
 
-        /** Assumed hourly rate ($/hr) for ESDC and TSCD used for MH and revenue calcs */
-        const ESDC_TSCD_HOURLY_RATE = 64.5;
+        /** @deprecated Use getEsdcTscdWeightedRate() instead — reads from discipline-resources.json at 50% complexity */
+        const ESDC_TSCD_HOURLY_RATE = 64.90;
+
+        /** Get ESDC/TSCD weighted hourly rate from JSON at fixed 50% complexity (L4%) */
+        function getEsdcTscdWeightedRate() {
+            const resources = getDisciplineResources('esdc');
+            // 50% L4 = 50% low + 50% high
+            return (resources.lowRate * 0.5) + (resources.highRate * 0.5);
+        }
 
         /** Default % of Assumed Construction Cost for subs/ODCs. Geotech Drilling = 0.50%; rest = 0.25%. */
         const DEFAULT_SURVEY_SUBS_PCT = 0.25;
@@ -2750,9 +4104,9 @@ let projectData = {
         const DEFAULT_ODCS_PCT = 0.25;
 
         /**
-         * Get production % from Selected Projects power curve for ESDC/TSCD (Excel trendline method).
-         * Curve: x = Revenue (K$), y = Production (%). Coefficients a, b are calculated from selected projects.
-         * Solves P = a * (Revenue_K)^b with Revenue_K = AssumedCost_K * P / 100 => P = [a * (AssumedCost_K/100)^b]^(1/(1-b)).
+         * Get production % from Selected Projects power curve for ESDC/TSCD.
+         * Curve: x = Project Cost (eqty in K$), y = Production (%). Coefficients a, b are calculated from selected projects.
+         * Formula: Production % = a * (ProjectCost_K)^b
          * @param {string} discId - 'esdc' or 'tscd'
          * @param {number} assumedConstructionCostK - Assumed construction cost in thousands (K$)
          * @returns {number|null} Production % (e.g. 1.19 for 1.19%) or null
@@ -2765,11 +4119,14 @@ let projectData = {
             if (!benchmarks || !benchmarks.projects) return null;
             const selectedProjects = benchmarks.projects.filter(p => p.applicable);
             if (selectedProjects.length < 2) return null;
-            // Excel trendline: x = Revenue (K$), y = Production (%). Build points from selected projects.
+            // Power curve: x = Project Cost (eqty in K$), y = Production (%)
+            // Use full-precision production_pct from cost/eqty when available (matches Excel)
             const points = selectedProjects
                 .map(p => {
-                    const x = p.esdc_cost ?? p.cost ?? 0;   // Revenue in K$
-                    const y = p.production_pct ?? p.rate ?? 0; // Production %
+                    const x = p.eqty || p.anticipated_cost || p.projectCost || 0; // Project Cost in K$
+                    const cost = p.esdc_cost || p.tscd_cost || p.cost || 0;
+                    // Compute full-precision production % from cost/eqty to match Excel
+                    const y = (cost > 0 && x > 0) ? (cost / x) * 100 : (p.production_pct || p.rate || 0);
                     return { x, y };
                 })
                 .filter(p => p.x > 0 && p.y > 0);
@@ -2777,15 +4134,10 @@ let projectData = {
             const reg = PowerRegression.calculate(points);
             let pct = null;
             if (reg.valid && typeof reg.a === 'number' && Number.isFinite(reg.a) && reg.a > 0 &&
-                typeof reg.b === 'number' && Number.isFinite(reg.b) && reg.b < 1) {
-                // P = a * (Revenue_K)^b, Revenue_K = costK * P / 100 => P = a * (costK*P/100)^b
-                // => P^(1-b) = a * (costK/100)^b => P = [a * (costK/100)^b]^(1/(1-b))
-                const exponent = 1 / (1 - reg.b);
-                const base = reg.a * Math.pow(costK / 100, reg.b);
-                if (base > 0 && Number.isFinite(exponent)) {
-                    pct = Math.pow(base, exponent);
-                    if (typeof pct !== 'number' || !Number.isFinite(pct) || pct <= 0) pct = null;
-                }
+                typeof reg.b === 'number' && Number.isFinite(reg.b)) {
+                // Production % = a * (ProjectCost_K)^b
+                pct = reg.a * Math.pow(costK, reg.b);
+                if (typeof pct !== 'number' || !Number.isFinite(pct) || pct <= 0) pct = null;
             }
             if (pct == null) {
                 // Fallback: average production % of selected projects
@@ -2812,11 +4164,20 @@ let projectData = {
             if (selectedProjects.length < 2) return null;
             const selectedPoints = buildRatePoints(selectedProjects, false);
             if (selectedPoints.length < 2) return null;
-            const reg = PowerRegression.calculate(selectedPoints);
             let rate = null;
-            if (reg.valid) {
-                rate = reg.a * Math.pow(q, reg.b);
-                if (typeof rate !== 'number' || !Number.isFinite(rate) || rate <= 0) rate = null;
+            if (discId === 'structures') {
+                // Bridge Structures: linear regression (y = mx + b)
+                const reg = LinearRegression.calculate(selectedPoints);
+                if (reg.valid) {
+                    rate = reg.m * q + reg.b;
+                    if (typeof rate !== 'number' || !Number.isFinite(rate) || rate <= 0) rate = null;
+                }
+            } else {
+                const reg = PowerRegression.calculate(selectedPoints);
+                if (reg.valid) {
+                    rate = reg.a * Math.pow(q, reg.b);
+                    if (typeof rate !== 'number' || !Number.isFinite(rate) || rate <= 0) rate = null;
+                }
             }
             if (rate == null) rate = interpolateRateAtQuantity(selectedPoints, q);
             if (rate == null) return null;
@@ -2845,7 +4206,7 @@ let projectData = {
         function updateBenchmarkChart(discId) {
             const canvas = document.getElementById('benchmark-chart-canvas');
             if (!canvas) return;
-            
+
             const benchmarks = getBenchmarkDataSync(discId);
             if (!benchmarks || !benchmarks.projects) return;
 
@@ -2854,33 +4215,36 @@ let projectData = {
             };
             const allProjects = benchmarks.projects;
             const selectedProjects = allProjects.filter(p => p.applicable);
-            
+
             // Check if this is a revenue-based discipline (ESDC/TSCD)
             const isRevenueBased = (discId === 'esdc' || discId === 'tscd');
+
+            // Show both All Projects and Selected Projects curves
+            const showAllData = true;
             
             // Update chart title dynamically
             const chartTitle = document.getElementById('benchmark-chart-title');
             if (chartTitle) {
-                chartTitle.textContent = isRevenueBased ? '📈 Production vs Revenue' : '📈 Rate vs Quantity';
+                chartTitle.textContent = isRevenueBased ? '📈 Production % vs Construction Project Cost' : '📈 Rate vs Quantity';
             }
             
             // Convert to chart data points
             let allPoints, selectedPoints;
             
             if (isRevenueBased) {
-                // ESDC/TSCD: X = Revenue (esdc_cost), Y = Production % (production_pct)
-                allPoints = allProjects.map(p => ({ 
-                    x: p.esdc_cost || p.cost || 0, // Revenue in K$
+                // ESDC/TSCD: X = Project Cost (eqty), Y = Production % (production_pct)
+                allPoints = allProjects.map(p => ({
+                    x: p.eqty || p.anticipated_cost || p.projectCost || 0, // Project Cost in K$
                     y: p.production_pct || p.rate || 0, // Production %
                     name: p.name,
-                    projectCost: p.anticipated_cost || p.projectCost || 0
+                    revenue: p.esdc_cost || p.cost || 0 // Revenue for tooltip
                 })).filter(p => p.x > 0 && p.y > 0);
-                
-                selectedPoints = selectedProjects.map(p => ({ 
-                    x: p.esdc_cost || p.cost || 0, // Revenue in K$
+
+                selectedPoints = selectedProjects.map(p => ({
+                    x: p.eqty || p.anticipated_cost || p.projectCost || 0, // Project Cost in K$
                     y: p.production_pct || p.rate || 0, // Production %
                     name: p.name,
-                    projectCost: p.anticipated_cost || p.projectCost || 0
+                    revenue: p.esdc_cost || p.cost || 0 // Revenue for tooltip
                 })).filter(p => p.x > 0 && p.y > 0);
             } else {
                 // Standard: plot Quantity (x) vs Rate (y) — same Rate values shown in the project list
@@ -2896,10 +4260,11 @@ let projectData = {
             
             // Calculate regressions (chart always uses data-derived curve; optional factor applied only to rate used for All/Selected Rate)
             // For ESDC/TSCD: Use pre-calculated curve from JSON if available
+            const meta = benchmarks.metadata || {};
             let allRegression, selectedRegression;
             
             if (isRevenueBased && benchmarks.curve && benchmarks.curve.a && benchmarks.curve.b) {
-                // Use curve from JSON file
+                // Use curve from JSON file (ESDC/TSCD)
                 allRegression = {
                     valid: true,
                     a: benchmarks.curve.a,
@@ -2908,11 +4273,26 @@ let projectData = {
                 };
                 // For selected, recalculate from selected points
                 selectedRegression = PowerRegression.calculate(selectedPoints);
+            } else if (meta.regression && typeof meta.regression.a === 'number' && typeof meta.regression.b === 'number') {
+                // Use stored Excel regression coefficients for All Projects curve
+                allRegression = {
+                    valid: true,
+                    a: meta.regression.a,
+                    b: meta.regression.b,
+                    r2: meta.regression.r2 || 0
+                };
+                selectedRegression = PowerRegression.calculate(selectedPoints);
+            } else if (discId === 'structures') {
+                // Bridge Structures uses linear regression (y = mx + b)
+                allRegression = LinearRegression.calculate(allPoints);
+                selectedRegression = LinearRegression.calculate(selectedPoints);
             } else {
                 allRegression = PowerRegression.calculate(allPoints);
                 selectedRegression = PowerRegression.calculate(selectedPoints);
             }
-            
+
+            const useLinear = (discId === 'structures');
+
             // Smart X-axis scaling: focus on where data is dense (for ESDC/TSCD use selected only)
             const pointsForScale = isRevenueBased ? selectedPoints : allPoints;
             const quantities = pointsForScale.map(p => p.x).sort((a, b) => a - b);
@@ -2920,13 +4300,17 @@ let projectData = {
             const p90Value = quantities[p90Index] || quantities[quantities.length - 1] || 100000;
             const xMax = p90Value * 1.2;
             const xMin = Math.min(...quantities) * 0.5 || 1;
-            
+
             // Generate curve points from regression only
             const allCurvePoints = allRegression.valid
-                ? PowerRegression.generateCurve(allRegression.a, allRegression.b, xMin, xMax, 60)
+                ? (useLinear
+                    ? LinearRegression.generateCurve(allRegression.m, allRegression.b, xMin, xMax, 60)
+                    : PowerRegression.generateCurve(allRegression.a, allRegression.b, xMin, xMax, 60))
                 : [];
             const selectedCurvePoints = selectedRegression.valid
-                ? PowerRegression.generateCurve(selectedRegression.a, selectedRegression.b, xMin, xMax, 60)
+                ? (useLinear
+                    ? LinearRegression.generateCurve(selectedRegression.m, selectedRegression.b, xMin, xMax, 60)
+                    : PowerRegression.generateCurve(selectedRegression.a, selectedRegression.b, xMin, xMax, 60))
                 : [];
             
             // Update equations display (chart shows data-derived curve; factor from Excel is applied only to displayed All/Selected Rate)
@@ -2935,27 +4319,30 @@ let projectData = {
             const allR2El = document.getElementById('benchmark-r2-all');
             const selR2El = document.getElementById('benchmark-r2-selected');
             
-            // ESDC/TSCD: only show selected data (no "All Projects"); use same dot colors as other disciplines (blue)
-            const showAllData = !isRevenueBased;
+            // Show both All Projects and Selected Projects for all disciplines (including ESDC/TSCD)
             const legendAllEl = document.getElementById('benchmark-legend-all');
             const equationAllWrap = document.getElementById('benchmark-equation-all-wrap');
-            if (legendAllEl) legendAllEl.style.display = showAllData ? '' : 'none';
-            if (equationAllWrap) equationAllWrap.style.display = showAllData ? '' : 'none';
+            if (legendAllEl) legendAllEl.style.display = '';
+            if (equationAllWrap) equationAllWrap.style.display = '';
             const legendSelectedDot = document.querySelector('.benchmark-chart-legend .legend-dot.selected-projects');
             if (legendSelectedDot) {
-                legendSelectedDot.style.background = isRevenueBased ? '#4a90d9' : '#e07c3a';
+                legendSelectedDot.style.background = '#e07c3a';
             }
             const eqSelectedEl = document.getElementById('benchmark-eq-selected');
-            if (eqSelectedEl) eqSelectedEl.style.color = isRevenueBased ? '#4a90d9' : '#e07c3a';
+            if (eqSelectedEl) eqSelectedEl.style.color = '#e07c3a'; // Always orange for Selected Projects
 
             if (allEqEl) {
                 allEqEl.textContent = allRegression.valid
-                    ? PowerRegression.formatEquation(allRegression.a, allRegression.b)
+                    ? (useLinear
+                        ? LinearRegression.formatEquation(allRegression.m, allRegression.b)
+                        : PowerRegression.formatEquation(allRegression.a, allRegression.b))
                     : 'Insufficient data';
             }
             if (selEqEl) {
                 selEqEl.textContent = selectedRegression.valid
-                    ? PowerRegression.formatEquation(selectedRegression.a, selectedRegression.b)
+                    ? (useLinear
+                        ? LinearRegression.formatEquation(selectedRegression.m, selectedRegression.b)
+                        : PowerRegression.formatEquation(selectedRegression.a, selectedRegression.b))
                     : 'Insufficient data';
             }
             if (allR2El) {
@@ -2965,16 +4352,16 @@ let projectData = {
                 selR2El.textContent = selectedRegression.valid ? `R² = ${selectedRegression.r2.toFixed(4)}` : '';
             }
             
-            // Chart datasets (for ESDC/TSCD only Selected; for others All + Selected)
+            // Chart datasets - All Projects (blue) and Selected Projects (orange)
             const datasets = [];
             if (showAllData) {
                 datasets.push(
                     { label: 'All Projects', data: allPoints, backgroundColor: 'rgba(74, 144, 217, 0.5)', borderColor: 'rgba(74, 144, 217, 0.9)', borderWidth: 2, pointRadius: 6, pointHoverRadius: 8, showLine: false, order: 2 },
-                    { label: 'All Projects Trend', data: allCurvePoints, borderColor: 'rgba(74, 144, 217, 0.5)', borderWidth: 2, borderDash: [5, 5], pointRadius: 0, showLine: true, fill: false, order: 4 }
+                    { label: 'All Projects Trend', data: allCurvePoints, borderColor: 'rgba(74, 144, 217, 0.7)', borderWidth: 2, borderDash: [5, 5], pointRadius: 0, showLine: true, fill: false, order: 4 }
                 );
             }
-            // Same colors as other disciplines: blue #4a90d9 (74,144,217) for selected when ESDC/TSCD; orange for others
-            const selectedColor = isRevenueBased ? { bg: 'rgba(74, 144, 217, 0.5)', border: 'rgba(74, 144, 217, 0.9)', line: 'rgba(74, 144, 217, 0.7)' } : { bg: 'rgba(224, 124, 58, 0.5)', border: 'rgba(224, 124, 58, 0.9)', line: 'rgba(224, 124, 58, 0.7)' };
+            // Selected projects always use orange/red color for contrast with blue All Projects
+            const selectedColor = { bg: 'rgba(224, 124, 58, 0.5)', border: 'rgba(224, 124, 58, 0.9)', line: 'rgba(224, 124, 58, 0.7)' };
             datasets.push(
                 { label: 'Selected Projects', data: selectedPoints, backgroundColor: selectedColor.bg, borderColor: selectedColor.border, borderWidth: 2, pointRadius: 7, pointHoverRadius: 9, showLine: false, order: 1 },
                 { label: 'Selected Projects Trend', data: selectedCurvePoints, borderColor: selectedColor.line, borderWidth: 2, borderDash: [3, 3], pointRadius: 0, showLine: true, fill: false, order: 3 }
@@ -3005,9 +4392,9 @@ let projectData = {
                                 label: function(context) {
                                     const point = context.raw;
                                     if (isRevenueBased) {
-                                        // ESDC/TSCD: Show production % and revenue
+                                        // ESDC/TSCD: Show production % and project cost
                                         if (point.name) {
-                                            return `${point.name}: ${point.y.toFixed(2)}% Production @ $${point.x.toLocaleString()}K Revenue (Project: $${point.projectCost?.toLocaleString() || 0}K)`;
+                                            return `${point.name}: ${point.y.toFixed(2)}% Production @ $${point.x.toLocaleString()}K Project Cost (Revenue: $${point.revenue?.toLocaleString() || 0}K)`;
                                         }
                                         return `${point.y.toFixed(2)}% Production`;
                                     } else {
@@ -3032,7 +4419,7 @@ let projectData = {
                             max: xMax,
                             title: {
                                 display: true,
-                                text: isRevenueBased ? 'Revenue (K$)' : `Quantity (${config?.unit || 'units'})`,
+                                text: isRevenueBased ? 'Project Cost (K$)' : `Quantity (${config?.unit || 'units'})`,
                                 color: '#888'
                             },
                             ticks: {
@@ -3431,7 +4818,7 @@ ${reasoning}`;
                         }
 
                         // Transform projects to the expected format
-                        const transformedProjects = projects.map((p, index) => {
+                        let transformedProjects = projects.map((p, index) => {
                             // Determine the rate field based on discipline type
                             let rate = p.production_mhrs_per_ea || p.production_pct || p.rate || 0;
                             let mh = p.fct_mhrs || p.mh || 0;
@@ -3451,17 +4838,6 @@ ${reasoning}`;
                                     mh = p.esdc_cost || p.cost || 0; // Revenue in K$
                                     quantity = p.eqty || p.anticipated_cost || p.projectCost || 0; // Project cost in K$
                                 }
-                            }
-
-                            // For bridges, filter by type
-                            if (disciplineId === 'bridgesPCGirder' && p.notes && p.notes.includes('Steel')) {
-                                return null; // Skip steel bridges for PC Girder
-                            }
-                            if (disciplineId === 'bridgesSteel' && p.notes && !p.notes.includes('Steel')) {
-                                return null; // Skip non-steel bridges
-                            }
-                            if (disciplineId === 'bridgesRehab' && p.notes && !p.notes.toLowerCase().includes('rehab')) {
-                                return null; // Skip non-rehab bridges
                             }
 
                             // Handle new ESDC/TSCD format field names
@@ -3520,6 +4896,15 @@ ${reasoning}`;
                                 notes: p.notes
                             };
                             
+                            // For Structures, preserve structure-specific metadata for filtering
+                            if (disciplineId === 'structures') {
+                                transformedProject.structureType = p.type || '';
+                                transformedProject.spanArrangement = p.span_arrangement || '';
+                                transformedProject.structureScope = p.scope || '';
+                                transformedProject.structureName = p.structure_name || '';
+                                transformedProject.applicableJob = p.applicable_job || null;
+                            }
+
                             // For ESDC/TSCD, add additional revenue-specific fields
                             if (disciplineId === 'esdc' || disciplineId === 'tscd') {
                                 if (isNewEsdcTscdFormat) {
@@ -3587,6 +4972,15 @@ ${reasoning}`;
                             if (typeof fileData.calc.custom === 'number' && Number.isFinite(fileData.calc.custom) && fileData.calc.custom > 0) metadata.calc.custom = fileData.calc.custom;
                             if (fileData.calc.custom_from_selected === true || fileData.calc.custom === 'from_selected') metadata.calc.custom_from_selected = true;
                             if (typeof fileData.calc.custom_std_dev_coefficient === 'number' && Number.isFinite(fileData.calc.custom_std_dev_coefficient)) metadata.calc.custom_std_dev_coefficient = fileData.calc.custom_std_dev_coefficient;
+                        }
+                        // Pass through Excel regression coefficients (y = a * x^b) when stored in JSON
+                        if (fileData.regression && typeof fileData.regression === 'object') {
+                            const reg = fileData.regression;
+                            if (typeof reg.a === 'number' && Number.isFinite(reg.a) && reg.a > 0 &&
+                                typeof reg.b === 'number' && Number.isFinite(reg.b)) {
+                                metadata.regression = { a: reg.a, b: reg.b };
+                                if (typeof reg.r2 === 'number') metadata.regression.r2 = reg.r2;
+                            }
                         }
                         loadedData[disciplineId] = {
                             projects: transformedProjects,
@@ -3706,32 +5100,13 @@ ${reasoning}`;
                 quantityDescription: 'Noise Wall Area',
                 calculationType: 'benchmark'
             },
-            bridgesPCGirder: {
-                id: 'bridgesPCGirder',
-                name: 'Bridges (PC Girder)',
+            structures: {
+                id: 'structures',
+                name: 'Structures',
                 accountCode: '88.45.81',
                 unit: 'SF',
-                quantityDescription: 'Bridge Deck Area',
-                calculationType: 'benchmark',
-                bridgeType: 'PC Girder'
-            },
-            bridgesSteel: {
-                id: 'bridgesSteel',
-                name: 'Bridges (Steel)',
-                accountCode: '88.45.81',
-                unit: 'SF',
-                quantityDescription: 'Bridge Deck Area',
-                calculationType: 'benchmark',
-                bridgeType: 'Steel'
-            },
-            bridgesRehab: {
-                id: 'bridgesRehab',
-                name: 'Bridges (Rehabilitation)',
-                accountCode: '88.45.81',
-                unit: 'SF',
-                quantityDescription: 'Bridge Deck Area',
-                calculationType: 'benchmark',
-                bridgeType: 'Rehabilitation'
+                quantityDescription: 'Structure Area',
+                calculationType: 'benchmark'
             },
             miscStructures: {
                 id: 'miscStructures',
@@ -3748,6 +5123,28 @@ ${reasoning}`;
                 unit: 'EA',
                 quantityDescription: 'Transportation Structure Count',
                 calculationType: 'benchmark'
+            },
+            pavement: {
+                id: 'pavement',
+                name: 'Pavement',
+                accountCode: '88.40.39',
+                unit: 'PLS',
+                quantityDescription: 'Lump Sum',
+                calculationType: 'fte',
+                defaultFte: 1,
+                defaultMonths: 6,
+                tooltip: 'Pavement design is typically staffed at 1 FTE for 6 months. Adjust FTE count and duration as needed.'
+            },
+            landscaping: {
+                id: 'landscaping',
+                name: 'Landscaping',
+                accountCode: '88.40.39',
+                unit: 'PLS',
+                quantityDescription: 'Lump Sum',
+                calculationType: 'fte',
+                defaultFte: 0.5,
+                defaultMonths: 12,
+                tooltip: 'Landscaping design is typically staffed at 0.5 FTE for 12 months. Adjust FTE count and duration as needed.'
             },
             systems: {
                 id: 'systems',
@@ -3800,7 +5197,10 @@ ${reasoning}`;
                     { id: '264th', name: '264th Street Interchange', mh: 11783, quantity: 193, unit: 'AC', rate: 61.05, type: 'highway', complexity: 'medium', applicable: true }
                 ],
                 defaultRate: 92.62,
-                customRate: 81.42
+                customRate: 81.42,
+                metadata: {
+                    regression: { a: 1665.9, b: -0.504, r2: 0.1517 }
+                }
             },
             mot: {
                 projects: [
@@ -3885,7 +5285,7 @@ ${reasoning}`;
                 defaultRate: 0.040,
                 customRate: 0.040
             },
-            bridgesPCGirder: {
+            structures: {
                 projects: [
                     { id: 'b201', name: 'Bridge B201 (429 Ramp B1)', mh: 2415, quantity: 18100, unit: 'SF', rate: 0.1334, type: 'highway', complexity: 'medium', spans: 3, applicable: true },
                     { id: 'b203', name: 'Bridge B203 (429 Ramp A2)', mh: 2438, quantity: 19630, unit: 'SF', rate: 0.1242, type: 'highway', complexity: 'medium', spans: 4, applicable: true },
@@ -3896,27 +5296,15 @@ ${reasoning}`;
                     { id: 'b210', name: 'Bridge B210 (SR 538 NB)', mh: 2424, quantity: 18692, unit: 'SF', rate: 0.1297, type: 'highway', complexity: 'medium', spans: 4, applicable: true },
                     { id: 'b212', name: 'Bridge B212 (429 Ramp D3)', mh: 2465, quantity: 21451, unit: 'SF', rate: 0.1149, type: 'highway', complexity: 'medium', spans: 5, applicable: true },
                     { id: 'b213', name: 'Bridge B213 (I-4 ML WB)', mh: 2577, quantity: 28872, unit: 'SF', rate: 0.0893, type: 'highway', complexity: 'medium', spans: 3, applicable: true },
-                    { id: 'b214', name: 'Bridge B214 (I-4 ML EB)', mh: 2580, quantity: 29063, unit: 'SF', rate: 0.0888, type: 'highway', complexity: 'medium', spans: 3, applicable: true }
+                    { id: 'b214', name: 'Bridge B214 (I-4 ML EB)', mh: 2580, quantity: 29063, unit: 'SF', rate: 0.0888, type: 'highway', complexity: 'medium', spans: 3, applicable: true },
+                    { id: 'frt', name: 'FRT San Dimas Wash (Steel)', mh: 2093, quantity: 1901, unit: 'SF', rate: 1.1013, type: 'transit', complexity: 'high', spans: 1, applicable: false },
+                    { id: 'd12', name: 'I-15 Tropicana D12 (Steel)', mh: 5094, quantity: 13562, unit: 'SF', rate: 0.3756, type: 'highway', complexity: 'high', spans: 'multi', applicable: true },
+                    { id: 'b221s', name: 'Bridge B221 Steel (429 Ramp D2)', mh: 4064, quantity: 10820, unit: 'SF', rate: 0.3756, type: 'highway', complexity: 'high', spans: 1, applicable: true },
+                    { id: 'b222s', name: 'Bridge B222 Steel (SR 538 NB)', mh: 4141, quantity: 11025, unit: 'SF', rate: 0.3756, type: 'highway', complexity: 'high', spans: 1, applicable: true },
+                    { id: 'b208', name: 'Bridge B208 (Old Lake Wilson NB Rehab)', mh: 4692, quantity: 30000, unit: 'SF', rate: 0.1564, type: 'highway', complexity: 'medium', applicable: true }
                 ],
                 defaultRate: 0.090,
                 customRate: 0.090
-            },
-            bridgesSteel: {
-                projects: [
-                    { id: 'frt', name: 'FRT San Dimas Wash', mh: 2093, quantity: 1901, unit: 'SF', rate: 1.1013, type: 'transit', complexity: 'high', spans: 1, applicable: false },
-                    { id: 'd12', name: 'I-15 Tropicana D12', mh: 5094, quantity: 13562, unit: 'SF', rate: 0.3756, type: 'highway', complexity: 'high', spans: 'multi', applicable: true },
-                    { id: 'b221s', name: 'Bridge B221 Steel (429 Ramp D2)', mh: 4064, quantity: 10820, unit: 'SF', rate: 0.3756, type: 'highway', complexity: 'high', spans: 1, applicable: true },
-                    { id: 'b222s', name: 'Bridge B222 Steel (SR 538 NB)', mh: 4141, quantity: 11025, unit: 'SF', rate: 0.3756, type: 'highway', complexity: 'high', spans: 1, applicable: true }
-                ],
-                defaultRate: 0.376,
-                customRate: 0.376
-            },
-            bridgesRehab: {
-                projects: [
-                    { id: 'b208', name: 'Bridge B208 (Old Lake Wilson NB Rehab)', mh: 4692, quantity: 30000, unit: 'SF', rate: 0.1564, type: 'highway', complexity: 'medium', applicable: true }
-                ],
-                defaultRate: 0.156,
-                customRate: 0.156
             },
             miscStructures: {
                 projects: [
@@ -3970,63 +5358,166 @@ ${reasoning}`;
             },
             esdc: {
                 projects: [
-                    { id: 'sec820', name: 'IH 820 Southeast Connector', cost: 23053.57, projectCost: 1938485.07, unit: 'K$', rate: 0.0119, market: 'Transportation, Highway', applicable: true },
-                    { id: 'fwle', name: 'Federal Way Link Extension', cost: 21188.27, projectCost: 1376998.17, unit: 'K$', rate: 0.0154, market: 'Transit, Light Rail', applicable: false },
-                    { id: 'fp2a', name: 'Foothill Phase 2A LRT', cost: 6232.00, projectCost: 470813.24, unit: 'K$', rate: 0.0132, market: 'Transit, Light Rail', applicable: false },
-                    { id: 'fp2b1', name: 'Foothill Phase 2B1 LRT', cost: 8894.15, projectCost: 836559.23, unit: 'K$', rate: 0.0106, market: 'Transit, Light Rail', applicable: false },
-                    { id: 'ottawa', name: 'Ottawa LRT', cost: 52312.47, projectCost: 3691276.90, unit: 'K$', rate: 0.0142, market: 'Transit, Light Rail', applicable: false },
-                    { id: 'c70', name: 'C-70', cost: 15995.50, projectCost: 1386636.60, unit: 'K$', rate: 0.0115, market: 'Transportation, Highway', applicable: true },
-                    { id: 'i25trex', name: 'I-25 T-REX', cost: 9702.70, projectCost: 1144655.05, unit: 'K$', rate: 0.0085, market: 'Transportation, Highway', applicable: true },
-                    { id: 'geneva', name: 'Geneva Road', cost: 347.60, projectCost: 41533.16, unit: 'K$', rate: 0.0084, market: 'Transportation, Highway', applicable: true },
-                    { id: 'i15corr', name: 'I-15 Corridor Reconstruction', cost: 10453.15, projectCost: 1261222.85, unit: 'K$', rate: 0.0083, market: 'Transportation, Highway', applicable: true },
-                    { id: 'sr202', name: 'SR-202', cost: 1276.02, projectCost: 155588.42, unit: 'K$', rate: 0.0082, market: 'Transportation, Highway', applicable: true },
-                    { id: 'dfw', name: 'DFW Connector', cost: 6439.08, projectCost: 798052.80, unit: 'K$', rate: 0.0081, market: 'Transportation, Highway', applicable: true },
-                    { id: 'neon', name: 'Project Neon', cost: 5539.52, projectCost: 611670.06, unit: 'K$', rate: 0.0091, market: 'Transportation, Highway', applicable: true },
-                    { id: 'mvc', name: 'Mountain View Corridor', cost: 2199.24, projectCost: 229878.60, unit: 'K$', rate: 0.0096, market: 'Transportation, Highway', applicable: true },
-                    { id: 'e360', name: 'E-360 Bellevue to Redmond', cost: 2290.37, projectCost: 236570.04, unit: 'K$', rate: 0.0097, market: 'Transportation, Highway', applicable: true },
-                    { id: 'i17', name: 'I-17 Anthem', cost: 3210.57, projectCost: 320071.89, unit: 'K$', rate: 0.0100, market: 'Transportation, Highway', applicable: true },
-                    { id: 'henday', name: 'Anthony Henday-Stony Plain', cost: 1905.94, projectCost: 187397.98, unit: 'K$', rate: 0.0102, market: 'Transportation, Highway', applicable: true },
-                    { id: 'sh183', name: 'SH-183 Midtown Express', cost: 9424.17, projectCost: 885258.97, unit: 'K$', rate: 0.0106, market: 'Transportation, Highway', applicable: true },
-                    { id: 'iccb', name: 'ICC-B', cost: 5009.29, projectCost: 454376.58, unit: 'K$', rate: 0.0110, market: 'Transportation, Highway', applicable: true },
-                    { id: 'pioneer', name: 'Pioneer Crossing', cost: 2102.32, projectCost: 177230.46, unit: 'K$', rate: 0.0119, market: 'Transportation, Highway', applicable: true },
-                    { id: 'i225', name: 'I-225', cost: 5263.24, projectCost: 424701.71, unit: 'K$', rate: 0.0124, market: 'Transportation, Highway', applicable: true },
-                    { id: 'i405rb', name: 'I-405 Renton to Bellevue', cost: 8305.85, projectCost: 615922.00, unit: 'K$', rate: 0.0135, market: 'Transportation, Highway', applicable: true },
-                    { id: 'nwpkwy', name: 'Northwest Parkway', cost: 2059.46, projectCost: 152435.75, unit: 'K$', rate: 0.0135, market: 'Transportation, Highway', applicable: true },
-                    { id: 'i15trop', name: 'I-15 Tropicana', cost: 4650.13, projectCost: 328887.12, unit: 'K$', rate: 0.0141, market: 'Transportation, Highway', applicable: true },
-                    { id: 'turcot', name: 'Turcot', cost: 24752.38, projectCost: 1703515.46, unit: 'K$', rate: 0.0145, market: 'Transportation, Highway', applicable: true },
-                    { id: 'selmon', name: 'Selmon Expressway Extension', cost: 4154.99, projectCost: 253154.83, unit: 'K$', rate: 0.0164, market: 'Transportation, Highway', applicable: true },
-                    { id: 'swcalgary', name: 'Southwest Calgary Ring Road', cost: 23281.64, projectCost: 1325890.67, unit: 'K$', rate: 0.0176, market: 'Transportation, Highway', applicable: true },
-                    { id: 'sea2sky', name: 'Sea-to-Sky Highway', cost: 3379.41, projectCost: 590638.34, unit: 'K$', rate: 0.0057, market: 'Transportation, Highway', applicable: true },
-                    { id: 'i405k', name: 'I-405 Kirkland', cost: 247.45, projectCost: 42990.54, unit: 'K$', rate: 0.0058, market: 'Transportation, Highway', applicable: true },
-                    { id: 'i440', name: 'I-440 Nashville Connector', cost: 520.87, projectCost: 146656.02, unit: 'K$', rate: 0.0036, market: 'Transportation, Highway', applicable: true }
+                    { id: 'esdc01', name: 'IH 820 Southeast Connector', esdc_cost: 23053.57, cost: 23053.57, anticipated_cost: 1938485.07, projectCost: 1938485.07, unit: 'K$', production_pct: 1.19, rate: 1.19, market: '', applicable: false },
+                    { id: 'esdc02', name: 'Federal Way Link Extension', esdc_cost: 21188.27, cost: 21188.27, anticipated_cost: 1376998.17, projectCost: 1376998.17, unit: 'K$', production_pct: 1.54, rate: 1.54, market: '', applicable: false },
+                    { id: 'esdc03', name: 'Foothill Phase 2A LRT', esdc_cost: 6232.00, cost: 6232.00, anticipated_cost: 470813.24, projectCost: 470813.24, unit: 'K$', production_pct: 1.32, rate: 1.32, market: '', applicable: false },
+                    { id: 'esdc04', name: 'Foothill Phase 2B1 LRT', esdc_cost: 8894.15, cost: 8894.15, anticipated_cost: 836559.23, projectCost: 836559.23, unit: 'K$', production_pct: 1.06, rate: 1.06, market: '', applicable: false },
+                    { id: 'esdc05', name: 'Ottawa LRT', esdc_cost: 52312.47, cost: 52312.47, anticipated_cost: 3691276.90, projectCost: 3691276.90, unit: 'K$', production_pct: 1.42, rate: 1.42, market: '', applicable: false },
+                    { id: 'esdc06', name: 'C-70', esdc_cost: 15995.50, cost: 15995.50, anticipated_cost: 1386636.60, projectCost: 1386636.60, unit: 'K$', production_pct: 1.15, rate: 1.15, market: '', applicable: false },
+                    { id: 'esdc07', name: 'I-25 T-REX', esdc_cost: 9702.70, cost: 9702.70, anticipated_cost: 1144655.05, projectCost: 1144655.05, unit: 'K$', production_pct: 0.85, rate: 0.85, market: '', applicable: false },
+                    { id: 'esdc08', name: 'MoDOT 554 Bridges', esdc_cost: 3418.31, cost: 3418.31, anticipated_cost: 405622.25, projectCost: 405622.25, unit: 'K$', production_pct: 0.84, rate: 0.84, market: '', applicable: false },
+                    { id: 'esdc09', name: 'Geneva Road', esdc_cost: 347.60, cost: 347.60, anticipated_cost: 41533.16, projectCost: 41533.16, unit: 'K$', production_pct: 0.84, rate: 0.84, market: '', applicable: false },
+                    { id: 'esdc10', name: 'I-15 Corridor Reconstruction', esdc_cost: 10453.15, cost: 10453.15, anticipated_cost: 1261222.85, projectCost: 1261222.85, unit: 'K$', production_pct: 0.83, rate: 0.83, market: '', applicable: false },
+                    { id: 'esdc11', name: 'SR-202', esdc_cost: 1276.02, cost: 1276.02, anticipated_cost: 155588.42, projectCost: 155588.42, unit: 'K$', production_pct: 0.82, rate: 0.82, market: '', applicable: false },
+                    { id: 'esdc12', name: 'DFW Connector', esdc_cost: 6439.08, cost: 6439.08, anticipated_cost: 798052.80, projectCost: 798052.80, unit: 'K$', production_pct: 0.81, rate: 0.81, market: '', applicable: false },
+                    { id: 'esdc13', name: 'PCCP', esdc_cost: 4673.55, cost: 4673.55, anticipated_cost: 697958.72, projectCost: 697958.72, unit: 'K$', production_pct: 0.67, rate: 0.67, market: '', applicable: false },
+                    { id: 'esdc14', name: 'Port Mann / Highway 1', esdc_cost: 21056.55, cost: 21056.55, anticipated_cost: 2388792.63, projectCost: 2388792.63, unit: 'K$', production_pct: 0.88, rate: 0.88, market: '', applicable: false },
+                    { id: 'esdc15', name: 'SR-520 Floating Bridge', esdc_cost: 5789.17, cost: 5789.17, anticipated_cost: 642601.96, projectCost: 642601.96, unit: 'K$', production_pct: 0.90, rate: 0.90, market: '', applicable: false },
+                    { id: 'esdc16', name: 'Project Neon', esdc_cost: 5539.52, cost: 5539.52, anticipated_cost: 611670.06, projectCost: 611670.06, unit: 'K$', production_pct: 0.91, rate: 0.91, market: '', applicable: false },
+                    { id: 'esdc17', name: 'Mountain View Corridor', esdc_cost: 2199.24, cost: 2199.24, anticipated_cost: 229878.60, projectCost: 229878.60, unit: 'K$', production_pct: 0.96, rate: 0.96, market: '', applicable: false },
+                    { id: 'esdc18', name: 'E-360 Bellevue to Redmond', esdc_cost: 2290.37, cost: 2290.37, anticipated_cost: 236570.04, projectCost: 236570.04, unit: 'K$', production_pct: 0.97, rate: 0.97, market: '', applicable: false },
+                    { id: 'esdc19', name: 'Arlington Memorial Bridge', esdc_cost: 1558.28, cost: 1558.28, anticipated_cost: 159839.66, projectCost: 159839.66, unit: 'K$', production_pct: 0.97, rate: 0.97, market: '', applicable: false },
+                    { id: 'esdc20', name: 'I-17 Anthem', esdc_cost: 3210.57, cost: 3210.57, anticipated_cost: 320071.89, projectCost: 320071.89, unit: 'K$', production_pct: 1.00, rate: 1.00, market: '', applicable: false },
+                    { id: 'esdc21', name: 'Anthony Henday-Stony Plain', esdc_cost: 1905.94, cost: 1905.94, anticipated_cost: 187397.98, projectCost: 187397.98, unit: 'K$', production_pct: 1.02, rate: 1.02, market: '', applicable: false },
+                    { id: 'esdc22', name: 'SH-183 Midtown Express', esdc_cost: 9424.17, cost: 9424.17, anticipated_cost: 885258.97, projectCost: 885258.97, unit: 'K$', production_pct: 1.06, rate: 1.06, market: '', applicable: false },
+                    { id: 'esdc23', name: 'ICC-B', esdc_cost: 5009.29, cost: 5009.29, anticipated_cost: 454376.58, projectCost: 454376.58, unit: 'K$', production_pct: 1.10, rate: 1.10, market: '', applicable: false },
+                    { id: 'esdc24', name: 'Pioneer Crossing', esdc_cost: 2102.32, cost: 2102.32, anticipated_cost: 177230.46, projectCost: 177230.46, unit: 'K$', production_pct: 1.19, rate: 1.19, market: '', applicable: false },
+                    { id: 'esdc25', name: 'I-225', esdc_cost: 5263.24, cost: 5263.24, anticipated_cost: 424701.71, projectCost: 424701.71, unit: 'K$', production_pct: 1.24, rate: 1.24, market: '', applicable: false },
+                    { id: 'esdc26', name: 'Farrington Guideway', esdc_cost: 8764.95, cost: 8764.95, anticipated_cost: 684456.77, projectCost: 684456.77, unit: 'K$', production_pct: 1.28, rate: 1.28, market: '', applicable: false },
+                    { id: 'esdc27', name: 'I-405 Renton to Bellevue', esdc_cost: 8305.85, cost: 8305.85, anticipated_cost: 615922.00, projectCost: 615922.00, unit: 'K$', production_pct: 1.35, rate: 1.35, market: '', applicable: false },
+                    { id: 'esdc28', name: 'Northwest Parkway', esdc_cost: 2059.46, cost: 2059.46, anticipated_cost: 152435.75, projectCost: 152435.75, unit: 'K$', production_pct: 1.35, rate: 1.35, market: '', applicable: false },
+                    { id: 'esdc29', name: 'I-15 Tropicana', esdc_cost: 4650.13, cost: 4650.13, anticipated_cost: 328887.12, projectCost: 328887.12, unit: 'K$', production_pct: 1.41, rate: 1.41, market: '', applicable: false },
+                    { id: 'esdc30', name: 'Kamehameha Guideway', esdc_cost: 6071.66, cost: 6071.66, anticipated_cost: 428252.13, projectCost: 428252.13, unit: 'K$', production_pct: 1.42, rate: 1.42, market: '', applicable: false },
+                    { id: 'esdc31', name: 'Turcot', esdc_cost: 24752.38, cost: 24752.38, anticipated_cost: 1703515.46, projectCost: 1703515.46, unit: 'K$', production_pct: 1.45, rate: 1.45, market: '', applicable: false },
+                    { id: 'esdc32', name: 'Selmon Expressway Extension', esdc_cost: 4154.99, cost: 4154.99, anticipated_cost: 253154.83, projectCost: 253154.83, unit: 'K$', production_pct: 1.64, rate: 1.64, market: '', applicable: false },
+                    { id: 'esdc33', name: 'Southwest Calgary Ring Road', esdc_cost: 23281.64, cost: 23281.64, anticipated_cost: 1325890.67, projectCost: 1325890.67, unit: 'K$', production_pct: 1.76, rate: 1.76, market: '', applicable: false },
+                    { id: 'esdc34', name: 'A-25 Bridge and Highway', esdc_cost: 7407.17, cost: 7407.17, anticipated_cost: 420771.29, projectCost: 420771.29, unit: 'K$', production_pct: 1.76, rate: 1.76, market: '', applicable: false },
+                    { id: 'esdc35', name: 'BART Warm Springs', esdc_cost: 7824.31, cost: 7824.31, anticipated_cost: 428566.69, projectCost: 428566.69, unit: 'K$', production_pct: 1.83, rate: 1.83, market: '', applicable: false },
+                    { id: 'esdc36', name: 'Sea-to-Sky Highway', esdc_cost: 3379.41, cost: 3379.41, anticipated_cost: 590638.34, projectCost: 590638.34, unit: 'K$', production_pct: 0.57, rate: 0.57, market: '', applicable: false },
+                    { id: 'esdc37', name: 'WMATA Yellow / Blue Lines', esdc_cost: 991.97, cost: 991.97, anticipated_cost: 191891.46, projectCost: 191891.46, unit: 'K$', production_pct: 0.52, rate: 0.52, market: '', applicable: false },
+                    { id: 'esdc38', name: 'WMATA Blue / Green Lines', esdc_cost: 1275.90, cost: 1275.90, anticipated_cost: 274719.66, projectCost: 274719.66, unit: 'K$', production_pct: 0.46, rate: 0.46, market: '', applicable: false },
+                    { id: 'esdc39', name: 'WMATA Orange / Silver Lines', esdc_cost: 606.27, cost: 606.27, anticipated_cost: 184682.60, projectCost: 184682.60, unit: 'K$', production_pct: 0.33, rate: 0.33, market: '', applicable: false },
+                    { id: 'esdc40', name: 'York Rapid Transit (D1)', esdc_cost: 1061.44, cost: 1061.44, anticipated_cost: 165972.08, projectCost: 165972.08, unit: 'K$', production_pct: 0.64, rate: 0.64, market: '', applicable: false },
+                    { id: 'esdc41', name: 'York Rapid Transit (H2)', esdc_cost: 744.47, cost: 744.47, anticipated_cost: 162049.41, projectCost: 162049.41, unit: 'K$', production_pct: 0.46, rate: 0.46, market: '', applicable: false },
+                    { id: 'esdc42', name: 'I-405 Kirkland', esdc_cost: 247.45, cost: 247.45, anticipated_cost: 42990.54, projectCost: 42990.54, unit: 'K$', production_pct: 0.58, rate: 0.58, market: '', applicable: false },
+                    { id: 'esdc43', name: 'I-440 Nashville Connector', esdc_cost: 520.87, cost: 520.87, anticipated_cost: 146656.02, projectCost: 146656.02, unit: 'K$', production_pct: 0.36, rate: 0.36, market: '', applicable: false },
+                    { id: 'esdc44', name: 'CHPE', esdc_cost: 17183.59, cost: 17183.59, anticipated_cost: 1717328.80, projectCost: 1717328.80, unit: 'K$', production_pct: 1.00, rate: 1.00, market: '', applicable: false }
                 ],
                 defaultRate: 0.0099,
                 customRate: 0.0103
             },
-            // TSCD fallback: same as ESDC — full list with only "Applicable Job" = Yes selected (match TSCD_HI.json)
+            // TSCD fallback: 109 projects matching TSCD_HI.json (all applicable: false; Dillon upload sets Yes)
             tscd: {
                 projects: [
-                    { id: 'sec820', name: 'IH 820 Southeast Connector', cost: 7812.04, projectCost: 2006033.03, unit: 'K$', rate: 0.0039, market: 'Transportation, Highway', applicable: true },
-                    { id: 'connect4', name: 'Connect 4', cost: 1491.45, projectCost: 268033.92, unit: 'K$', rate: 0.0056, market: 'Transportation, Highway', applicable: true },
-                    { id: 'i15trop', name: 'I-15 Tropicana', cost: 830.59, projectCost: 368187.07, unit: 'K$', rate: 0.0023, market: 'Transportation, Highway', applicable: true },
-                    { id: 'c70', name: 'C-70', cost: 7441.71, projectCost: 1290640.68, unit: 'K$', rate: 0.0058, market: 'Transportation, Highway', applicable: true },
-                    { id: 'turcot', name: 'Turcot', cost: 9542.25, projectCost: 1784779.80, unit: 'K$', rate: 0.0053, market: 'Transportation, Highway', applicable: true },
-                    { id: 'swcalgary', name: 'Southwest Calgary Ring Road', cost: 2905.56, projectCost: 1310255.12, unit: 'K$', rate: 0.0022, market: 'Transportation, Highway', applicable: true },
-                    { id: 'goethals', name: 'Goethals Bridge Replacement', cost: 1935.06, projectCost: 1091231.60, unit: 'K$', rate: 0.0018, market: 'Transportation, Bridges', applicable: true },
-                    { id: 'midtown', name: 'Midtown Express', cost: 1552.51, projectCost: 914940.51, unit: 'K$', rate: 0.0017, market: 'Transportation, Highway', applicable: false },
-                    { id: 'bwe', name: 'Border West Expressway', cost: 1858.64, projectCost: 691683.83, unit: 'K$', rate: 0.0027, market: 'Transportation, Highway', applicable: false },
-                    { id: 'neon', name: 'Project Neon', cost: 931.75, projectCost: 628296.99, unit: 'K$', rate: 0.0015, market: 'Transportation, Highway', applicable: false },
-                    { id: '30crossing', name: '30 Crossing', cost: 1551.47, projectCost: 497061.58, unit: 'K$', rate: 0.0031, market: 'Transportation, Bridges', applicable: false },
-                    { id: 'selmon', name: 'Selmon Expressway Extension', cost: 1955.92, projectCost: 262650.00, unit: 'K$', rate: 0.0074, market: 'Transportation, Highway', applicable: false },
-                    { id: 'flyway470', name: 'Flyway 470', cost: 898.39, projectCost: 256515.18, unit: 'K$', rate: 0.0035, market: 'Transportation, Highway', applicable: false },
-                    { id: 'mvc', name: 'MVC 4100 South to SR-201', cost: 131.57, projectCost: 229983.74, unit: 'K$', rate: 0.0006, market: 'Transportation, Highway', applicable: false },
-                    { id: 'tlicho', name: 'Tlicho All-Season Road', cost: 216.41, projectCost: 183706.28, unit: 'K$', rate: 0.0012, market: 'Transportation, Highway', applicable: false },
-                    { id: 'i10cap', name: 'I-10 Capital Corridor', cost: 1776.12, projectCost: 159847.91, unit: 'K$', rate: 0.0111, market: 'Transportation, Highway', applicable: false },
-                    { id: 'nashville', name: 'Nashville Connector', cost: 361.46, projectCost: 148878.92, unit: 'K$', rate: 0.0024, market: 'Transportation, Bridges', applicable: false },
-                    { id: 'moosejaw', name: 'Moosejaw', cost: 759.58, projectCost: 148722.83, unit: 'K$', rate: 0.0051, market: 'Transportation, Highway', applicable: false },
-                    { id: 'bigthompson', name: 'Big Thompson', cost: 235.58, projectCost: 146038.94, unit: 'K$', rate: 0.0016, market: 'Transportation, Highway', applicable: false },
-                    { id: 'kingston', name: 'Kingston Third Crossing', cost: 1140.54, projectCost: 144336.50, unit: 'K$', rate: 0.0079, market: 'Transportation, Bridges', applicable: false },
-                    { id: 'porter', name: 'Porter Road', cost: 770.65, projectCost: 112340.79, unit: 'K$', rate: 0.0069, market: 'Transportation, Highway', applicable: false }
+                    { id: 'tscd01', name: 'IH 820 Southeast Connector', esdc_cost: 7812.04, cost: 7812.04, anticipated_cost: 2006033.03, projectCost: 2006033.03, unit: 'K$', production_pct: 0.3894, rate: 0.3894, market: '', applicable: false },
+                    { id: 'tscd02', name: 'E-130 LRT', esdc_cost: 1955.98, cost: 1955.98, anticipated_cost: 820594.77, projectCost: 820594.77, unit: 'K$', production_pct: 0.2384, rate: 0.2384, market: '', applicable: false },
+                    { id: 'tscd03', name: 'Connect 4', esdc_cost: 1491.45, cost: 1491.45, anticipated_cost: 268033.92, projectCost: 268033.92, unit: 'K$', production_pct: 0.5564, rate: 0.5564, market: '', applicable: false },
+                    { id: 'tscd04', name: 'Foothill Phase 2B1 LRT', esdc_cost: 809.18, cost: 809.18, anticipated_cost: 836559.23, projectCost: 836559.23, unit: 'K$', production_pct: 0.0967, rate: 0.0967, market: '', applicable: false },
+                    { id: 'tscd05', name: 'I-15 Tropicana', esdc_cost: 830.59, cost: 830.59, anticipated_cost: 368187.07, projectCost: 368187.07, unit: 'K$', production_pct: 0.2256, rate: 0.2256, market: '', applicable: false },
+                    { id: 'tscd06', name: 'C-70', esdc_cost: 7441.71, cost: 7441.71, anticipated_cost: 1290640.68, projectCost: 1290640.68, unit: 'K$', production_pct: 0.5766, rate: 0.5766, market: '', applicable: false },
+                    { id: 'tscd07', name: 'Turcot', esdc_cost: 9542.25, cost: 9542.25, anticipated_cost: 1784779.80, projectCost: 1784779.80, unit: 'K$', production_pct: 0.5346, rate: 0.5346, market: '', applicable: false },
+                    { id: 'tscd08', name: 'Federal Way Link Extension', esdc_cost: 1889.68, cost: 1889.68, anticipated_cost: 1403683.47, projectCost: 1403683.47, unit: 'K$', production_pct: 0.1346, rate: 0.1346, market: '', applicable: false },
+                    { id: 'tscd09', name: 'Southwest Calgary Ring Road', esdc_cost: 2905.56, cost: 2905.56, anticipated_cost: 1310255.12, projectCost: 1310255.12, unit: 'K$', production_pct: 0.2218, rate: 0.2218, market: '', applicable: false },
+                    { id: 'tscd10', name: 'Goethals Bridge Replacement', esdc_cost: 1935.06, cost: 1935.06, anticipated_cost: 1091231.60, projectCost: 1091231.60, unit: 'K$', production_pct: 0.1773, rate: 0.1773, market: '', applicable: false },
+                    { id: 'tscd11', name: 'Midtown Express', esdc_cost: 1552.51, cost: 1552.51, anticipated_cost: 914940.51, projectCost: 914940.51, unit: 'K$', production_pct: 0.1697, rate: 0.1697, market: '', applicable: false },
+                    { id: 'tscd12', name: 'South Central LRT Extension', esdc_cost: 592.66, cost: 592.66, anticipated_cost: 823932.77, projectCost: 823932.77, unit: 'K$', production_pct: 0.0719, rate: 0.0719, market: '', applicable: false },
+                    { id: 'tscd13', name: 'Border West Expressway', esdc_cost: 1858.64, cost: 1858.64, anticipated_cost: 691683.83, projectCost: 691683.83, unit: 'K$', production_pct: 0.2687, rate: 0.2687, market: '', applicable: false },
+                    { id: 'tscd14', name: 'Project Neon', esdc_cost: 931.75, cost: 931.75, anticipated_cost: 628296.99, projectCost: 628296.99, unit: 'K$', production_pct: 0.1483, rate: 0.1483, market: '', applicable: false },
+                    { id: 'tscd15', name: '30 Crossing', esdc_cost: 1551.47, cost: 1551.47, anticipated_cost: 497061.58, projectCost: 497061.58, unit: 'K$', production_pct: 0.3121, rate: 0.3121, market: '', applicable: false },
+                    { id: 'tscd16', name: 'I-225 Light Rail Corridor', esdc_cost: 649.55, cost: 649.55, anticipated_cost: 427748.52, projectCost: 427748.52, unit: 'K$', production_pct: 0.1519, rate: 0.1519, market: '', applicable: false },
+                    { id: 'tscd17', name: 'E-360 Bellevue to Redmond', esdc_cost: 540.12, cost: 540.12, anticipated_cost: 270974.68, projectCost: 270974.68, unit: 'K$', production_pct: 0.1993, rate: 0.1993, market: '', applicable: false },
+                    { id: 'tscd18', name: 'Selmon Expresseway Extension', esdc_cost: 1955.92, cost: 1955.92, anticipated_cost: 262650.00, projectCost: 262650.00, unit: 'K$', production_pct: 0.7447, rate: 0.7447, market: '', applicable: false },
+                    { id: 'tscd19', name: 'Flyway 470', esdc_cost: 898.39, cost: 898.39, anticipated_cost: 256515.18, projectCost: 256515.18, unit: 'K$', production_pct: 0.3502, rate: 0.3502, market: '', applicable: false },
+                    { id: 'tscd20', name: 'WMATA Station Rehab Contract 3', esdc_cost: 548.39, cost: 548.39, anticipated_cost: 253581.12, projectCost: 253581.12, unit: 'K$', production_pct: 0.2163, rate: 0.2163, market: '', applicable: false },
+                    { id: 'tscd21', name: 'WMATA Station Rehab Contract 4', esdc_cost: 846.77, cost: 846.77, anticipated_cost: 252986.82, projectCost: 252986.82, unit: 'K$', production_pct: 0.3347, rate: 0.3347, market: '', applicable: false },
+                    { id: 'tscd22', name: 'MVC 4100 South to SR-201', esdc_cost: 131.57, cost: 131.57, anticipated_cost: 229983.74, projectCost: 229983.74, unit: 'K$', production_pct: 0.0572, rate: 0.0572, market: '', applicable: false },
+                    { id: 'tscd23', name: 'Northwest Phase 2 LRT Extension', esdc_cost: 181.77, cost: 181.77, anticipated_cost: 214449.31, projectCost: 214449.31, unit: 'K$', production_pct: 0.0848, rate: 0.0848, market: '', applicable: false },
+                    { id: 'tscd24', name: 'Tlicho All-Season Road', esdc_cost: 216.41, cost: 216.41, anticipated_cost: 183706.28, projectCost: 183706.28, unit: 'K$', production_pct: 0.1178, rate: 0.1178, market: '', applicable: false },
+                    { id: 'tscd25', name: 'WMATA Orange / Silver Line', esdc_cost: 464.64, cost: 464.64, anticipated_cost: 178931.16, projectCost: 178931.16, unit: 'K$', production_pct: 0.2597, rate: 0.2597, market: '', applicable: false },
+                    { id: 'tscd26', name: 'WMATA Yellow Line Rehab', esdc_cost: 920.05, cost: 920.05, anticipated_cost: 175655.73, projectCost: 175655.73, unit: 'K$', production_pct: 0.5238, rate: 0.5238, market: '', applicable: false },
+                    { id: 'tscd27', name: 'I-10 Capital Corridor', esdc_cost: 1776.12, cost: 1776.12, anticipated_cost: 159847.91, projectCost: 159847.91, unit: 'K$', production_pct: 1.1111, rate: 1.1111, market: '', applicable: false },
+                    { id: 'tscd28', name: 'Nashville Connector', esdc_cost: 361.46, cost: 361.46, anticipated_cost: 148878.92, projectCost: 148878.92, unit: 'K$', production_pct: 0.2428, rate: 0.2428, market: '', applicable: false },
+                    { id: 'tscd29', name: 'Moosejaw', esdc_cost: 759.58, cost: 759.58, anticipated_cost: 148722.83, projectCost: 148722.83, unit: 'K$', production_pct: 0.5107, rate: 0.5107, market: '', applicable: false },
+                    { id: 'tscd30', name: 'Big Thompson', esdc_cost: 235.58, cost: 235.58, anticipated_cost: 146038.94, projectCost: 146038.94, unit: 'K$', production_pct: 0.1613, rate: 0.1613, market: '', applicable: false },
+                    { id: 'tscd31', name: 'Kingston Third Crossing', esdc_cost: 1140.54, cost: 1140.54, anticipated_cost: 144336.50, projectCost: 144336.50, unit: 'K$', production_pct: 0.7902, rate: 0.7902, market: '', applicable: false },
+                    { id: 'tscd32', name: 'Porter Road', esdc_cost: 770.65, cost: 770.65, anticipated_cost: 112340.79, projectCost: 112340.79, unit: 'K$', production_pct: 0.6860, rate: 0.6860, market: '', applicable: false },
+                    { id: 'tscd33', name: 'SR 99 Alaskan Way Viaduct Demo', esdc_cost: 1101.92, cost: 1101.92, anticipated_cost: 98750.74, projectCost: 98750.74, unit: 'K$', production_pct: 1.1159, rate: 1.1159, market: '', applicable: false },
+                    { id: 'tscd34', name: 'LA 1: Port Allen Canal Bridge', esdc_cost: 104.12, cost: 104.12, anticipated_cost: 96311.72, projectCost: 96311.72, unit: 'K$', production_pct: 0.1081, rate: 0.1081, market: '', applicable: false },
+                    { id: 'tscd35', name: 'CTA Congress Track Phase 1', esdc_cost: 65.34, cost: 65.34, anticipated_cost: 89697.94, projectCost: 89697.94, unit: 'K$', production_pct: 0.0728, rate: 0.0728, market: '', applicable: false },
+                    { id: 'tscd36', name: 'Fort Smith', esdc_cost: 313.47, cost: 313.47, anticipated_cost: 82226.01, projectCost: 82226.01, unit: 'K$', production_pct: 0.3812, rate: 0.3812, market: '', applicable: false },
+                    { id: 'tscd37', name: 'I-40 Gorge Bridge #171', esdc_cost: 238.23, cost: 238.23, anticipated_cost: 81544.24, projectCost: 81544.24, unit: 'K$', production_pct: 0.2921, rate: 0.2921, market: '', applicable: false },
+                    { id: 'tscd38', name: 'Jack-Stone 10', esdc_cost: 238.23, cost: 238.23, anticipated_cost: 75197.11, projectCost: 75197.11, unit: 'K$', production_pct: 0.3168, rate: 0.3168, market: '', applicable: false },
+                    { id: 'tscd39', name: 'Camp Hall Rail Phase 2', esdc_cost: 527.05, cost: 527.05, anticipated_cost: 65946.73, projectCost: 65946.73, unit: 'K$', production_pct: 0.7992, rate: 0.7992, market: '', applicable: false },
+                    { id: 'tscd40', name: 'I-15 Virgin River Bridge #1', esdc_cost: 573.95, cost: 573.95, anticipated_cost: 55959.52, projectCost: 55959.52, unit: 'K$', production_pct: 1.0257, rate: 1.0257, market: '', applicable: false },
+                    { id: 'tscd41', name: '12/80 Crossing', esdc_cost: 187.98, cost: 187.98, anticipated_cost: 54936.65, projectCost: 54936.65, unit: 'K$', production_pct: 0.3422, rate: 0.3422, market: '', applicable: false },
+                    { id: 'tscd42', name: 'Broadway Bridge', esdc_cost: 808.90, cost: 808.90, anticipated_cost: 52838.52, projectCost: 52838.52, unit: 'K$', production_pct: 1.5309, rate: 1.5309, market: '', applicable: false },
+                    { id: 'tscd43', name: 'Nashville I-40 Fast Fix 8', esdc_cost: 348.92, cost: 348.92, anticipated_cost: 50452.65, projectCost: 50452.65, unit: 'K$', production_pct: 0.6916, rate: 0.6916, market: '', applicable: false },
+                    { id: 'tscd44', name: 'MemFix 4', esdc_cost: 377.90, cost: 377.90, anticipated_cost: 49375.47, projectCost: 49375.47, unit: 'K$', production_pct: 0.7654, rate: 0.7654, market: '', applicable: false },
+                    { id: 'tscd45', name: 'Nolichucky Bridges', esdc_cost: 201.29, cost: 201.29, anticipated_cost: 49244.86, projectCost: 49244.86, unit: 'K$', production_pct: 0.4088, rate: 0.4088, market: '', applicable: false },
+                    { id: 'tscd46', name: 'Stone Myers Parkway', esdc_cost: 139.24, cost: 139.24, anticipated_cost: 47857.50, projectCost: 47857.50, unit: 'K$', production_pct: 0.2909, rate: 0.2909, market: '', applicable: false },
+                    { id: 'tscd47', name: 'Coastal 29 Fish Passage 2A', esdc_cost: 119.67, cost: 119.67, anticipated_cost: 42266.18, projectCost: 42266.18, unit: 'K$', production_pct: 0.2831, rate: 0.2831, market: '', applicable: false },
+                    { id: 'tscd48', name: 'Chesapeake Bay Bridge Security', esdc_cost: 129.45, cost: 129.45, anticipated_cost: 38421.81, projectCost: 38421.81, unit: 'K$', production_pct: 0.3369, rate: 0.3369, market: '', applicable: false },
+                    { id: 'tscd49', name: 'Glenn Highway Phase 2', esdc_cost: 183.57, cost: 183.57, anticipated_cost: 37934.53, projectCost: 37934.53, unit: 'K$', production_pct: 0.4839, rate: 0.4839, market: '', applicable: false },
+                    { id: 'tscd50', name: 'I-210 Prien Lake', esdc_cost: 197.20, cost: 197.20, anticipated_cost: 35186.61, projectCost: 35186.61, unit: 'K$', production_pct: 0.5604, rate: 0.5604, market: '', applicable: false },
+                    { id: 'tscd51', name: 'Lonoke Bridges', esdc_cost: 204.04, cost: 204.04, anticipated_cost: 29205.96, projectCost: 29205.96, unit: 'K$', production_pct: 0.6986, rate: 0.6986, market: '', applicable: false },
+                    { id: 'tscd52', name: 'TVTA VN89/VN30 Tower Bases', esdc_cost: 191.04, cost: 191.04, anticipated_cost: 28548.50, projectCost: 28548.50, unit: 'K$', production_pct: 0.6692, rate: 0.6692, market: '', applicable: false },
+                    { id: 'tscd53', name: 'Coastal 29 Fish Passage 1', esdc_cost: 46.05, cost: 46.05, anticipated_cost: 27597.84, projectCost: 27597.84, unit: 'K$', production_pct: 0.1669, rate: 0.1669, market: '', applicable: false },
+                    { id: 'tscd54', name: 'Brooklyn Bridge Hazard Mitigation', esdc_cost: 161.26, cost: 161.26, anticipated_cost: 27486.20, projectCost: 27486.20, unit: 'K$', production_pct: 0.5867, rate: 0.5867, market: '', applicable: false },
+                    { id: 'tscd55', name: 'Coastal 29 Fish Passage 4', esdc_cost: 28.96, cost: 28.96, anticipated_cost: 27441.11, projectCost: 27441.11, unit: 'K$', production_pct: 0.1055, rate: 0.1055, market: '', applicable: false },
+                    { id: 'tscd56', name: 'NMDOT Mora County', esdc_cost: 63.69, cost: 63.69, anticipated_cost: 24864.19, projectCost: 24864.19, unit: 'K$', production_pct: 0.2562, rate: 0.2562, market: '', applicable: false },
+                    { id: 'tscd57', name: 'Blue Oval Memphis Megasite', esdc_cost: 61.73, cost: 61.73, anticipated_cost: 24549.23, projectCost: 24549.23, unit: 'K$', production_pct: 0.2515, rate: 0.2515, market: '', applicable: false },
+                    { id: 'tscd58', name: 'Stagecoach Ramps', esdc_cost: 25.46, cost: 25.46, anticipated_cost: 22054.50, projectCost: 22054.50, unit: 'K$', production_pct: 0.1154, rate: 0.1154, market: '', applicable: false },
+                    { id: 'tscd59', name: 'Crystal Springs Bridge', esdc_cost: 169.96, cost: 169.96, anticipated_cost: 21752.48, projectCost: 21752.48, unit: 'K$', production_pct: 0.7813, rate: 0.7813, market: '', applicable: false },
+                    { id: 'tscd60', name: 'CFRC Capital Improvements', esdc_cost: 103.47, cost: 103.47, anticipated_cost: 20964.44, projectCost: 20964.44, unit: 'K$', production_pct: 0.4936, rate: 0.4936, market: '', applicable: false },
+                    { id: 'tscd61', name: 'MP09 Tower Elevators & Rehab', esdc_cost: 177.10, cost: 177.10, anticipated_cost: 20016.45, projectCost: 20016.45, unit: 'K$', production_pct: 0.8848, rate: 0.8848, market: '', applicable: false },
+                    { id: 'tscd62', name: 'Toronto Union Station', esdc_cost: 90.60, cost: 90.60, anticipated_cost: 19180.89, projectCost: 19180.89, unit: 'K$', production_pct: 0.4723, rate: 0.4723, market: '', applicable: false },
+                    { id: 'tscd63', name: 'Kake Access Road', esdc_cost: 53.17, cost: 53.17, anticipated_cost: 18448.83, projectCost: 18448.83, unit: 'K$', production_pct: 0.2882, rate: 0.2882, market: '', applicable: false },
+                    { id: 'tscd64', name: 'Unionport Foundations', esdc_cost: 188.78, cost: 188.78, anticipated_cost: 17435.91, projectCost: 17435.91, unit: 'K$', production_pct: 1.0827, rate: 1.0827, market: '', applicable: false },
+                    { id: 'tscd65', name: 'Dewey Beach Bridges', esdc_cost: 157.59, cost: 157.59, anticipated_cost: 17154.81, projectCost: 17154.81, unit: 'K$', production_pct: 0.9186, rate: 0.9186, market: '', applicable: false },
+                    { id: 'tscd66', name: 'Metropolitan Ave Bascule Repairs', esdc_cost: 59.67, cost: 59.67, anticipated_cost: 15272.79, projectCost: 15272.79, unit: 'K$', production_pct: 0.3907, rate: 0.3907, market: '', applicable: false },
+                    { id: 'tscd67', name: 'Railroad Ave Extension', esdc_cost: 81.67, cost: 81.67, anticipated_cost: 13816.58, projectCost: 13816.58, unit: 'K$', production_pct: 0.5911, rate: 0.5911, market: '', applicable: false },
+                    { id: 'tscd68', name: 'Garland County', esdc_cost: 25.53, cost: 25.53, anticipated_cost: 12820.18, projectCost: 12820.18, unit: 'K$', production_pct: 0.1991, rate: 0.1991, market: '', applicable: false },
+                    { id: 'tscd69', name: 'SR530/Trafton Creek Fish Passage', esdc_cost: 31.57, cost: 31.57, anticipated_cost: 12819.77, projectCost: 12819.77, unit: 'K$', production_pct: 0.2463, rate: 0.2463, market: '', applicable: false },
+                    { id: 'tscd70', name: 'STC Landside Piles', esdc_cost: 160.16, cost: 160.16, anticipated_cost: 12632.25, projectCost: 12632.25, unit: 'K$', production_pct: 1.2679, rate: 1.2679, market: '', applicable: false },
+                    { id: 'tscd71', name: 'CCH Kailua Roundabout', esdc_cost: 27.51, cost: 27.51, anticipated_cost: 11436.26, projectCost: 11436.26, unit: 'K$', production_pct: 0.2406, rate: 0.2406, market: '', applicable: false },
+                    { id: 'tscd72', name: 'SFOBB Foundation Removal', esdc_cost: 154.29, cost: 154.29, anticipated_cost: 11349.37, projectCost: 11349.37, unit: 'K$', production_pct: 1.3595, rate: 1.3595, market: '', applicable: false },
+                    { id: 'tscd73', name: 'Camino Real', esdc_cost: 57.63, cost: 57.63, anticipated_cost: 10973.19, projectCost: 10973.19, unit: 'K$', production_pct: 0.5252, rate: 0.5252, market: '', applicable: false },
+                    { id: 'tscd74', name: 'Kawela / Nanahu Stream Bridge', esdc_cost: 31.06, cost: 31.06, anticipated_cost: 10110.50, projectCost: 10110.50, unit: 'K$', production_pct: 0.3072, rate: 0.3072, market: '', applicable: false },
+                    { id: 'tscd75', name: 'Okolona Pass', esdc_cost: 68.56, cost: 68.56, anticipated_cost: 9504.39, projectCost: 9504.39, unit: 'K$', production_pct: 0.7214, rate: 0.7214, market: '', applicable: false },
+                    { id: 'tscd76', name: 'Carrol Ave Bridge Rehab', esdc_cost: 167.37, cost: 167.37, anticipated_cost: 9254.73, projectCost: 9254.73, unit: 'K$', production_pct: 1.8085, rate: 1.8085, market: '', applicable: false },
+                    { id: 'tscd77', name: 'Clark Fork Bridge', esdc_cost: 117.31, cost: 117.31, anticipated_cost: 9119.20, projectCost: 9119.20, unit: 'K$', production_pct: 1.2864, rate: 1.2864, market: '', applicable: false },
+                    { id: 'tscd78', name: 'SR89 Truckee River Bridge Project', esdc_cost: 70.64, cost: 70.64, anticipated_cost: 7057.08, projectCost: 7057.08, unit: 'K$', production_pct: 1.0010, rate: 1.0010, market: '', applicable: false },
+                    { id: 'tscd79', name: 'De Soto II', esdc_cost: 80.17, cost: 80.17, anticipated_cost: 6858.07, projectCost: 6858.07, unit: 'K$', production_pct: 1.1690, rate: 1.1690, market: '', applicable: false },
+                    { id: 'tscd80', name: 'Murphy Road Bridge Replacement', esdc_cost: 26.90, cost: 26.90, anticipated_cost: 6811.30, projectCost: 6811.30, unit: 'K$', production_pct: 0.3949, rate: 0.3949, market: '', applicable: false },
+                    { id: 'tscd81', name: 'Rio San Juan', esdc_cost: 109.71, cost: 109.71, anticipated_cost: 6632.32, projectCost: 6632.32, unit: 'K$', production_pct: 1.6542, rate: 1.6542, market: '', applicable: false },
+                    { id: 'tscd82', name: 'I-75 Bridge Rehabilitation', esdc_cost: 27.01, cost: 27.01, anticipated_cost: 6073.34, projectCost: 6073.34, unit: 'K$', production_pct: 0.4447, rate: 0.4447, market: '', applicable: false },
+                    { id: 'tscd83', name: 'SR 117 Bridge over Moncrief Creek', esdc_cost: 49.69, cost: 49.69, anticipated_cost: 5987.03, projectCost: 5987.03, unit: 'K$', production_pct: 0.8300, rate: 0.8300, market: '', applicable: false },
+                    { id: 'tscd84', name: 'I-40 Hernando DeSoto Repairs', esdc_cost: 35.05, cost: 35.05, anticipated_cost: 5743.38, projectCost: 5743.38, unit: 'K$', production_pct: 0.6103, rate: 0.6103, market: '', applicable: false },
+                    { id: 'tscd85', name: 'Butte Highway 11', esdc_cost: 106.88, cost: 106.88, anticipated_cost: 5363.53, projectCost: 5363.53, unit: 'K$', production_pct: 1.9927, rate: 1.9927, market: '', applicable: false },
+                    { id: 'tscd86', name: 'HDOT Kapalama Wharf', esdc_cost: 656.39, cost: 656.39, anticipated_cost: 316176.62, projectCost: 316176.62, unit: 'K$', production_pct: 0.2076, rate: 0.2076, market: '', applicable: false },
+                    { id: 'tscd87', name: 'Conneticut State Pier', esdc_cost: 1018.00, cost: 1018.00, anticipated_cost: 283210.74, projectCost: 283210.74, unit: 'K$', production_pct: 0.3594, rate: 0.3594, market: '', applicable: false },
+                    { id: 'tscd88', name: 'NAVFAC Bremerton Seismic', esdc_cost: 1521.40, cost: 1521.40, anticipated_cost: 201369.30, projectCost: 201369.30, unit: 'K$', production_pct: 0.7555, rate: 0.7555, market: '', applicable: false },
+                    { id: 'tscd89', name: 'Fairview Phase 2 Expansion', esdc_cost: 117.68, cost: 117.68, anticipated_cost: 131927.35, projectCost: 131927.35, unit: 'K$', production_pct: 0.0892, rate: 0.0892, market: '', applicable: false },
+                    { id: 'tscd90', name: 'MOTCO Pier 2 Replacement', esdc_cost: 720.46, cost: 720.46, anticipated_cost: 90059.55, projectCost: 90059.55, unit: 'K$', production_pct: 0.8000, rate: 0.8000, market: '', applicable: false },
+                    { id: 'tscd91', name: 'BAEJSR Shiplift Drydock', esdc_cost: 585.15, cost: 585.15, anticipated_cost: 77329.42, projectCost: 77329.42, unit: 'K$', production_pct: 0.7567, rate: 0.7567, market: '', applicable: false },
+                    { id: 'tscd92', name: 'Plaquemines LNG Marine Ph 2', esdc_cost: 230.73, cost: 230.73, anticipated_cost: 72507.27, projectCost: 72507.27, unit: 'K$', production_pct: 0.3182, rate: 0.3182, market: '', applicable: false },
+                    { id: 'tscd93', name: 'Empire Floodgate', esdc_cost: 315.59, cost: 315.59, anticipated_cost: 71234.30, projectCost: 71234.30, unit: 'K$', production_pct: 0.4430, rate: 0.4430, market: '', applicable: false },
+                    { id: 'tscd94', name: 'Dallas Floodway 277K Levee Raise', esdc_cost: 224.15, cost: 224.15, anticipated_cost: 51318.87, projectCost: 51318.87, unit: 'K$', production_pct: 0.4368, rate: 0.4368, market: '', applicable: false },
+                    { id: 'tscd95', name: 'Permanente Creek McKelvey Park', esdc_cost: 231.50, cost: 231.50, anticipated_cost: 40306.86, projectCost: 40306.86, unit: 'K$', production_pct: 0.5743, rate: 0.5743, market: '', applicable: false },
+                    { id: 'tscd96', name: 'West Container Yard Expansion', esdc_cost: 15.53, cost: 15.53, anticipated_cost: 32619.62, projectCost: 32619.62, unit: 'K$', production_pct: 0.0476, rate: 0.0476, market: '', applicable: false },
+                    { id: 'tscd97', name: 'Southport Turning Notch', esdc_cost: 40.66, cost: 40.66, anticipated_cost: 24423.95, projectCost: 24423.95, unit: 'K$', production_pct: 0.1665, rate: 0.1665, market: '', applicable: false },
+                    { id: 'tscd98', name: 'C&O Canal Historic Stone Wall', esdc_cost: 139.65, cost: 139.65, anticipated_cost: 15871.70, projectCost: 15871.70, unit: 'K$', production_pct: 0.8799, rate: 0.8799, market: '', applicable: false },
+                    { id: 'tscd99', name: 'St. Paul Harbor Breakwater', esdc_cost: 12.58, cost: 12.58, anticipated_cost: 14615.16, projectCost: 14615.16, unit: 'K$', production_pct: 0.0861, rate: 0.0861, market: '', applicable: false },
+                    { id: 'tscd100', name: 'Ponce Inlet North Jetty', esdc_cost: 67.71, cost: 67.71, anticipated_cost: 13741.99, projectCost: 13741.99, unit: 'K$', production_pct: 0.4927, rate: 0.4927, market: '', applicable: false },
+                    { id: 'tscd101', name: 'LNYBL Cross Bay Resiliency', esdc_cost: 75.83, cost: 75.83, anticipated_cost: 11953.79, projectCost: 11953.79, unit: 'K$', production_pct: 0.6344, rate: 0.6344, market: '', applicable: false },
+                    { id: 'tscd102', name: 'SYC Ph 1 Marine Bulkhead', esdc_cost: 9.87, cost: 9.87, anticipated_cost: 10002.61, projectCost: 10002.61, unit: 'K$', production_pct: 0.0987, rate: 0.0987, market: '', applicable: false },
+                    { id: 'tscd103', name: 'Berryessa Flood Control Impvmt', esdc_cost: 17.16, cost: 17.16, anticipated_cost: 5643.95, projectCost: 5643.95, unit: 'K$', production_pct: 0.3040, rate: 0.3040, market: '', applicable: false },
+                    { id: 'tscd104', name: 'GPA ERT Dock Refurbishments', esdc_cost: 4.77, cost: 4.77, anticipated_cost: 4170.36, projectCost: 4170.36, unit: 'K$', production_pct: 0.1144, rate: 0.1144, market: '', applicable: false },
+                    { id: 'tscd105', name: 'Jaxport Berth 22 Dolphins', esdc_cost: 60.10, cost: 60.10, anticipated_cost: 3896.81, projectCost: 3896.81, unit: 'K$', production_pct: 1.5423, rate: 1.5423, market: '', applicable: false },
+                    { id: 'tscd106', name: 'Vulcan MD Quarry Bulkhead', esdc_cost: 42.00, cost: 42.00, anticipated_cost: 3375.52, projectCost: 3375.52, unit: 'K$', production_pct: 1.2443, rate: 1.2443, market: '', applicable: false },
+                    { id: 'tscd107', name: 'GPA Mayor\'s Point Fender System', esdc_cost: 9.97, cost: 9.97, anticipated_cost: 2898.49, projectCost: 2898.49, unit: 'K$', production_pct: 0.3440, rate: 0.3440, market: '', applicable: false },
+                    { id: 'tscd108', name: 'Waikiki Seawall Improvements', esdc_cost: 4.92, cost: 4.92, anticipated_cost: 1405.45, projectCost: 1405.45, unit: 'K$', production_pct: 0.3501, rate: 0.3501, market: '', applicable: false },
+                    { id: 'tscd109', name: 'Doral Gravity Wall', esdc_cost: 2.07, cost: 2.07, anticipated_cost: 477.05, projectCost: 477.05, unit: 'K$', production_pct: 0.4339, rate: 0.4339, market: '', applicable: false }
                 ],
                 defaultRate: 0.0026,
                 customRate: 0.0031
@@ -4070,6 +5561,12 @@ ${reasoning}`;
                 'High': { 1: 16, 2: 32, 3: 48, 6: 96, 10: 160, 12: 192 }
             }
         };
+
+        // Stores raw data from the last Dillon file upload for "Check File" comparison
+        let dillonImportedData = { quantities: {}, benchmarkMH: {}, revenue: {}, fileName: '', importedAt: null };
+
+        // Stores revenue and MH data from the Dillon Cost Upload for "Check File" Excel Revenue column
+        let dillonCostData = { revenue: {}, mh: {}, fileName: '', importedAt: null };
 
         // MH Estimate state
         let mhEstimateState = {
@@ -4244,8 +5741,14 @@ ${reasoning}`;
          * @returns {Object} { mh, complexityScore, praColumn, rawLabor, burden, gna, margin, revenue }
          */
         function calculateDigitalDeliveryMH(assumedConstructionCostM, durationMonths, complexityGroup = 'Med') {
-            // Default hourly rate for Digital Delivery
-            const hourlyRate = 68;
+            // Digital Delivery uses the same weighted rate as Roadway (mirrors Roadway's complexity %)
+            const roadwayResources = getDisciplineResources('roadway');
+            const roadwayState = mhEstimateState?.disciplines?.roadway;
+            const roadwayL4Pct = (roadwayState?.l4Percentage !== undefined && roadwayState?.l4Percentage !== null)
+                ? roadwayState.l4Percentage : 30;
+            const lowPct = (100 - roadwayL4Pct) / 100;
+            const highPct = roadwayL4Pct / 100;
+            const hourlyRate = (roadwayResources.lowRate * lowPct) + (roadwayResources.highRate * highPct);
             
             // Get cost calculation parameters
             const burdenRate = parseFloat(document.getElementById('unified-burden')?.value) || 66;
@@ -4384,6 +5887,11 @@ ${reasoning}`;
             const rate = projects.length > 0 
                 ? calculateWeightedRate(projects, 'average') 
                 : (benchmarks.customRate || 0.01); // Default to 1%
+
+            // All Rate = mean production % across ALL projects (not just selected)
+            const allProjects = benchmarks.projects || [];
+            const allRates = allProjects.map(p => p.production_pct || p.rate || 0).filter(r => r > 0);
+            const allRate = allRates.length > 0 ? allRates.reduce((s, v) => s + v, 0) / allRates.length : rate;
             
             // Revenue = Project Cost × (rate / 100) since rate is already in percentage form
             // But looking at the data, production_pct is already a percentage like 1.19 (meaning 1.19%)
@@ -4408,8 +5916,8 @@ ${reasoning}`;
             const gna = rawLabor * (gnaRate / 100);
             const margin = rawLabor * (marginPercent / 100);
             
-            // Get weighted hourly rate for this discipline (ESDC/TSCD use $64.50/hr)
-            const weightedRate = ESDC_TSCD_HOURLY_RATE;
+            // Get weighted hourly rate for ESDC/TSCD from JSON at 50% complexity
+            const weightedRate = getEsdcTscdWeightedRate();
             
             // Calculate hours from Raw Labor
             const mh = Math.round(rawLabor / weightedRate);
@@ -4417,6 +5925,7 @@ ${reasoning}`;
             return {
                 mh: mh,
                 rate: rate,
+                allRate: allRate,
                 revenue: revenue,
                 revenueK: revenueK,
                 rawLabor: rawLabor,
@@ -4482,8 +5991,8 @@ ${reasoning}`;
             };
             
             // Calculate standard benchmark disciplines
-            const standardDisciplines = ['drainage', 'mot', 'roadway', 'traffic', 'utilities', 
-                'retainingWalls', 'noiseWalls', 'bridgesPCGirder', 'bridgesSteel', 'bridgesRehab',
+            const standardDisciplines = ['drainage', 'mot', 'roadway', 'traffic', 'utilities',
+                'retainingWalls', 'noiseWalls', 'structures',
                 'geotechnical', 'systems', 'track', 'environmental'];
             
             for (const discId of standardDisciplines) {
@@ -4658,11 +6167,10 @@ ${reasoning}`;
                     const rateElem = document.getElementById(`unified-rate-${discId}`);
                     if (rateElem) rateElem.textContent = formatRate(result.rate, unit);
                     const allRateEl = document.getElementById(`unified-rate-all-${discId}`);
-                    if (discId !== 'esdc' && discId !== 'tscd' && allRateEl && result.allRate != null) allRateEl.textContent = formatRate(result.allRate, unit);
-                    if (discId === 'esdc' || discId === 'tscd') { if (allRateEl) allRateEl.textContent = '—'; }
+                    if (allRateEl && result.allRate != null) allRateEl.textContent = formatRate(result.allRate, unit);
                     const wideOpenEl = document.getElementById(`unified-wide-open-mh-${discId}`);
                     const customMHEl = document.getElementById(`unified-custom-mh-${discId}`);
-                    const wideOpenRate = (discId === 'esdc' || discId === 'tscd') ? result.rate : (state.allRate != null ? state.allRate : result.allRate || 0);
+                    const wideOpenRate = (state.allRate != null ? state.allRate : result.allRate || 0);
                     if (wideOpenEl) wideOpenEl.textContent = formatMH(Math.round(state.quantity * wideOpenRate));
                     if (customMHEl) customMHEl.textContent = formatMH(result.mh);
 
@@ -4706,14 +6214,14 @@ ${reasoning}`;
             
             // Define display order for disciplines
             const disciplineOrder = [
-                'roadway', 'drainage', 'mot', 'traffic', 'utilities',
-                'retainingWalls', 'noiseWalls', 
-                'bridgesPCGirder', 'bridgesSteel', 'bridgesRehab',
-                'miscStructures', 'geotechnical',
-                'systems', 'track', 'environmental',
-                'digitalDelivery'
+                'digitalDelivery', 'drainage', 'environmental', 'mot',
+                'roadway', 'traffic', 'utilities',
+                'retainingWalls', 'noiseWalls',
+                'structures', 'miscStructures',
+                'geotechnical', 'pavement', 'landscaping',
+                'systems', 'track'
             ];
-            
+
             for (const discId of disciplineOrder) {
                 const config = DISCIPLINE_CONFIG[discId];
                 if (!config) continue;
@@ -4727,7 +6235,12 @@ ${reasoning}`;
                     quantity: 0,
                     rate: defaultRate,
                     mh: 0,
-                    l4Percentage: 30  // Default 30% of MH above L4 Engg
+                    l4Percentage: 30,  // Default 30% of MH above L4 Engg
+                    ...(discId === 'structures' ? { structureEntries: [] } : {}),
+                    ...(config.calculationType === 'fte' ? {
+                        fte: config.defaultFte,
+                        months: config.defaultMonths
+                    } : {})
                 };
                 
                 const row = document.createElement('tr');
@@ -4790,6 +6303,25 @@ ${reasoning}`;
                 
                 tbody.appendChild(row);
             }
+
+            // Initialize ESDC/TSCD state (they don't have MH Estimator rows,
+            // but their state must exist for import, cost calculation, and revenue display)
+            for (const svcDiscId of ['esdc', 'tscd']) {
+                if (!mhEstimateState.disciplines[svcDiscId]) {
+                    const svcBenchmarks = getBenchmarkDataSync(svcDiscId);
+                    const svcDefaultRate = svcBenchmarks ? (svcBenchmarks.customRate || svcBenchmarks.defaultRate) : 0;
+                    mhEstimateState.disciplines[svcDiscId] = {
+                        active: false,
+                        quantity: 0,
+                        rate: svcDefaultRate,
+                        allRate: svcDefaultRate,
+                        mh: 0,
+                        revenue: 0,
+                        totalRevenue: 0,
+                        l4Percentage: 60
+                    };
+                }
+            }
         }
 
         /**
@@ -4845,22 +6377,26 @@ ${reasoning}`;
             if (value > 0) {
                 const costK = value / 1000;
                 
-                // Digital Delivery
+                // Digital Delivery - convert $ to millions for matrix lookup
                 const ddState = mhEstimateState.disciplines.digitalDelivery;
                 if (ddState) {
                     ddState.active = true;
+                    const ddCostM = value / 1000000; // Convert dollars to millions for matrix
                     ddState.quantity = costK;
                     const ddResult = calculateDigitalDeliveryMH(
-                        costK, 
+                        ddCostM,
                         parseInt(document.getElementById('mh-design-duration').value) || 20,
                         document.getElementById('mh-complexity').value || 'Med'
                     );
                     ddState.mh = ddResult.mh;
-                    ddState.rate = ddResult.mh / costK;
+                    ddState.rate = costK > 0 ? ddResult.mh / costK : 0;
                     updateMHRowDisplay('digitalDelivery', ddState);
                 }
                 
                 // ESDC - Revenue-based calculation
+                if (!mhEstimateState.disciplines.esdc) {
+                    mhEstimateState.disciplines.esdc = { active: false, quantity: 0, rate: 0, mh: 0, revenue: 0, totalRevenue: 0, l4Percentage: 60 };
+                }
                 const esdcState = mhEstimateState.disciplines.esdc;
                 const esdcBenchmarks = getBenchmarkDataSync('esdc');
                 if (esdcState) {
@@ -4879,6 +6415,9 @@ ${reasoning}`;
                 }
                 
                 // TSCD - Revenue-based calculation
+                if (!mhEstimateState.disciplines.tscd) {
+                    mhEstimateState.disciplines.tscd = { active: false, quantity: 0, rate: 0, mh: 0, revenue: 0, totalRevenue: 0, l4Percentage: 60 };
+                }
                 const tscdState = mhEstimateState.disciplines.tscd;
                 const tscdBenchmarks = getBenchmarkDataSync('tscd');
                 if (tscdState) {
@@ -5404,12 +6943,12 @@ ${reasoning}`;
                         // Ensure all projects have the applicable flag (should already be set during init)
                         const checked = project.applicable ? 'checked' : '';
                         
-                        // ESDC/TSCD: Show revenue-based stats
+                        // ESDC/TSCD: Show project cost and production %
                         let projectStats;
                         if (discId === 'esdc' || discId === 'tscd') {
-                            const revenueK = project.esdc_cost || project.cost || 0;
+                            const projectCostK = project.eqty || project.anticipated_cost || project.projectCost || 0;
                             const prodPct = project.production_pct || project.rate || 0;
-                            projectStats = `$${revenueK.toLocaleString()}K Revenue | ${prodPct.toFixed(2)}% of Project Cost`;
+                            projectStats = `$${projectCostK.toLocaleString()}K Project Cost | ${prodPct.toFixed(2)}% Production`;
                         } else {
                             projectStats = `${formatMH(project.mh || project.cost || 0)} MH | ${(project.quantity || project.projectCost || 0).toLocaleString()} ${config.unit} | Rate: ${formatRate(project.rate, config.unit)}`;
                         }
@@ -5588,7 +7127,7 @@ ${reasoning}`;
          * When a rate is selected for any discipline in a group, apply to all in the group
          */
         const SHARED_RATE_GROUPS = {
-            bridges: ['bridgesPCGirder', 'bridgesSteel', 'bridgesRehab'],
+            structures: ['structures'],
             noiseWalls: ['noiseWalls']  // Can add more noise wall types if needed
         };
 
@@ -5643,7 +7182,12 @@ ${reasoning}`;
 
                         state.rate = rate;
                         state.allRate = allRate;
-                        state.mh = Math.round(qty * state.rate);
+                        // For structures with per-structure entries, keep the sum of per-row forecast MHs
+                        if (discId === 'structures' && state.structureEntries && state.structureEntries.length > 0 && state.mh > 0) {
+                            // Don't overwrite — state.mh already has the per-structure forecast total
+                        } else {
+                            state.mh = Math.round(qty * state.rate);
+                        }
                         state.selectedProjects = applicableProjects;
 
                         // Store statistical bounds if available
@@ -5668,10 +7212,9 @@ ${reasoning}`;
                             unifiedRateElem.textContent = formatRate(state.rate, unit);
                         }
                         if (unifiedRateAllElem) {
-                            if (discId === 'esdc' || discId === 'tscd') unifiedRateAllElem.textContent = '—';
-                            else if (state.allRate != null) unifiedRateAllElem.textContent = formatRate(state.allRate, unit);
+                            if (state.allRate != null) unifiedRateAllElem.textContent = formatRate(state.allRate, unit);
                         }
-                        const wideOpenRate = (discId === 'esdc' || discId === 'tscd') ? state.rate : (state.allRate != null ? state.allRate : allMean);
+                        const wideOpenRate = (state.allRate != null ? state.allRate : allMean);
                         const wideOpenMH = Math.round(qty * wideOpenRate);
                         const customMH = state.mh;
                         const unifiedWideOpenEl = document.getElementById(`unified-wide-open-mh-${discId}`);
@@ -5773,9 +7316,7 @@ ${reasoning}`;
                 'utilities': 'Utilities',
                 'retainingWalls': 'Structures',
                 'noiseWalls': 'Structures',
-                'bridgesPCGirder': 'Bridges',
-                'bridgesSteel': 'Bridges',
-                'bridgesRehab': 'Bridges',
+                'structures': 'Structures',
                 'miscStructures': 'Structures',
                 'geotechnical': 'Geotechnical',
                 'systems': 'Systems',
@@ -5817,12 +7358,12 @@ ${reasoning}`;
             } else {
                 // Highway/Bridge Projects: standard disciplines; ESDC/TSCD appear only below (main cost table with chart icon), not under Labor/Directs
                 disciplineOrder = [
-                    'roadway', 'drainage', 'mot', 'traffic', 'utilities',
+                    'digitalDelivery', 'drainage', 'environmental', 'mot',
+                    'roadway', 'traffic', 'utilities',
                     'retainingWalls', 'noiseWalls',
-                    'bridgesPCGirder', 'bridgesSteel', 'bridgesRehab',
-                    'miscStructures', 'geotechnical',
-                    'systems', 'track', 'environmental',
-                    'digitalDelivery'
+                    'structures', 'miscStructures',
+                    'geotechnical', 'pavement', 'landscaping',
+                    'systems', 'track'
                 ];
             }
 
@@ -5874,12 +7415,35 @@ ${reasoning}`;
                         burdenCost: 0,
                         gnaCost: 0,
                         totalCost: 0,
-                        selectedProjects: allProjects
+                        selectedProjects: allProjects,
+                        ...(discId === 'structures' ? { structureEntries: [] } : {})
                     };
                 }
 
                 const row = createUnifiedRow(discId, config, benchmarks);
                 tbody.appendChild(row);
+            }
+
+            // Ensure ESDC/TSCD state exists (they appear as static section-header rows below, not in disciplineOrder)
+            for (const svcDiscId of ['esdc', 'tscd']) {
+                if (!mhEstimateState.disciplines[svcDiscId]) {
+                    const svcBenchmarks = getBenchmarkDataSync(svcDiscId);
+                    const svcDefaultRate = svcBenchmarks ? (svcBenchmarks.customRate || svcBenchmarks.defaultRate) : 0;
+                    mhEstimateState.disciplines[svcDiscId] = {
+                        active: false,
+                        quantity: 0,
+                        rate: svcDefaultRate,
+                        allRate: svcDefaultRate,
+                        mh: 0,
+                        revenue: 0,
+                        totalRevenue: 0,
+                        l4Percentage: 60,
+                        laborCost: 0,
+                        burdenCost: 0,
+                        gnaCost: 0,
+                        totalCost: 0
+                    };
+                }
             }
 
             // Apply default subs/ODC percentages from constants (single source of truth for first load)
@@ -5976,20 +7540,47 @@ ${reasoning}`;
             const unit = (benchmarks && benchmarks.eqty_metric && benchmarks.eqty_metric.uom) ? benchmarks.eqty_metric.uom : config.unit;
 
             // ESDC/TSCD: benchmark picker next to description; quantity from assumed cost (read-only "—" in table)
-            const descCell = isEsdcTscd
-                ? `<td class="frozen-col">${disciplineName} <button class="btn-benchmark-select" onclick="showDisciplineBenchmark('${discId}')" title="Select benchmark projects">📊 Select</button></td>`
-                : `<td class="frozen-col">${disciplineName}</td>`;
-            const qtyCell = isEsdcTscd
-                ? `<td class="mh-col numeric" title="Uses Assumed Construction Cost from Cost Parameters">—</td>`
-                : `<td class="mh-col numeric">
+            // Structures: button to open structures data entry modal
+            const isStructures = (discId === 'structures');
+            const isFte = (config.calculationType === 'fte');
+            let descCell, qtyCell;
+            if (isEsdcTscd) {
+                descCell = `<td class="frozen-col">${disciplineName} <button class="btn-benchmark-select" onclick="showDisciplineBenchmark('${discId}')" title="Select benchmark projects">📊 Select</button></td>`;
+                qtyCell = `<td class="mh-col numeric" title="Uses Assumed Construction Cost from Cost Parameters">—</td>`;
+            } else if (isStructures) {
+                const totalSF = (state.structureEntries || []).reduce((sum, e) => sum + (e.eqty || 0), 0);
+                descCell = `<td class="frozen-col">${disciplineName} <button class="btn-structures-entry" onclick="openStructuresModal()" title="Enter structure details">📋 Enter</button></td>`;
+                qtyCell = `<td class="mh-col numeric"><span id="unified-qty-structures" style="font-weight: bold;">${totalSF > 0 ? totalSF.toLocaleString('en-US') : '0'}</span></td>`;
+            } else if (isFte) {
+                descCell = `<td class="frozen-col">${disciplineName} <span class="header-help" data-tooltip="${config.tooltip || ''}">?</span></td>`;
+                qtyCell = `<td class="mh-col numeric" title="Lump Sum">1</td>`;
+            } else {
+                descCell = `<td class="frozen-col">${disciplineName}</td>`;
+                qtyCell = `<td class="mh-col numeric">
                     <input type="text" class="qty-input" id="unified-qty-${discId}"
                            value="${(state.quantity || 0).toLocaleString('en-US')}" inputmode="numeric"
                            oninput="(function(d){ clearTimeout(window._uqD[d]); window._uqD=window._uqD||{}; window._uqD[d]=setTimeout(function(){ updateUnifiedQuantity(d); }, 350); })('${discId}')"
                            onchange="updateUnifiedQuantity('${discId}')"
                            onblur="updateUnifiedQuantity('${discId}')">
                 </td>`;
+            }
             const benchmarkCell = isEsdcTscd
                 ? `<td class="mh-col" title="Picker is next to discipline name">—</td>`
+                : isFte
+                ? `<td class="mh-col">
+                    <label style="display:flex;align-items:center;gap:4px;font-size:10px;cursor:pointer;">
+                        <input type="checkbox" id="fte-toggle-${discId}" onchange="toggleFteInputs('${discId}',this.checked)" style="margin:0;">
+                        <span style="color:#555;">Edit</span>
+                    </label>
+                    <div id="fte-inputs-${discId}" style="display:none;margin-top:4px;">
+                        <input type="number" id="fte-count-${discId}" value="${state.fte ?? config.defaultFte}" min="0.1" max="20" step="0.5"
+                               style="width:48px;font-size:10px;padding:2px 4px;border:1px solid #ccc;border-radius:3px;"
+                               oninput="recalculateFteDiscipline('${discId}')" title="FTE count"> FTE ×
+                        <input type="number" id="fte-months-${discId}" value="${state.months ?? config.defaultMonths}" min="1" max="60" step="1"
+                               style="width:40px;font-size:10px;padding:2px 4px;border:1px solid #ccc;border-radius:3px;"
+                               oninput="recalculateFteDiscipline('${discId}')" title="Duration (months)"> mo
+                    </div>
+                   </td>`
                 : `<td class="mh-col">
                     <button class="btn-benchmark-select" onclick="showDisciplineBenchmark('${discId}')">
                         📊 Select
@@ -6002,17 +7593,17 @@ ${reasoning}`;
                 ${qtyCell}
                 <td class="mh-col">${unit}</td>
                 ${benchmarkCell}
-                <td class="mh-col numeric ${isEsdcTscd ? 'esdc-tscd-no-all' : ''}" ${isEsdcTscd ? 'title="Not used for ESDC/TSCD — only selected projects"' : ''}>
-                    <span id="unified-rate-all-${discId}">${isEsdcTscd ? '—' : formatRate(allProjectsRate, unit)}</span>
+                <td class="mh-col numeric col-all-rate">
+                    <span id="unified-rate-all-${discId}">${formatRate(allProjectsRate, unit)}</span>
                 </td>
-                <td class="mh-col numeric">
+                <td class="mh-col numeric col-selected-rate">
                     <span id="unified-rate-${discId}">${formatRate(selectedRate, unit)}</span>
                 </td>
                 <td class="mh-col numeric">
-                    <span id="unified-wide-open-mh-${discId}">${formatMH(Math.round(((isEsdcTscd ? selectedRate : (state.allRate != null ? state.allRate : allProjectsRate)) || 0) * (state.quantity || 0)))}</span>
+                    <span id="unified-wide-open-mh-${discId}">${isFte ? '—' : formatMH(Math.round(((isEsdcTscd ? selectedRate : (state.allRate != null ? state.allRate : allProjectsRate)) || 0) * (state.quantity || 0)))}</span>
                 </td>
                 <td class="mh-col numeric">
-                    <span id="unified-custom-mh-${discId}">${formatMH(state.mh || Math.round((state.quantity || 0) * (selectedRate || 0)))}</span>
+                    <span id="unified-custom-mh-${discId}">${isFte ? '—' : formatMH(state.mh || Math.round((state.quantity || 0) * (selectedRate || 0)))}</span>
                 </td>
                 <td class="mh-col numeric">
                     <input type="number" class="l4-input" id="unified-l4-${discId}"
@@ -6040,7 +7631,10 @@ ${reasoning}`;
                 <td class="cost-col numeric revenue-detail-col">
                     <span id="unified-burden-${discId}">$0</span>
                 </td>
-                <td class="cost-col numeric">
+                <td class="cost-col numeric revenue-detail-col">
+                    <span id="unified-expenses-${discId}">$0</span>
+                </td>
+                <td class="cost-col numeric revenue-detail-col">
                     <span id="unified-total-cost-${discId}">$0</span>
                 </td>
                 <td class="cost-col numeric revenue-detail-col">
@@ -6048,9 +7642,6 @@ ${reasoning}`;
                 </td>
                 <td class="cost-col numeric revenue-detail-col">
                     <span id="unified-margin-${discId}">$0</span>
-                </td>
-                <td class="cost-col numeric">
-                    <span id="unified-expenses-${discId}">$0</span>
                 </td>
             `;
 
@@ -6131,11 +7722,12 @@ ${reasoning}`;
                 }
             }
 
-            // All Rate = from All Projects power curve (not used for ESDC/TSCD — only selected data)
+            // All Rate = from All Projects power curve, or mean production % for ESDC/TSCD
             const allRateEl = document.getElementById(`unified-rate-all-${discId}`);
             if (allRateEl) {
-                if (discId === 'esdc' || discId === 'tscd') {
-                    allRateEl.textContent = '—';
+                if ((discId === 'esdc' || discId === 'tscd') && result.allRate != null) {
+                    state.allRate = result.allRate;
+                    allRateEl.textContent = formatRate(result.allRate, unit);
                 } else if (quantity > 0 && benchmarks?.projects?.length >= 2) {
                     const curveRate = getRateFromAllProjectsCurve(discId, quantity);
                     if (curveRate != null) {
@@ -6160,10 +7752,8 @@ ${reasoning}`;
                 rateElem.textContent = formatRate(result.rate, unit);
             }
 
-            // Wide Open MHs = for ESDC/TSCD use Selected Rate only; else All Rate × Quantity
-            const allRateForWideOpen = (discId === 'esdc' || discId === 'tscd')
-                ? result.rate
-                : (state.allRate != null ? state.allRate : (quantity > 0 && benchmarks?.projects?.length >= 2 ? getRateFromAllProjectsCurve(discId, quantity) : null)) || result.allRate || 0;
+            // Wide Open MHs = All Rate × Quantity (for ESDC/TSCD uses allRate from all projects mean)
+            const allRateForWideOpen = (state.allRate != null ? state.allRate : (quantity > 0 && benchmarks?.projects?.length >= 2 ? getRateFromAllProjectsCurve(discId, quantity) : null)) || result.allRate || 0;
             const wideOpenMH = Math.round(quantity * allRateForWideOpen);
             const customMH = result.mh;
             const wideOpenEl = document.getElementById(`unified-wide-open-mh-${discId}`);
@@ -6223,15 +7813,12 @@ ${reasoning}`;
                         if (/utilit(y|ies)|relocation/.test(s)) return 'utilities';
                         if (/retaining\s*wall|retaining\s*walls|retaining/.test(s)) return 'retainingWalls';
                         if (/noise\s*wall|noise\s*walls|noise\s*barrier/.test(s)) return 'noiseWalls';
-                        if (/bridge/.test(s)) {
-                            if (/steel|vehicle\s*[-–]\s*steel/.test(s)) return 'bridgesSteel';
-                            if (/rehab|rehabilitation/.test(s)) return 'bridgesRehab';
-                            if (/pc\s*girder|vehicle\s*[-–]\s*pc|precast|girder/.test(s)) return 'bridgesPCGirder';
-                            return 'bridgesPCGirder';
-                        }
-                        if (/geotech|geotechnical|geo\s*tech/.test(s)) return 'geotechnical';
                         if (/misc\.?\s*struct|miscellaneous\s*struct|misc\s*structures/.test(s) || (s.indexOf('misc') >= 0 && s.indexOf('struct') >= 0)) return 'miscStructures';
+                        if (/bridge|structure/.test(s)) return 'structures';
+                        if (/geotech|geotechnical|geo\s*tech/.test(s)) return 'geotechnical';
                         if (/digital|dig\.?\s*eng/.test(s)) return 'digitalDelivery';
+                        if (/^esdc$|^e\.?s\.?d\.?c/.test(s)) return 'esdc';
+                        if (/^tscd$|^t\.?s\.?c\.?d/.test(s)) return 'tscd';
                         if (/system|electr/.test(s)) return 'systems';
                         if (/track/.test(s)) return 'track';
                         return null;
@@ -6265,8 +7852,8 @@ ${reasoning}`;
                             qtyMap.retainingWalls = n;
                         } else if (lower.includes('noise wall')) {
                             qtyMap.noiseWalls = n;
-                        } else if (lower.includes('bridge')) {
-                            qtyMap.bridgesPCGirder = n;
+                        } else if (lower.includes('bridge') || lower.includes('structure')) {
+                            qtyMap.structures = n;
                         } else if (lower.includes('environmental') || lower.includes('permit count')) {
                             qtyMap.environmental = n;
                         }
@@ -6274,6 +7861,7 @@ ${reasoning}`;
                     var disciplineCol = -1;
                     var notesCol = -1;
                     var keyQuantityCol = -1;
+                    var benchmarkMHCol = -1;
                     var headerRow = 0;
                     function cellLooksLikeDiscipline(cell) {
                         var s = String(cell || '').toLowerCase().trim();
@@ -6289,6 +7877,13 @@ ${reasoning}`;
                         var s = String(cell || '').toLowerCase().trim();
                         return /^quantity$|^quantities$|^qty$/.test(s);
                     }
+                    function cellLooksLikeBenchmarkMH(cell) {
+                        var s = String(cell || '').toLowerCase().trim();
+                        if (/benchmark\s*mh|benchmark\s*mhr|total\s*mh|total\s*mhr/.test(s)) return true;
+                        if (/^mh$|^mhr$|^man\s*hours$|^manhours$/.test(s)) return true;
+                        if (/custom\s*mh|custom\s*mhr/.test(s)) return true;
+                        return false;
+                    }
                     for (let r = 0; r < Math.min(rows.length, 20); r++) {
                         const row = rows[r];
                         if (!Array.isArray(row)) continue;
@@ -6298,10 +7893,13 @@ ${reasoning}`;
                             if (disciplineCol < 0 && cellLooksLikeDiscipline(cellStr)) { disciplineCol = c; headerRow = r; }
                             if (cellStr === 'notes') notesCol = c;
                             if (keyQuantityCol < 0 && cellLooksLikeKeyQuantity(cellStr)) keyQuantityCol = c;
+                            if (benchmarkMHCol < 0 && cellLooksLikeBenchmarkMH(cellStr)) benchmarkMHCol = c;
                         }
                         if (disciplineCol >= 0 && keyQuantityCol >= 0) break;
                         if (disciplineCol >= 0 && (notesCol >= 0 || keyQuantityCol >= 0)) break;
                     }
+                    // Always use column G (index 6) for Benchmark MH (Custom) in Summary tab
+                    benchmarkMHCol = 6;
                     if (keyQuantityCol < 0) {
                         for (let r = 0; r < Math.min(rows.length, 20); r++) {
                             const row = rows[r];
@@ -6339,9 +7937,10 @@ ${reasoning}`;
                     }
                     var dillonQuantityDiscIds = [
                         'drainage', 'environmental', 'mot', 'roadway', 'traffic', 'utilities',
-                        'retainingWalls', 'noiseWalls',
-                        'bridgesPCGirder', 'bridgesSteel', 'bridgesRehab',
-                        'miscStructures', 'geotechnical'
+                        'retainingWalls', 'noiseWalls', 'digitalDelivery',
+                        'structures',
+                        'miscStructures', 'geotechnical',
+                        'esdc', 'tscd'
                     ];
                     if (disciplineCol >= 0 && keyQuantityCol >= 0) {
                         for (let r = headerRow + 1; r < rows.length; r++) {
@@ -6357,10 +7956,70 @@ ${reasoning}`;
                             const discId = disciplineLabelToDiscId(disciplineLabel);
                             if (!discId || dillonQuantityDiscIds.indexOf(discId) < 0) continue;
                             const rounded = Math.round(Number(qtyVal));
-                            quantities[discId] = rounded;
+                            const labelLower = String(disciplineLabel).toLowerCase();
+                            // For structures: only set from "(Total)" row, or if not yet set.
+                            // This prevents individual bridge sub-rows from overwriting the Bridges (Total) value.
+                            if (discId === 'structures') {
+                                if (/total/.test(labelLower)) {
+                                    quantities[discId] = rounded;
+                                    quantities._structuresTotalLocked = true;
+                                } else if (!quantities._structuresTotalLocked) {
+                                    quantities[discId] = rounded;
+                                }
+                            } else {
+                                quantities[discId] = rounded;
+                            }
+                            // Also read Benchmark MH column for Check File comparison
+                            // For structures: protect from sub-row overwrite (same as quantity)
+                            if (benchmarkMHCol >= 0) {
+                                var rawMH = row[benchmarkMHCol];
+                                var mhVal = parseNum(rawMH);
+                                if (mhVal != null && mhVal > 0) {
+                                    if (discId === 'structures') {
+                                        if (/total/.test(labelLower)) {
+                                            dillonImportedData.benchmarkMH[discId] = Math.round(mhVal);
+                                            dillonImportedData._structuresMHLocked = true;
+                                        } else if (!dillonImportedData._structuresMHLocked) {
+                                            dillonImportedData.benchmarkMH[discId] = Math.round(mhVal);
+                                        }
+                                    } else {
+                                        dillonImportedData.benchmarkMH[discId] = Math.round(mhVal);
+                                    }
+                                }
+                            }
                             if (discId === 'roadway') {
                                 quantities.mot = rounded;
                                 quantities.traffic = rounded;
+                            }
+                            // Digital Engineering: Key Qty (K$) × 1000 → Initial Project Value; Notes number → Design Duration
+                            if (discId === 'digitalDelivery') {
+                                // Quantity → Initial Project Value (value is in K$, multiply by 1000)
+                                if (rounded > 0) {
+                                    const initialProjectValue = rounded * 1000;
+                                    const estCostField = document.getElementById('calc-est-construction-cost');
+                                    if (estCostField) {
+                                        estCostField.value = initialProjectValue.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                                        calculateAssumedConstructionCost();
+                                        console.log('Digital Engineering qty ' + rounded + ' K$ × 1000 = $' + initialProjectValue.toLocaleString() + ' → Initial Project Value');
+                                    }
+                                }
+                                // Notes → Design Duration (months)
+                                if (notesCol >= 0) {
+                                    const noteText = String(row[notesCol] || '');
+                                    const numMatch = noteText.match(/(\d+)/);
+                                    if (numMatch) {
+                                        const months = parseInt(numMatch[1], 10);
+                                        if (months > 0) {
+                                            const durationField = document.getElementById('calc-design-duration');
+                                            if (durationField) {
+                                                durationField.value = months;
+                                                durationField.dispatchEvent(new Event('input', { bubbles: true }));
+                                            }
+                                            mhEstimateState.designDuration = months;
+                                            console.log('Digital Engineering notes: "' + noteText + '" → Design Duration = ' + months + ' months');
+                                        }
+                                    }
+                                }
                             }
                         }
                     } else {
@@ -6386,7 +8045,7 @@ ${reasoning}`;
                                     quantities.utilities = Math.round(num);
                                 } else if (lower.includes('retaining wall')) quantities.retainingWalls = Math.round(num);
                                 else if (lower.includes('noise wall')) quantities.noiseWalls = Math.round(num);
-                                else if (lower.includes('bridge')) quantities.bridgesPCGirder = Math.round(num);
+                                else if (lower.includes('bridge')) quantities.structures = Math.round(num);
                                 else if (lower.includes('environmental') || lower.includes('permit')) quantities.environmental = Math.round(num);
                             }
                             if (row.length >= 2 && !looksLikeAccountCode(row[0]) && !looksLikeAccountCode(row[1])) {
@@ -6412,8 +8071,8 @@ ${reasoning}`;
                             if (discId === 'esdc' || discId === 'tscd') continue; // ESDC/TSCD selection = Applicable column "Yes" or ESDC/TSCD sheet only
                             const benchmarks = getBenchmarkDataSync(discId);
                             if (!benchmarks || !benchmarks.projects || benchmarks.projects.length === 0) continue;
-                            const allNoteText = notesByDiscipline[discId].join(' ');
-                            const tokens = allNoteText.split(/[,;|\n\r]+/).map(t => t.trim().toLowerCase()).filter(t => t.length > 1);
+                            const allNoteText = notesByDiscipline[discId].join(' ').replace(/custom\s*:\s*/gi, '');
+                            const tokens = allNoteText.split(/[,;|\n\r]+/).map(t => t.trim().toLowerCase().replace(/\bhwy\b/g, 'highway').replace(/\bst\b/g, 'street').replace(/\brd\b/g, 'road')).filter(t => t.length > 1);
                             const selectAll = tokens.length === 0 || tokens.some(t => t === 'all' || t === 'all projects');
                             benchmarks.projects.forEach(p => {
                                 const name = (p.name || p.project || '').toLowerCase();
@@ -6439,7 +8098,36 @@ ${reasoning}`;
                         const state = mhEstimateState.disciplines[discId];
                         if (!state) continue;
                         const val = quantities[discId];
+
+                        // Misc Structures is percentage-based, not quantity-based — skip quantity import
+                        if (discId === 'miscStructures') continue;
+
+                        // Digital Delivery: quantity goes to Initial Project Value, not to unified qty input
+                        if (discId === 'digitalDelivery') continue;
+
+                        // ESDC/TSCD: project selection comes from their own sheets, skip quantity application
+                        if (discId === 'esdc' || discId === 'tscd') continue;
+
                         state.quantity = val;
+
+                        // Structures qty element is a <span> (not input), handle separately
+                        if (discId === 'structures') {
+                            var structQtySpan = document.getElementById('unified-qty-structures');
+                            if (structQtySpan) {
+                                structQtySpan.textContent = val > 0 ? val.toLocaleString('en-US') : '0';
+                                // Run MH estimation and update row display
+                                var structResult = estimateMH('structures', val, state.selectedProjects);
+                                state.mh = structResult.mh;
+                                state.rate = structResult.rate;
+                                if (structResult.allRate != null) state.allRate = structResult.allRate;
+                                var sAllRate = getRateFromAllProjectsCurve('structures', val);
+                                if (sAllRate != null) state.allRate = sAllRate;
+                                updateMHRowDisplay('structures', state);
+                                applied++;
+                            }
+                            continue;
+                        }
+
                         var unifiedInput = document.getElementById(`unified-qty-${discId}`);
                         var mhInput = document.getElementById(`mh-qty-${discId}`);
                         if (unifiedInput) {
@@ -6453,6 +8141,34 @@ ${reasoning}`;
                             if (applied === 0) applied++;
                         }
                     }
+
+                    // Recalculate Misc Structures after Roadway/Drainage/Traffic MH are set
+                    const msState = mhEstimateState.disciplines.miscStructures;
+                    if (msState) {
+                        const rdwyMH = mhEstimateState.disciplines.roadway?.mh || 0;
+                        const drnMH = mhEstimateState.disciplines.drainage?.mh || 0;
+                        const trfMH = mhEstimateState.disciplines.traffic?.mh || 0;
+                        const baseMH = rdwyMH + drnMH + trfMH;
+                        if (baseMH > 0) {
+                            const msResult = calculateMiscStructuresMH(rdwyMH, drnMH, trfMH);
+                            msState.mh = msResult.mh;
+                            msState.quantity = baseMH;
+                            msState.rate = msResult.rate;
+                            msState.active = true;
+                            // Update unified table display
+                            const msCustomEl = document.getElementById('unified-custom-mh-miscStructures');
+                            if (msCustomEl) msCustomEl.textContent = formatMH(msState.mh);
+                            const msMhEl = document.getElementById('unified-mh-miscStructures');
+                            if (msMhEl) msMhEl.textContent = formatMH(msState.mh);
+                            const msQtyEl = document.getElementById('unified-qty-miscStructures');
+                            if (msQtyEl) msQtyEl.value = baseMH.toLocaleString('en-US');
+                            updateMHRowDisplay('miscStructures', msState);
+                            updateComplexityBreakdown('miscStructures');
+                            recalculateUnifiedCosts('miscStructures');
+                            console.log('Misc Structures recalculated: baseMH=' + baseMH + ' rate=' + msResult.rate.toFixed(4) + ' mh=' + msResult.mh);
+                        }
+                    }
+
                     // === Parse ESDC and TSCD sheets to select projects ===
                     let esdcTscdSelections = { esdc: [], tscd: [] };
                     // Get all sheet names (SheetNames array or keys of Sheets object; normalize for matching)
@@ -6462,9 +8178,17 @@ ${reasoning}`;
                     }
                     function findSheetByName(sheetNames, key) {
                         const k = key.toLowerCase();
+                        // Pass 1: exact match
                         for (var i = 0; i < sheetNames.length; i++) {
-                            var norm = normalizeSheetName(sheetNames[i]);
-                            if (norm === k || norm.startsWith(k) || norm.includes(k)) return sheetNames[i];
+                            if (normalizeSheetName(sheetNames[i]) === k) return sheetNames[i];
+                        }
+                        // Pass 2: starts with
+                        for (var i = 0; i < sheetNames.length; i++) {
+                            if (normalizeSheetName(sheetNames[i]).startsWith(k)) return sheetNames[i];
+                        }
+                        // Pass 3: contains
+                        for (var i = 0; i < sheetNames.length; i++) {
+                            if (normalizeSheetName(sheetNames[i]).includes(k)) return sheetNames[i];
                         }
                         return undefined;
                     }
@@ -6513,6 +8237,20 @@ ${reasoning}`;
                                         }
                                     }
                                 }
+                            }
+                        }
+                        // Read "Total MHR (Custom Projects)" for check file comparison
+                        for (let r = esdcRows.length - 1; r >= 0; r--) {
+                            const row = esdcRows[r];
+                            if (!Array.isArray(row)) continue;
+                            const label = String(row[0] || '').toLowerCase().trim();
+                            if (/total\s*mhr.*custom/i.test(label)) {
+                                const val = parseFloat(String(row[1] || '').replace(/[^0-9.\-]/g, ''));
+                                if (!isNaN(val) && val > 0) {
+                                    dillonImportedData.revenue['esdc'] = Math.round(val * 1000);
+                                    console.log('ESDC Total MHR (Custom Projects) from tab: ' + val + ' K$ → ' + Math.round(val * 1000));
+                                }
+                                break;
                             }
                         }
                         console.log('ESDC sheet "' + esdcSheetName + '" found with ' + esdcTscdSelections.esdc.length + ' projects (Yes only)');
@@ -6564,6 +8302,20 @@ ${reasoning}`;
                                 }
                             }
                         }
+                        // Read "Total MHR (Custom Projects)" for check file comparison
+                        for (let r = tscdRows.length - 1; r >= 0; r--) {
+                            const row = tscdRows[r];
+                            if (!Array.isArray(row)) continue;
+                            const label = String(row[0] || '').toLowerCase().trim();
+                            if (/total\s*mhr.*custom/i.test(label)) {
+                                const val = parseFloat(String(row[1] || '').replace(/[^0-9.\-]/g, ''));
+                                if (!isNaN(val) && val > 0) {
+                                    dillonImportedData.revenue['tscd'] = Math.round(val * 1000);
+                                    console.log('TSCD Total MHR (Custom Projects) from tab: ' + val + ' K$ → ' + Math.round(val * 1000));
+                                }
+                                break;
+                            }
+                        }
                         console.log('TSCD sheet "' + tscdSheetName + '" found with ' + esdcTscdSelections.tscd.length + ' projects (Yes only)');
                     } else {
                         console.log('TSCD sheet not found. Tab names in workbook: ' + allSheetNames.map(function(n) { return '"' + n + '"'; }).join(', '));
@@ -6608,11 +8360,231 @@ ${reasoning}`;
                             console.log(`${discId.toUpperCase()}: Selected ${matchedCount} projects from ${projectNamesToSelect.length} names in Excel (full list: ${benchmarks.projects.length} projects)`);
                         }
                     }
+
+                    // Calculate ESDC/TSCD revenue after project selection
+                    // Project cost K$ from Summary MH sheet quantities, or from assumed construction cost input
+                    for (const revDiscId of ['esdc', 'tscd']) {
+                        if (!mhEstimateState.disciplines[revDiscId]) {
+                            mhEstimateState.disciplines[revDiscId] = { active: false, quantity: 0, rate: 0, mh: 0, revenue: 0, totalRevenue: 0, l4Percentage: 60 };
+                        }
+                        const revState = mhEstimateState.disciplines[revDiscId];
+
+                        const projectCostK = quantities[revDiscId] || parseFloat(document.getElementById('calc-assumed-construction-cost')?.value) || 0;
+                        if (projectCostK <= 0) continue;
+
+                        revState.active = true;
+                        revState.quantity = projectCostK;
+
+                        // calculateServicesMH uses getApplicableProjects internally,
+                        // which checks project.applicable (set by the matching loop above)
+                        const svcResult = calculateServicesMH(revDiscId, projectCostK);
+                        revState.mh = svcResult.mh;
+                        revState.revenue = svcResult.revenue;
+                        revState.rawLabor = svcResult.rawLabor;
+                        revState.burden = svcResult.burden;
+                        revState.gna = svcResult.gna;
+                        revState.margin = svcResult.margin;
+                        revState.rate = svcResult.rate;
+                        if (svcResult.allRate != null) revState.allRate = svcResult.allRate;
+                        revState.selectedProjects = svcResult.projects;
+
+                        // Update unified table displays
+                        updateMHRowDisplay(revDiscId, revState);
+                        recalculateUnifiedCosts(revDiscId);
+
+                        console.log(`${revDiscId.toUpperCase()}: project cost K$ = ${projectCostK}, rate = ${(svcResult.rate || 0).toFixed(4)}%, revenue = $${Math.round(svcResult.revenue || 0).toLocaleString()}, MH = ${svcResult.mh}`);
+                    }
+
+                    // === Parse Structures sheet to populate bridge entries ===
+                    let structuresLoaded = 0;
+                    console.log('=== STRUCTURES IMPORT: All sheet names in workbook:', allSheetNames);
+                    var structuresSheetName = findSheetByName(allSheetNames, 'structures');
+                    if (!structuresSheetName) structuresSheetName = findSheetByName(allSheetNames, 'bridge');
+                    if (!structuresSheetName) structuresSheetName = findSheetByName(allSheetNames, 'str');
+                    console.log('=== STRUCTURES IMPORT: Matched sheet:', structuresSheetName || 'NONE');
+                    if (structuresSheetName) {
+                        const structSheet = workbook.Sheets[structuresSheetName];
+                        const structRows = XLSXLib.utils.sheet_to_json(structSheet, { header: 1, defval: '' });
+
+                        // Log first few rows and row 85-86 for debugging column layout
+                        console.log('Structures sheet "' + structuresSheetName + '" has ' + structRows.length + ' rows');
+                        for (let dbg = 0; dbg < Math.min(5, structRows.length); dbg++) {
+                            console.log('  STR row ' + dbg + ':', JSON.stringify(structRows[dbg]));
+                        }
+                        if (structRows.length > 84) {
+                            console.log('  STR row 84:', JSON.stringify(structRows[84]));
+                            console.log('  STR row 85:', JSON.stringify(structRows[85]));
+                            if (structRows[86]) console.log('  STR row 86:', JSON.stringify(structRows[86]));
+                        }
+
+                        // Scan for header columns (Name, Qty, Type, Span Arrangement, Scope)
+                        // Use the LAST matching header row so we pick the user's data section, not benchmark references above
+                        // Require BOTH Name AND Qty columns to avoid false positives from data cells like "SF"
+                        let sNameCol = -1, sQtyCol = -1, sTypeCol = -1, sSpanCol = -1, sScopeCol = -1;
+                        let sHeaderRow = -1;
+                        for (let r = 0; r < Math.min(structRows.length, 110); r++) {
+                            const row = structRows[r];
+                            if (!Array.isArray(row)) continue;
+                            let foundName = -1, foundQty = -1, foundType = -1, foundSpan = -1, foundScope = -1;
+                            for (let c = 0; c < row.length; c++) {
+                                const cell = String(row[c] || '').toLowerCase().trim();
+                                if (!cell) continue;
+                                if (foundName < 0 && (/^(structure|bridge)\s*(name)?/.test(cell) || cell === 'name' || cell === 'project' || /structure.*design/.test(cell) || /^str\s*(name|id)?$/.test(cell) || /structure\s*name/.test(cell))) foundName = c;
+                                if (foundQty < 0 && (/eqty|e\s*qty|quantity|^qty$|deck\s*area|bridge\s*deck|area\s*\(?sf\)?/.test(cell))) foundQty = c;
+                                if (foundType < 0 && (/^type$|structure\s*type|bridge\s*type|str\s*type/.test(cell))) foundType = c;
+                                if (foundSpan < 0 && (/span\s*arr|span\s*arrangement|^span$|span\s*type/.test(cell))) foundSpan = c;
+                                if (foundScope < 0 && (/^scope$|work\s*type|project\s*scope/.test(cell))) foundScope = c;
+                            }
+                            if (foundName >= 0 && foundQty >= 0) {
+                                sNameCol = foundName; sQtyCol = foundQty; sTypeCol = foundType; sSpanCol = foundSpan; sScopeCol = foundScope;
+                                sHeaderRow = r;
+                            }
+                        }
+                        console.log('STR columns detected — Name:', sNameCol, 'Qty:', sQtyCol, 'Type:', sTypeCol, 'Span:', sSpanCol, 'Scope:', sScopeCol, 'HeaderRow:', sHeaderRow);
+
+                        // Start reading data right after the header row; scan until empty rows
+                        const sDataStart = sHeaderRow >= 0 ? sHeaderRow + 1 : 0;
+                        const sDataEnd = structRows.length;
+
+                        // Valid dropdown options for fuzzy matching
+                        const validTypes = ['Box Girder', 'CIP Girder', 'CIP Slab', 'PC Deck', 'PC Girder', 'Steel Girder'];
+                        const validSpans = ['Multi-Span', 'Single-Span'];
+                        const validScopes = ['New/Reconstruct', 'Unknown', 'Widening/Rehab'];
+                        function fuzzyMatchOption(val, options) {
+                            if (!val) return '';
+                            const lower = String(val).toLowerCase().trim().replace(/[-]/g, ' ');
+                            if (!lower) return '';
+                            for (const opt of options) { const o = opt.toLowerCase().replace(/[-]/g, ' '); if (o === lower) return opt; }
+                            for (const opt of options) { const o = opt.toLowerCase().replace(/[-]/g, ' '); if (o.includes(lower) || lower.includes(o)) return opt; }
+                            for (const opt of options) {
+                                const words = opt.toLowerCase().split(/[\s\/]+/);
+                                if (words.some(w => w.length > 2 && lower.includes(w))) return opt;
+                            }
+                            return '';
+                        }
+
+                        const parsedStructures = [];
+                        let emptyRowCount = 0;
+                        for (let r = sDataStart; r < sDataEnd; r++) {
+                            const row = structRows[r];
+                            if (!Array.isArray(row)) { emptyRowCount++; if (emptyRowCount >= 2) break; continue; }
+                            const bName = sNameCol >= 0 ? String(row[sNameCol] || '').trim() : '';
+                            // Stop at "Totals" row
+                            if (/^totals?$/i.test(bName)) break;
+                            const bQty = sQtyCol >= 0 ? parseNum(row[sQtyCol]) : null;
+                            const bType = sTypeCol >= 0 ? fuzzyMatchOption(row[sTypeCol], validTypes) : '';
+                            const bSpan = sSpanCol >= 0 ? fuzzyMatchOption(row[sSpanCol], validSpans) : '';
+                            const bScope = sScopeCol >= 0 ? fuzzyMatchOption(row[sScopeCol], validScopes) : '';
+                            if (!bName && (bQty == null || bQty <= 0)) { emptyRowCount++; if (emptyRowCount >= 2) break; continue; }
+                            emptyRowCount = 0;
+                            parsedStructures.push({ name: bName, eqty: bQty || 0, type: bType, span_arrangement: bSpan, scope: bScope });
+                        }
+
+                        if (parsedStructures.length > 0) {
+                            // Ensure dropdown options are available
+                            if (!structuresDropdownOptions) {
+                                structuresDropdownOptions = { type: validTypes, span_arrangement: validSpans, scope: validScopes };
+                            }
+
+                            // Compute forecast MHs programmatically (modal may not be open)
+                            let totalForecastMH = 0;
+                            let totalStructSF = 0;
+                            const structBenchmarks = getBenchmarkDataSync('structures');
+                            parsedStructures.forEach(entry => {
+                                totalStructSF += entry.eqty || 0;
+                                if (entry.eqty > 0 && structBenchmarks && structBenchmarks.projects) {
+                                    // Filter by Type + Span only (matching modal logic)
+                                    const filt = structBenchmarks.projects.filter(p => {
+                                        if (entry.type && p.structureType !== entry.type) return false;
+                                        if (entry.span_arrangement && p.spanArrangement !== entry.span_arrangement) return false;
+                                        return true;
+                                    });
+                                    // Only use projects with matching applicable_job (same as modal)
+                                    const applicable = filt.filter(p => {
+                                        if (!p.applicableJob || !entry.span_arrangement) return !!p.applicableJob;
+                                        const ajNorm = p.applicableJob.toString().toLowerCase().replace(/[-\s]+/g, '');
+                                        const spanNorm = entry.span_arrangement.toLowerCase().replace(/[-\s]+/g, '');
+                                        return ajNorm === spanNorm;
+                                    });
+                                    const pts = applicable.map(p => ({ x: p.quantity || 0, y: p.mh || 0 })).filter(p => p.x > 0 && p.y > 0);
+                                    if (pts.length >= 2) {
+                                        const reg = LinearRegression.calculate(pts);
+                                        if (reg.valid) {
+                                            const predicted = reg.m * entry.eqty + reg.b;
+                                            if (predicted > 0) totalForecastMH += Math.round(predicted);
+                                        }
+                                    }
+                                }
+                            });
+
+                            // Save to state
+                            const structState = mhEstimateState.disciplines.structures;
+                            if (structState) {
+                                structState.structureEntries = parsedStructures;
+
+                                // Keep quantity from Summary MH sheet; only update MH from STR structure entries
+                                if (totalStructSF > 0) {
+
+                                    if (totalForecastMH > 0) {
+                                        structState.mh = totalForecastMH;
+                                        structState.rate = totalStructSF > 0 ? totalForecastMH / totalStructSF : 0;
+                                    } else {
+                                        const mhResult = estimateMH('structures', totalStructSF, structState.selectedProjects);
+                                        structState.mh = mhResult.mh;
+                                        structState.rate = mhResult.rate;
+                                    }
+
+                                    // Keep allRate for Wide Open MH
+                                    const sAllRate = getRateFromAllProjectsCurve('structures', totalStructSF);
+                                    if (sAllRate != null) structState.allRate = sAllRate;
+
+                                    // Quantity display is already set from Summary MH sheet — do not overwrite with STR sheet total
+
+                                    // Update unified table Custom MH + MH displays
+                                    const strCustomEl = document.getElementById('unified-custom-mh-structures');
+                                    if (strCustomEl) strCustomEl.textContent = formatMH(structState.mh);
+                                    const strMhEl = document.getElementById('unified-mh-structures');
+                                    if (strMhEl) strMhEl.textContent = formatMH(structState.mh);
+                                    const strWideOpen = structState.allRate ? Math.round(totalStructSF * structState.allRate) : 0;
+                                    const strWideEl = document.getElementById('unified-wide-open-mh-structures');
+                                    if (strWideEl) strWideEl.textContent = formatMH(strWideOpen);
+
+                                    // Update MH row display and costs
+                                    updateMHRowDisplay('structures', structState);
+                                    updateComplexityBreakdown('structures');
+                                    recalculateUnifiedCosts('structures');
+                                }
+                            }
+
+                            // If structures modal tbody exists, populate it
+                            const sTbody = document.getElementById('structures-entry-tbody');
+                            if (sTbody) {
+                                sTbody.innerHTML = '';
+                                parsedStructures.forEach(entry => {
+                                    appendStructureRow(sTbody, entry.name, entry.eqty, entry.type, entry.span_arrangement, entry.scope);
+                                });
+                            }
+
+                            structuresLoaded = parsedStructures.length;
+                            console.log('Structures sheet "' + structuresSheetName + '": loaded ' + structuresLoaded + ' bridge entries starting after header row ' + (sHeaderRow + 1));
+                        }
+                    } else {
+                        console.log('Structures sheet not found. Tab names in workbook: ' + allSheetNames.map(function(n) { return '"' + n + '"'; }).join(', '));
+                    }
+
+                    // Persist imported data for Check File comparison
+                    delete quantities._structuresTotalLocked;
+                    delete dillonImportedData._structuresMHLocked;
+                    console.log('=== FINAL quantities before check file save:', JSON.stringify(quantities));
+                    dillonImportedData.quantities = Object.assign({}, quantities);
+                    dillonImportedData.fileName = file.name || 'Unknown';
+                    dillonImportedData.importedAt = new Date().toISOString();
+
                     fileInput.value = '';
                     if ((Object.keys(notesByDiscipline).length > 0 || esdcMatched > 0 || tscdMatched > 0) && typeof applyBenchmarkSelection === 'function') {
                         applyBenchmarkSelection();
                     }
-                    if (applied > 0 || Object.keys(notesByDiscipline).length > 0 || esdcProcessed || tscdProcessed) {
+                    if (applied > 0 || Object.keys(notesByDiscipline).length > 0 || esdcProcessed || tscdProcessed || structuresLoaded > 0) {
                         updateUnifiedSummary();
                         saveToLocalStorage();
                         let msg = 'Dillon file imported.';
@@ -6623,6 +8595,9 @@ ${reasoning}`;
                             msg += '\n• ESDC and TSCD from Excel: ESDC ' + (esdcProcessed ? esdcMatched + ' project(s) selected' : 'sheet not in file') + '; TSCD ' + (tscdProcessed ? tscdMatched + ' project(s) selected' : 'sheet not in file') + '.';
                         } else {
                             msg += '\n• ESDC and TSCD: no ESDC/TSCD sheets found in Excel, or sheets have no "Applicable Job" column / no "Yes" rows.';
+                        }
+                        if (structuresLoaded > 0) {
+                            msg += '\n• Structures: ' + structuresLoaded + ' bridge(s) loaded from "' + structuresSheetName + '" sheet.';
                         }
                         alert(msg);
                     } else {
@@ -6653,6 +8628,739 @@ ${reasoning}`;
                 };
                 document.head.appendChild(script);
             }
+        }
+
+        // ============================================
+        // DILLON COST UPLOAD – parse revenue from CBS cost file
+        // ============================================
+
+        /**
+         * Maps a description string (lowercased, trimmed) to an internal discipline/section key.
+         */
+        function dillonCostDescToKey(desc) {
+            const d = String(desc || '').toLowerCase().trim();
+            if (d.includes('grand total') || d === 'total') return 'grandTotal';
+            if (d.includes('design engineering indirects') || d === 'indirects') return 'indirects';
+            if (d.includes('design engineering directs')  || d === 'directs')   return 'directs';
+            if (d.includes('digital delivery'))  return 'digitalDelivery';
+            if (d.includes('drainage'))          return 'drainage';
+            if (d.includes('environmental'))     return 'environmental';
+            if (d === 'mot' || d.includes('maintenance of traffic')) return 'mot';
+            if (d.includes('roadway'))           return 'roadway';
+            if (d.includes('traffic') && !d.includes('maintenance')) return 'traffic';
+            if (d.includes('utilities'))         return 'utilities';
+            if (d.includes('noise wall'))        return 'noiseWalls';
+            if (d.includes('retaining wall'))    return 'retainingWalls';
+            if (d === 'walls' || (d.includes('wall') && !d.includes('retaining') && !d.includes('noise'))) return 'walls';
+            if (d.includes('misc') && d.includes('struct')) return 'miscStructures';
+            if (d.includes('structures') || d.includes('bridges')) return 'structures';
+            if (d.includes('geotechnical'))      return 'geotechnical';
+            if (d.includes('pavement'))          return 'pavement';
+            if (d.includes('landscaping'))       return 'landscaping';
+            if (d.includes('lump sum subconsult')) return 'lsSubconsultants';
+            if (d.includes('subconsult'))        return 'lsSubconsultants';
+            if (d.includes('ipc'))               return 'ipc';
+            if (d.includes('expenses') || d.includes('travel') || d.includes('supplies')) return 'expenses';
+            if (d.includes('contingency'))       return 'contingency';
+            if (d.includes('pursuit') || d.includes('success fee')) return 'pursuit';
+            if (d === 'esdc' || d.startsWith('esdc')) return 'esdc';
+            if (d === 'tscd' || d.startsWith('tscd')) return 'tscd';
+            if (d.includes('escalation'))        return 'escalation';
+            if (d.includes('other'))             return 'other';
+            return null;
+        }
+
+        /**
+         * Parse an Excel workbook (XLSX) for the Dillon CBS cost file.
+         * Finds the "Total Billing Amount" and "CE MH's" columns and maps each row by description.
+         */
+        function parseDillonCostExcel(workbook) {
+            const revenue = {};
+            const mh = {};
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            const rows = window.XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+
+            // Find header row: look for "Total Billing" and "CE MH"
+            let headerRow = -1;
+            let descCol = -1;
+            let revCol  = -1;
+            let mhCol   = -1;
+            for (let r = 0; r < Math.min(rows.length, 20); r++) {
+                const row = rows[r];
+                for (let c = 0; c < row.length; c++) {
+                    const cell = String(row[c] || '').toLowerCase();
+                    if (cell.includes('total billing') || cell.includes('billing amount')) { revCol = c; headerRow = r; }
+                    if (cell.includes('ce mh') || cell === 'mh') { mhCol = c; }
+                    if (cell.includes('description')) { descCol = c; }
+                }
+                if (headerRow >= 0 && revCol >= 0) break;
+            }
+
+            // Fallback: if no "Description" header found, assume column 1 (B)
+            if (descCol < 0) descCol = 1;
+
+            for (let r = headerRow + 1; r < rows.length; r++) {
+                const row = rows[r];
+                const desc = String(row[descCol] || '').trim();
+                if (!desc) continue;
+                const key = dillonCostDescToKey(desc);
+                if (!key) continue;
+
+                if (revCol >= 0 && revenue[key] == null) {
+                    let val = row[revCol];
+                    val = typeof val === 'number' ? val : parseFloat(String(val).replace(/[$,]/g, ''));
+                    if (!isNaN(val)) revenue[key] = val;
+                }
+                if (mhCol >= 0 && mh[key] == null) {
+                    let val = row[mhCol];
+                    val = typeof val === 'number' ? val : parseFloat(String(val).replace(/[,]/g, ''));
+                    if (!isNaN(val)) mh[key] = val;
+                }
+            }
+            return { revenue, mh };
+        }
+
+        /**
+         * Handle Dillon Cost Upload: Excel → parse directly; PNG/JPG/PDF → OpenAI Vision.
+         */
+        async function handleDillonCostUpload(event) {
+            const file = event.target && event.target.files && event.target.files[0];
+            if (!file) return;
+            const fileInput = event.target;
+            const statusEl = document.getElementById('dillon-cost-status');
+            if (statusEl) statusEl.textContent = 'Reading file…';
+
+            const ext = file.name.split('.').pop().toLowerCase();
+            const isExcel = ext === 'xlsx' || ext === 'xls';
+            const isImage = ext === 'png' || ext === 'jpg' || ext === 'jpeg';
+            const isPdf   = ext === 'pdf';
+
+            try {
+                if (isExcel) {
+                    // Load XLSX if needed then parse
+                    function doParseExcel(XLSXLib) {
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            try {
+                                const wb = XLSXLib.read(e.target.result, { type: 'array' });
+                                const { revenue, mh } = parseDillonCostExcel(wb);
+                                dillonCostData = { revenue, mh, fileName: file.name, importedAt: new Date().toISOString() };
+                                if (statusEl) statusEl.textContent = '✓ ' + file.name + ' loaded (' + Object.keys(revenue).length + ' rows)';
+                                fileInput.value = '';
+                            } catch(err) {
+                                if (statusEl) statusEl.textContent = '✗ Parse error: ' + err.message;
+                            }
+                        };
+                        reader.readAsArrayBuffer(file);
+                    }
+                    if (window.XLSX) {
+                        doParseExcel(window.XLSX);
+                    } else {
+                        const script = document.createElement('script');
+                        script.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+                        script.onload = function() { doParseExcel(window.XLSX); };
+                        script.onerror = function() { if (statusEl) statusEl.textContent = '✗ Could not load Excel library.'; };
+                        document.head.appendChild(script);
+                    }
+
+                } else if (isImage || isPdf) {
+                    // Use OpenAI Vision (gpt-4o) to extract the cost table
+                    const apiKey = localStorage.getItem('wbs_openai_key') || '';
+                    if (!apiKey) {
+                        if (statusEl) statusEl.textContent = '✗ OpenAI API key required for image/PDF parsing. Please set it in the AI settings.';
+                        fileInput.value = '';
+                        return;
+                    }
+
+                    // For PDF: read as data URL and send first page; for image: read as data URL directly
+                    const reader = new FileReader();
+                    reader.onload = async function(e) {
+                        try {
+                            const dataUrl = e.target.result; // e.g. data:image/png;base64,...
+                            const mimeType = isPdf ? 'application/pdf' : (ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : 'image/png');
+
+                            if (statusEl) statusEl.textContent = 'Sending to AI for extraction…';
+
+                            const prompt = `You are parsing a Dillon CBS cost/billing table.
+Extract ALL rows including section totals and the grand total.
+For each row, return a JSON object with fields:
+  "description": the text from the Description column (as-is),
+  "revenue": the numeric value from the "Total Billing Amount" column (number, no $ or commas; use 0 if blank),
+  "mh": the numeric value from the "CE MH's" column (number, no commas; use 0 if blank or not present).
+Return a JSON array of these objects. Include every row that has a description, even if revenue is 0.
+Include rows like: Grand Total, Design Engineering Indirects, Design Engineering Directs, Digital Delivery, Drainage, Environmental, MOT, Roadway, Traffic, Utilities, Walls, Structures, Misc Structures, Geotechnical, Pavement, Landscaping, Lump Sum Subconsultants, IPC, Expenses, Contingency, Pursuit Costs, Success Fee, ESDC, TSCD, Escalation.`;
+
+                            const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+                                body: JSON.stringify({
+                                    model: 'gpt-4o',
+                                    max_tokens: 2000,
+                                    messages: [{
+                                        role: 'user',
+                                        content: [
+                                            { type: 'image_url', image_url: { url: dataUrl, detail: 'high' } },
+                                            { type: 'text', text: prompt }
+                                        ]
+                                    }]
+                                })
+                            });
+
+                            if (!response.ok) {
+                                const err = await response.json().catch(() => ({}));
+                                throw new Error(err.error?.message || 'API error ' + response.status);
+                            }
+
+                            const result = await response.json();
+                            const text = result.choices?.[0]?.message?.content || '';
+                            // Extract JSON array from response
+                            const jsonMatch = text.match(/\[[\s\S]*\]/);
+                            if (!jsonMatch) throw new Error('No JSON array in AI response.');
+                            const rows = JSON.parse(jsonMatch[0]);
+
+                            const revenue = {};
+                            const mh = {};
+                            for (const row of rows) {
+                                const key = dillonCostDescToKey(row.description || '');
+                                if (key) {
+                                    if (revenue[key] == null && row.revenue != null) revenue[key] = Number(row.revenue) || 0;
+                                    if (mh[key] == null && row.mh != null) mh[key] = Number(row.mh) || 0;
+                                }
+                            }
+
+                            dillonCostData = { revenue, mh, fileName: file.name, importedAt: new Date().toISOString() };
+                            if (statusEl) statusEl.textContent = '✓ ' + file.name + ' parsed (' + Object.keys(revenue).length + ' rows)';
+                            fileInput.value = '';
+                        } catch(err) {
+                            if (statusEl) statusEl.textContent = '✗ AI error: ' + err.message;
+                            fileInput.value = '';
+                        }
+                    };
+                    reader.readAsDataURL(file);
+
+                } else {
+                    if (statusEl) statusEl.textContent = '✗ Unsupported file type.';
+                    fileInput.value = '';
+                }
+            } catch(err) {
+                if (statusEl) statusEl.textContent = '✗ Error: ' + err.message;
+                fileInput.value = '';
+            }
+        }
+
+        // ============================================
+        // CHECK FILE - EXCEL COMPARISON REPORT
+        // ============================================
+
+        /**
+         * Generate an Excel (.xlsx) comparison report: Dillon cost upload vs app state.
+         * Rows: all sections (indirects, each direct discipline, subs, expenses, contingency, pursuit, ESDC, TSCD, escalation, grand total).
+         * Columns: Line | Excel Key Qty | App Key Qty | Qty Delta | Excel Benchmark MH | App Custom MH | MH Delta | Excel Revenue | App Revenue | Rev Delta
+         */
+        function generateCheckFile() {
+            const hasMH  = dillonImportedData.importedAt &&
+                           (Object.keys(dillonImportedData.quantities).length > 0 ||
+                            Object.keys(dillonImportedData.benchmarkMH).length > 0);
+            const hasCost = dillonCostData.importedAt && Object.keys(dillonCostData.revenue).length > 0;
+
+            if (!hasMH && !hasCost) {
+                alert('No Dillon file has been imported yet.\nPlease upload a Dillon Files or Dillon Cost Upload file first, then use Check File.');
+                return;
+            }
+
+            // Helper: read a DOM element's dollar text as a number
+            function domRev(id) {
+                var el = document.getElementById(id);
+                return el ? (Math.round(parseFloat(String(el.textContent).replace(/[$,\s]/g, '')) || 0)) : 0;
+            }
+            // Helper: read excel revenue from cost upload, fallback to MH-import revenue
+            function excelRev(key) {
+                if (hasCost && dillonCostData.revenue[key] != null) return dillonCostData.revenue[key];
+                if (dillonImportedData.revenue && dillonImportedData.revenue[key] != null) return dillonImportedData.revenue[key];
+                return '';
+            }
+
+            function runGenerate(XLSXLib) {
+                var aoa = [];
+                aoa.push([
+                    'Line Item',
+                    'Excel Key Qty', 'App Key Qty', 'Qty Delta',
+                    'Excel Benchmark MH', 'App Custom MH', 'MH Delta',
+                    'Excel Revenue', 'App Revenue', 'Rev Delta'
+                ]);
+
+                // Utility: build a discipline row (direct)
+                function discRow(label, discId, revDomId) {
+                    var excelQty = dillonImportedData.quantities[discId];
+                    var appState = mhEstimateState.disciplines[discId];
+                    var appQty;
+                    if (discId === 'digitalDelivery' || discId === 'esdc' || discId === 'tscd') {
+                        appQty = typeof excelQty === 'number' ? excelQty : 0;
+                    } else if (discId === 'miscStructures') {
+                        var rdwyMH = (mhEstimateState.disciplines.roadway || {}).mh || 0;
+                        var drnMH  = (mhEstimateState.disciplines.drainage || {}).mh || 0;
+                        var trfMH  = (mhEstimateState.disciplines.traffic  || {}).mh || 0;
+                        appQty = rdwyMH + drnMH + trfMH;
+                    } else {
+                        appQty = appState ? (appState.quantity || 0) : 0;
+                    }
+                    var qtyDelta = typeof excelQty === 'number' ? excelQty - appQty : '';
+
+                    // Excel MH: prefer Dillon MH import, fall back to CE MH's from cost upload image
+                    var excelMH = dillonImportedData.benchmarkMH[discId];
+                    if (typeof excelMH !== 'number' && hasCost && dillonCostData.mh && dillonCostData.mh[discId] != null) {
+                        excelMH = dillonCostData.mh[discId];
+                    }
+                    // App Custom MH: always from app state
+                    var appMH;
+                    if (discId === 'digitalDelivery') {
+                        var ddEl = document.getElementById('unified-mh-digitalDelivery');
+                        appMH = ddEl ? Math.round(parseFloat(String(ddEl.textContent).replace(/[,\s]/g, '')) || 0) : 0;
+                    } else {
+                        appMH = appState ? (appState.mh || 0) : 0;
+                    }
+                    var mhDelta = typeof excelMH === 'number' ? excelMH - appMH : '';
+
+                    var xRev = excelRev(discId);
+                    var appRevVal;
+                    if (revDomId) {
+                        appRevVal = domRev(revDomId);
+                    } else if (appState && appState.totalRevenue != null) {
+                        appRevVal = Math.round(appState.totalRevenue || 0);
+                    } else {
+                        appRevVal = '';
+                    }
+                    var revDelta = (typeof xRev === 'number' && xRev > 0 && typeof appRevVal === 'number') ? xRev - appRevVal : '';
+
+                    return [
+                        label,
+                        typeof excelQty === 'number' ? excelQty : '',
+                        appQty,
+                        qtyDelta,
+                        typeof excelMH === 'number' ? excelMH : '',
+                        appMH,
+                        mhDelta,
+                        xRev,
+                        appRevVal,
+                        revDelta
+                    ];
+                }
+
+                // Utility: build a section/summary row (no qty/MH columns)
+                function sectionRow(label, costKey, revDomId) {
+                    var xRev = excelRev(costKey);
+                    var appRevVal = revDomId ? domRev(revDomId) : '';
+                    var revDelta = (typeof xRev === 'number' && xRev > 0 && typeof appRevVal === 'number') ? xRev - appRevVal : '';
+                    return [label, '', '', '', '', '', '', xRev, appRevVal, revDelta];
+                }
+
+                // ---- ROWS ----
+                // Section totals
+                aoa.push(sectionRow('Design Engineering Indirects', 'indirects', 'unified-indirect-total-revenue'));
+                aoa.push(sectionRow('Design Engineering Directs',   'directs',   'unified-total-revenue'));
+
+                // Direct disciplines
+                aoa.push(discRow('  Digital Delivery',    'digitalDelivery',  null));
+                aoa.push(discRow('  Drainage',            'drainage',         null));
+                aoa.push(discRow('  Environmental',       'environmental',    null));
+                aoa.push(discRow('  MOT',                 'mot',              null));
+                aoa.push(discRow('  Roadway',             'roadway',          null));
+                aoa.push(discRow('  Traffic',             'traffic',          null));
+                aoa.push(discRow('  Utilities',           'utilities',        null));
+                aoa.push(discRow('  Retaining Walls',     'retainingWalls',   null));
+                aoa.push(discRow('  Noise Walls',         'noiseWalls',       null));
+                aoa.push(discRow('  Structures / Bridges','structures',       null));
+                aoa.push(discRow('  Misc Structures',     'miscStructures',   null));
+                aoa.push(discRow('  Geotechnical',        'geotechnical',     null));
+                aoa.push(discRow('  Pavement',            'pavement',         null));
+                aoa.push(discRow('  Landscaping',         'landscaping',      null));
+
+                // Subconsultants
+                aoa.push(sectionRow('Subconsultants',           'lsSubconsultants', 'subs-section-total-revenue'));
+                aoa.push(sectionRow('  IPC',                    'ipc',              'ipc-total-revenue'));
+                aoa.push(sectionRow('  LS Subconsultants',      'lsSubconsultants', 'ls-subs-total-revenue'));
+
+                // Expenses
+                aoa.push(sectionRow('Base Design Eng. Expenses','expenses',         'expenses-section-total-revenue'));
+
+                // Contingency
+                aoa.push(sectionRow('Contingency',              'contingency',      'contingency-total-revenue'));
+
+                // Pursuit
+                aoa.push(sectionRow('Pursuit Costs & Success Fees', 'pursuit',      'pursuit-total-revenue'));
+
+                // ESDC & TSCD
+                aoa.push(discRow('ESDC', 'esdc', 'esdc-total-revenue'));
+                aoa.push(discRow('TSCD', 'tscd', 'tscd-total-revenue'));
+
+                // Escalation
+                aoa.push(sectionRow('Escalation', 'escalation', 'escalation-total-revenue'));
+
+                // Grand Total
+                aoa.push(sectionRow('GRAND TOTAL', 'grandTotal', 'grand-total-revenue'));
+
+                var ws = XLSXLib.utils.aoa_to_sheet(aoa);
+                ws['!cols'] = [
+                    { wch: 28 }, { wch: 14 }, { wch: 14 }, { wch: 12 },
+                    { wch: 22 }, { wch: 16 }, { wch: 12 },
+                    { wch: 18 }, { wch: 18 }, { wch: 14 }
+                ];
+
+                // === Cell styling ===
+                // Delta columns: indices 3 (Qty), 6 (MH), 9 (Rev)
+                // Reference (Excel) columns for each delta: 1 (Qty), 4 (MH), 7 (Rev)
+                var DELTA_COLS  = [3, 6, 9];
+                var REF_COLS    = { 3: 1, 6: 4, 9: 7 };
+                var FILL_PASTEL = { patternType: 'solid', fgColor: { rgb: 'FFF3CD' } }; // soft amber
+                var FILL_HEADER = { patternType: 'solid', fgColor: { rgb: 'C9E4FF' } }; // pastel blue header
+                var FONT_RED    = { color: { rgb: 'CC0000' }, bold: true };
+                var FONT_NORMAL = {};
+
+                for (var ri = 0; ri < aoa.length; ri++) {
+                    for (var di = 0; di < DELTA_COLS.length; di++) {
+                        var ci = DELTA_COLS[di];
+                        var addr = XLSXLib.utils.encode_cell({ r: ri, c: ci });
+                        // Ensure cell exists (SheetJS may omit empty cells)
+                        if (!ws[addr]) ws[addr] = { t: 'z', v: '' };
+                        if (ri === 0) {
+                            // Header row: pastel blue + bold
+                            ws[addr].s = { fill: FILL_HEADER, font: { bold: true } };
+                        } else {
+                            var deltaVal = aoa[ri][ci];
+                            var refVal   = aoa[ri][REF_COLS[ci]];
+                            var isRed    = false;
+                            if (typeof deltaVal === 'number' && deltaVal !== 0) {
+                                if (typeof refVal === 'number' && Math.abs(refVal) > 0) {
+                                    isRed = Math.abs(deltaVal) / Math.abs(refVal) > 0.01;
+                                } else {
+                                    isRed = true; // delta with no reference → flag
+                                }
+                            }
+                            ws[addr].s = { fill: FILL_PASTEL, font: isRed ? FONT_RED : FONT_NORMAL };
+                        }
+                    }
+                }
+
+                var wb = XLSXLib.utils.book_new();
+                XLSXLib.utils.book_append_sheet(wb, ws, 'Check File');
+                var dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+                XLSXLib.writeFile(wb, 'CheckFile_' + dateStr + '.xlsx');
+            }
+
+            if (window.XLSX) {
+                runGenerate(window.XLSX);
+            } else {
+                var script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+                script.onload = function() { runGenerate(window.XLSX); };
+                script.onerror = function() { alert('Could not load Excel library. Check your network connection.'); };
+                document.head.appendChild(script);
+            }
+        }
+
+        // ============================================
+        // PROJECT FINANCIALS - EXCEL EXPORT
+        // ============================================
+
+        /**
+         * Generate an Excel (.xlsx) with project financial summary by section.
+         * Shows a modal preview before downloading.
+         */
+        function generateProjectFinancials() {
+            function parseDollar(el) {
+                if (!el) return 0;
+                return parseFloat(String(el.textContent || '').replace(/[$,\s]/g, '')) || 0;
+            }
+            function parseMH(el) {
+                if (!el) return 0;
+                return parseInt(String(el.textContent || '').replace(/[,\s]/g, ''), 10) || 0;
+            }
+            function fmtD(v) { return '$' + Math.round(v).toLocaleString('en-US'); }
+            function fmtMH(v) { return v.toLocaleString('en-US'); }
+
+            // Collect section data: [label, prefix]
+            var sections = [
+                ['DIRECTS',        'unified-total'],
+                ['INDIRECTS',      'unified-indirect-total'],
+                ['SUBS',           'subs-section-total'],
+                ['EXPENSES',       'expenses-section-total'],
+                ['CONTINGENCY',    'contingency-total'],
+                ['KIE LABOR',      'kie-labor-total'],
+                ['ESDC',           'esdc-total'],
+                ['TSCD',           'tscd-total'],
+                ['ESCALATION',     'escalation-total'],
+                ['GRAND TOTAL',    'grand-total']
+            ];
+
+            var rows = sections.map(function(s) {
+                var label = s[0], pfx = s[1];
+                return {
+                    label: label,
+                    mh:       parseMH(document.getElementById(pfx + '-mh')),
+                    revenue:  parseDollar(document.getElementById(pfx + '-revenue')),
+                    rawLabor: parseDollar(document.getElementById(pfx + '-raw-labor')),
+                    burden:   parseDollar(document.getElementById(pfx + '-burden')),
+                    expenses: parseDollar(document.getElementById(pfx + '-expenses')),
+                    cost:     parseDollar(document.getElementById(pfx + '-cost')),
+                    gna:      parseDollar(document.getElementById(pfx + '-gna')),
+                    margin:   parseDollar(document.getElementById(pfx + '-margin'))
+                };
+            });
+
+            // Build modal
+            var modal = document.createElement('div');
+            modal.className = 'modal-base open';
+            modal.id = 'pf-modal';
+            modal.style.cssText = 'display:flex; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:10000; align-items:center; justify-content:center; opacity:1; visibility:visible;';
+
+            var headerStyle = 'padding:6px 8px; font-size:11px; color:#ffd700; font-weight:bold; border-bottom:2px solid #ffd700; text-align:right; white-space:nowrap;';
+            var cellStyle = 'padding:5px 8px; font-size:12px; text-align:right; border-bottom:1px solid #333; white-space:nowrap;';
+            var labelStyle = 'padding:5px 8px; font-size:12px; border-bottom:1px solid #333; white-space:nowrap;';
+            var totalLabelStyle = labelStyle + ' font-weight:bold; color:#ffd700;';
+            var totalCellStyle = cellStyle + ' font-weight:bold; color:#00ff00;';
+            var sectionStyle = labelStyle + ' font-weight:bold; color:#ffd700; background:#111;';
+            var sectionCellStyle = cellStyle + ' font-weight:bold; color:#ffd700; background:#111;';
+
+            var tableHtml = '<table style="width:100%; border-collapse:collapse;">';
+            // Header
+            tableHtml += '<tr><td style="' + headerStyle + 'text-align:left;">Section</td>' +
+                '<td style="' + headerStyle + '">MH</td>' +
+                '<td style="' + headerStyle + '">Revenue</td>' +
+                '<td style="' + headerStyle + '">Raw Labor</td>' +
+                '<td style="' + headerStyle + '">Burden</td>' +
+                '<td style="' + headerStyle + '">Expenses</td>' +
+                '<td style="' + headerStyle + '">Total Cost</td>' +
+                '<td style="' + headerStyle + '">G&A</td>' +
+                '<td style="' + headerStyle + '">Margin</td></tr>';
+
+            for (var i = 0; i < rows.length; i++) {
+                var r = rows[i];
+                var isSection = (r.label === 'KIE LABOR' || r.label === 'GRAND TOTAL');
+                var ls = isSection ? sectionStyle : (r.label === 'GRAND TOTAL' ? totalLabelStyle : labelStyle);
+                var cs = isSection ? sectionCellStyle : (r.label === 'GRAND TOTAL' ? totalCellStyle : cellStyle);
+
+                // Add separator before KIE LABOR and GRAND TOTAL
+                if (r.label === 'KIE LABOR' || r.label === 'ESDC' || r.label === 'GRAND TOTAL') {
+                    tableHtml += '<tr><td colspan="9" style="padding:0; border-bottom:2px solid #555;"></td></tr>';
+                }
+
+                tableHtml += '<tr>' +
+                    '<td style="' + ls + '">' + (isSection ? '' : '  ') + r.label + '</td>' +
+                    '<td style="' + cs + '">' + fmtMH(r.mh) + '</td>' +
+                    '<td style="' + cs + '">' + fmtD(r.revenue) + '</td>' +
+                    '<td style="' + cs + '">' + fmtD(r.rawLabor) + '</td>' +
+                    '<td style="' + cs + '">' + fmtD(r.burden) + '</td>' +
+                    '<td style="' + cs + '">' + fmtD(r.expenses) + '</td>' +
+                    '<td style="' + cs + '">' + fmtD(r.cost) + '</td>' +
+                    '<td style="' + cs + '">' + fmtD(r.gna) + '</td>' +
+                    '<td style="' + cs + '">' + fmtD(r.margin) + '</td></tr>';
+            }
+            tableHtml += '</table>';
+
+            modal.innerHTML = '<div style="background:#1a1a2e; border:1px solid #ffd700; border-radius:8px; padding:24px; max-width:950px; width:95%; color:#e0e0e0; font-family:Arial,sans-serif; max-height:90vh; overflow-y:auto;">' +
+                '<h3 style="margin:0 0 16px; color:#ffd700; font-size:16px;">Project Financials Summary</h3>' +
+                tableHtml +
+                '<div style="margin-top:16px; display:flex; gap:8px; justify-content:flex-end;">' +
+                '<button id="pf-download-btn" style="padding:8px 16px; background:#ffd700; color:#000; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">Download Excel</button>' +
+                '<button id="pf-cancel-btn" style="padding:8px 16px; background:#333; color:#e0e0e0; border:1px solid #555; border-radius:4px; cursor:pointer;">Cancel</button>' +
+                '</div></div>';
+
+            document.body.appendChild(modal);
+
+            // Cancel
+            document.getElementById('pf-cancel-btn').addEventListener('click', function() { modal.remove(); });
+            modal.addEventListener('click', function(e) { if (e.target === modal) modal.remove(); });
+
+            // Download
+            document.getElementById('pf-download-btn').addEventListener('click', function() {
+                function runGenerate(XLSXLib) {
+                    var aoa = [];
+                    aoa.push(['Section', 'MH', 'Revenue', 'Raw Labor', 'Burden', 'Expenses', 'Total Cost', 'G&A', 'Margin']);
+                    for (var j = 0; j < rows.length; j++) {
+                        var r = rows[j];
+                        aoa.push([r.label, r.mh, r.revenue, r.rawLabor, r.burden, r.expenses, r.cost, r.gna, r.margin]);
+                    }
+
+                    var ws = XLSXLib.utils.aoa_to_sheet(aoa);
+                    ws['!cols'] = [{ wch: 16 }, { wch: 10 }, { wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 14 }, { wch: 14 }];
+
+                    // Format currency columns (cols 2-8, all data rows)
+                    for (var row = 1; row <= rows.length; row++) {
+                        // MH column (col 1) - number format
+                        var mhCell = ws[XLSXLib.utils.encode_cell({ r: row, c: 1 })];
+                        if (mhCell) mhCell.z = '#,##0';
+                        // Currency columns (cols 2-8)
+                        for (var col = 2; col <= 8; col++) {
+                            var cell = ws[XLSXLib.utils.encode_cell({ r: row, c: col })];
+                            if (cell) cell.z = '$#,##0';
+                        }
+                    }
+
+                    var wb = XLSXLib.utils.book_new();
+                    XLSXLib.utils.book_append_sheet(wb, ws, 'Project Financials');
+
+                    var dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+                    XLSXLib.writeFile(wb, 'ProjectFinancials_' + dateStr + '.xlsx');
+                    modal.remove();
+                }
+
+                if (window.XLSX) {
+                    runGenerate(window.XLSX);
+                } else {
+                    var script = document.createElement('script');
+                    script.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+                    script.onload = function() { runGenerate(window.XLSX); };
+                    script.onerror = function() { alert('Could not load Excel library. Check your network connection.'); };
+                    document.head.appendChild(script);
+                }
+            });
+        }
+
+        // ============================================
+        // C2C RATIO REPORT GENERATION
+        // ============================================
+
+        /**
+         * Generate Cost/Cost Ratio (C2C) report as Excel file
+         * Formula matches the P2-C_C Ratio tab from the Dillon benchmark Excel
+         */
+        function generateC2CReport() {
+            function parseDollar(el) {
+                if (!el) return 0;
+                return parseFloat(String(el.textContent || '').replace(/[$,\s]/g, '')) || 0;
+            }
+            function parseInputVal(id) {
+                var el = document.getElementById(id);
+                if (!el) return 0;
+                return parseFloat(String(el.value || '').replace(/[$,\s]/g, '')) || 0;
+            }
+
+            // Show modal to collect Pursuit Cost and Success Fee before generating
+            var modal = document.createElement('div');
+            modal.className = 'modal-base open';
+            modal.id = 'c2c-modal';
+            modal.style.cssText = 'display:flex; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:10000; align-items:center; justify-content:center; opacity:1; visibility:visible;';
+
+            // Pre-calculate values for preview
+            var bidPrice = parseInputVal('calc-est-construction-cost');
+            var gnaPercent = parseInputVal('calc-construction-gna');
+            var marginPercent = parseInputVal('calc-construction-margin');
+            var pcc = bidPrice / ((1 + gnaPercent / 100) * (1 + marginPercent / 100));
+            var designPrice = parseDollar(document.getElementById('grand-total-revenue'));
+            var esdcCost = parseDollar(document.getElementById('esdc-total-revenue'));
+            var twCost = parseDollar(document.getElementById('tscd-total-revenue'));
+            var grandMargin = parseDollar(document.getElementById('grand-total-margin'));
+            var esdcMargin = parseDollar(document.getElementById('esdc-total-margin'));
+            var tscdMargin = parseDollar(document.getElementById('tscd-total-margin'));
+            var designMargin = grandMargin - esdcMargin - tscdMargin;
+            var pursuitPctC2C = parseFloat(document.getElementById('pursuit-pct-input')?.value) || 0.25;
+            var pursuitRevenue = bidPrice * (pursuitPctC2C / 100);
+
+            function fmtDollar(v) {
+                return '$' + Math.round(v).toLocaleString('en-US');
+            }
+            function fmtPct(v) {
+                return v.toFixed(2) + '%';
+            }
+
+            modal.innerHTML = '<div style="background:#1a1a2e; border:1px solid #ffd700; border-radius:8px; padding:24px; max-width:600px; width:90%; color:#e0e0e0; font-family:Arial,sans-serif;">' +
+                '<h3 style="margin:0 0 16px; color:#ffd700; font-size:16px;">P2 - Cost / Cost Ratio Report</h3>' +
+                '<table style="width:100%; border-collapse:collapse; font-size:13px;">' +
+                '<tr style="border-bottom:1px solid #333;"><td style="padding:6px 4px;">Bid Price (Contract Value)</td><td style="text-align:right; padding:6px 4px; color:#00ff00;">' + fmtDollar(bidPrice) + '</td></tr>' +
+                '<tr style="border-bottom:1px solid #333;"><td style="padding:6px 4px;">Construction G&A %</td><td style="text-align:right; padding:6px 4px;">' + fmtPct(gnaPercent) + '</td></tr>' +
+                '<tr style="border-bottom:1px solid #333;"><td style="padding:6px 4px;">Construction Margin %</td><td style="text-align:right; padding:6px 4px;">' + fmtPct(marginPercent) + '</td></tr>' +
+                '<tr style="border-bottom:1px solid #333; background:#111;"><td style="padding:6px 4px; font-weight:bold;">Project Comparison Cost</td><td style="text-align:right; padding:6px 4px; color:#ffd700; font-weight:bold;">' + fmtDollar(pcc) + '</td></tr>' +
+                '<tr style="border-bottom:1px solid #333;"><td style="padding:6px 4px;">Design Price (Total Billed)</td><td style="text-align:right; padding:6px 4px;">' + fmtDollar(designPrice) + '</td></tr>' +
+                '<tr style="border-bottom:1px solid #333;"><td style="padding:6px 4px;">ESDC Revenue (Total Billed)</td><td style="text-align:right; padding:6px 4px;">' + fmtDollar(esdcCost) + '</td></tr>' +
+                '<tr style="border-bottom:1px solid #333;"><td style="padding:6px 4px;">TSCD Revenue (Total Billed)</td><td style="text-align:right; padding:6px 4px;">' + fmtDollar(twCost) + '</td></tr>' +
+                '<tr style="border-bottom:1px solid #333;"><td style="padding:6px 4px;">Pursuit &amp; Success Fee <span style="font-size:10px; color:#888;">(0.25% of IPV)</span></td><td style="text-align:right; padding:6px 4px;">' + fmtDollar(pursuitRevenue) + '</td></tr>' +
+                '<tr style="border-bottom:1px solid #333;"><td style="padding:6px 4px;">Design Margin <span style="font-size:10px; color:#888;">(excl. ESDC &amp; TSCD)</span></td><td style="text-align:right; padding:6px 4px;">' + fmtDollar(designMargin) + '</td></tr>' +
+                '<tr style="border-bottom:1px solid #333; background:#111;"><td style="padding:6px 4px; font-weight:bold;">Base Design Cost</td><td style="text-align:right; padding:6px 4px; color:#ffd700; font-weight:bold;" id="c2c-bdc-preview">—</td></tr>' +
+                '<tr style="background:#111;"><td style="padding:6px 4px; font-weight:bold;">Cost / Cost Ratio</td><td style="text-align:right; padding:6px 4px; color:#00ff00; font-weight:bold; font-size:16px;" id="c2c-ratio-preview">—</td></tr>' +
+                '</table>' +
+                '<div style="margin-top:16px; display:flex; gap:8px; justify-content:flex-end;">' +
+                '<button id="c2c-download-btn" style="padding:8px 16px; background:#ffd700; color:#000; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">Download Excel</button>' +
+                '<button id="c2c-cancel-btn" style="padding:8px 16px; background:#333; color:#e0e0e0; border:1px solid #555; border-radius:4px; cursor:pointer;">Cancel</button>' +
+                '</div>' +
+                '</div>';
+
+            document.body.appendChild(modal);
+
+            // Update BDC and ratio preview when inputs change
+            var bdc = designPrice - esdcCost - twCost - pursuitRevenue - designMargin;
+            var ratio = pcc > 0 ? (bdc / pcc) * 100 : 0;
+            document.getElementById('c2c-bdc-preview').textContent = fmtDollar(bdc);
+            document.getElementById('c2c-ratio-preview').textContent = ratio.toFixed(2) + '%';
+
+            // Cancel
+            document.getElementById('c2c-cancel-btn').addEventListener('click', function() {
+                modal.remove();
+            });
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) modal.remove();
+            });
+
+            // Download
+            document.getElementById('c2c-download-btn').addEventListener('click', function() {
+                var bdc = designPrice - esdcCost - twCost - pursuitRevenue - designMargin;
+                var ratio = pcc > 0 ? bdc / pcc : 0;
+
+                function runC2CGenerate(XLSXLib) {
+                    var aoa = [];
+                    aoa.push(['P2 - Cost / Cost Ratio', '', '']);
+                    aoa.push([]);
+                    aoa.push(['Bid Price (Contract Value) $', bidPrice, 'From Greensheet or Estimators (includes Design)']);
+                    aoa.push(['Construction G&A %', gnaPercent / 100, 'Confirm with Estimators']);
+                    aoa.push(['Construction Margin %', marginPercent / 100, 'Confirm with Estimators']);
+                    aoa.push(['Project Comparison Cost', pcc, 'BP / ((1 + G&A %) x (1 + Margin %))']);
+                    aoa.push(['Design Price', designPrice, 'Total Billed Amount for whole project']);
+                    aoa.push(['ESDC Revenue', esdcCost, 'Total Billed for ESDC']);
+                    aoa.push(['TSCD Revenue', twCost, 'Total Billed for TSCD']);
+                    aoa.push(['Pursuit & Success Fee', pursuitRevenue, '0.25% of Initial Project Value']);
+                    aoa.push(['Design Margin', designMargin, 'Total Margin excl. ESDC & TSCD margin']);
+                    aoa.push(['Base Design Cost', bdc, 'DP - (ESDC + TW + PUR + SF + DM)']);
+                    aoa.push(['Cost / Cost Ratio', ratio, 'BDC / PCC = Target']);
+
+                    var ws = XLSXLib.utils.aoa_to_sheet(aoa);
+
+                    // Column widths
+                    ws['!cols'] = [{ wch: 32 }, { wch: 20 }, { wch: 48 }];
+
+                    // Format cells - currency for dollar amounts (rows 3,6,7,8,9,10,11,12,13 = indices 2,5,6,7,8,9,10,11,12)
+                    var currencyRows = [2, 5, 6, 7, 8, 9, 10, 11, 12];
+                    for (var i = 0; i < currencyRows.length; i++) {
+                        var cell = ws[XLSXLib.utils.encode_cell({ r: currencyRows[i], c: 1 })];
+                        if (cell) cell.z = '$#,##0';
+                    }
+
+                    // Format percentage cells (rows 4,5 = indices 3,4)
+                    var pctCell1 = ws[XLSXLib.utils.encode_cell({ r: 3, c: 1 })];
+                    if (pctCell1) pctCell1.z = '0.00%';
+                    var pctCell2 = ws[XLSXLib.utils.encode_cell({ r: 4, c: 1 })];
+                    if (pctCell2) pctCell2.z = '0.00%';
+
+                    // Format ratio cell (row 14 = index 13)
+                    var ratioCell = ws[XLSXLib.utils.encode_cell({ r: 13, c: 1 })];
+                    if (ratioCell) ratioCell.z = '0.00%';
+
+                    var wb = XLSXLib.utils.book_new();
+                    XLSXLib.utils.book_append_sheet(wb, ws, 'P2-C_C Ratio');
+
+                    var dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+                    XLSXLib.writeFile(wb, 'C2C_Ratio_' + dateStr + '.xlsx');
+                    modal.remove();
+                }
+
+                if (window.XLSX) {
+                    runC2CGenerate(window.XLSX);
+                } else {
+                    var script = document.createElement('script');
+                    script.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+                    script.onload = function() { runC2CGenerate(window.XLSX); };
+                    script.onerror = function() { alert('Could not load Excel library. Check your network connection.'); };
+                    document.head.appendChild(script);
+                }
+            });
         }
 
         /**
@@ -6713,6 +9421,12 @@ ${reasoning}`;
 
             const complexity = complexitySelect.value;
 
+            // Show/hide custom input
+            const customInput = document.getElementById('custom-complexity-pct');
+            if (customInput) {
+                customInput.style.display = complexity === 'Custom' ? 'block' : 'none';
+            }
+
             // Map complexity to percentage
             const complexityMap = {
                 'Low': 30,
@@ -6720,24 +9434,28 @@ ${reasoning}`;
                 'High': 90
             };
 
-            const defaultPct = complexityMap[complexity] || 60;
+            let defaultPct;
+            if (complexity === 'Custom') {
+                const parsed = parseFloat(customInput?.value);
+                defaultPct = isNaN(parsed) ? 50 : Math.min(100, Math.max(0, parsed));
+            } else {
+                defaultPct = complexityMap[complexity] || 60;
+            }
 
             // Apply to all disciplines
             for (const discId of Object.keys(mhEstimateState.disciplines)) {
                 const state = mhEstimateState.disciplines[discId];
+
+                // Always update state and DOM input so value is set even before quantities are entered
+                state.l4Percentage = defaultPct;
+                const l4Input = document.getElementById(`unified-l4-${discId}`);
+                if (l4Input) {
+                    l4Input.value = defaultPct;
+                }
+
+                // Only recalculate costs for active disciplines
                 if (state.active) {
-                    state.l4Percentage = defaultPct;
-
-                    // Update input field
-                    const l4Input = document.getElementById(`unified-l4-${discId}`);
-                    if (l4Input) {
-                        l4Input.value = defaultPct;
-                    }
-
-                    // Update complexity breakdown
                     updateComplexityBreakdown(discId);
-
-                    // Recalculate costs
                     recalculateUnifiedCosts(discId);
                 }
             }
@@ -6749,6 +9467,19 @@ ${reasoning}`;
             const complexityLabel = complexitySelect.options[complexitySelect.selectedIndex].text;
             console.log(`Applied ${complexityLabel} complexity (${defaultPct}%) to all disciplines`);
         }
+
+        function toggleComplexityEdit(enabled) {
+            toggleFieldEdit('unified-complexity', enabled);
+            const customInput = document.getElementById('custom-complexity-pct');
+            if (customInput) {
+                customInput.disabled = !enabled;
+                customInput.style.opacity = enabled ? '1' : '0.5';
+                customInput.style.cursor = enabled ? 'text' : 'not-allowed';
+            }
+        }
+        window.toggleComplexityEdit = toggleComplexityEdit;
+        window.toggleFteInputs = toggleFteInputs;
+        window.recalculateFteDiscipline = recalculateFteDiscipline;
 
         /**
          * Recalculate costs for a discipline using weighted hourly rate
@@ -6775,13 +9506,13 @@ ${reasoning}`;
 
             // Calculate weighted hourly rate based on L4%
             // Allow 0% (all junior) - only use default if undefined
-            const l4Pct = (state.l4Percentage !== undefined && state.l4Percentage !== null) ? state.l4Percentage : 30;
+            // ESDC/TSCD: force 50% complexity; other disciplines use chosen L4%
+            const isEsdcTscd = (discId === 'esdc' || discId === 'tscd');
+            const l4Pct = isEsdcTscd ? 50 : ((state.l4Percentage !== undefined && state.l4Percentage !== null) ? state.l4Percentage : 30);
             const lowPct = (100 - l4Pct) / 100;  // Junior percentage
             const highPct = l4Pct / 100;         // Senior percentage
-            // ESDC/TSCD use fixed $64.50/hr rate; other disciplines use calculated weighted rate
-            const weightedRate = (discId === 'esdc' || discId === 'tscd') 
-                ? ESDC_TSCD_HOURLY_RATE 
-                : (resources.lowRate * lowPct) + (resources.highRate * highPct);
+            // ESDC/TSCD use TW.01/TW.02 rates from JSON at 50% complexity
+            const weightedRate = (resources.lowRate * lowPct) + (resources.highRate * highPct);
 
             // Get global parameters
             const burdenRate = parseFloat(document.getElementById('unified-burden')?.value) || 66;
@@ -6841,10 +9572,8 @@ ${reasoning}`;
             state.totalRevenue = totalRevenue;
             state.weightedRate = weightedRate;
 
-            // Update display with weighted rate (ESDC/TSCD: fixed $64.50; others: show L4 breakdown)
-            const rateDisplay = (discId === 'esdc' || discId === 'tscd')
-                ? `$${ESDC_TSCD_HOURLY_RATE.toFixed(2)}`
-                : `$${weightedRate.toFixed(2)}<br><span style="font-size: 8px; color: #666;">${Math.round(lowPct * 100)}% ${resources.lowCode} + ${Math.round(highPct * 100)}% ${resources.highCode}</span>`;
+            // Update display with weighted rate and L4 breakdown
+            const rateDisplay = `$${weightedRate.toFixed(2)}<br><span style="font-size: 8px; color: #666;">${Math.round(lowPct * 100)}% ${resources.lowCode} + ${Math.round(highPct * 100)}% ${resources.highCode}</span>`;
             const hourlyRateElem = document.getElementById(`unified-hourly-rate-${discId}`);
             if (hourlyRateElem) {
                 hourlyRateElem.innerHTML = rateDisplay;
@@ -6899,8 +9628,15 @@ ${reasoning}`;
          * Recalculate all costs
          */
         function recalculateAllUnifiedCosts() {
-            // Recalculate Digital Delivery based on Assumed Construction Cost and Design Duration
+            // Recalculate Digital Delivery based on Initial Project Value and Design Duration
             recalculateDigitalDelivery();
+
+            // Recalculate FTE-based disciplines (Pavement, Landscaping)
+            for (const discId of Object.keys(mhEstimateState.disciplines)) {
+                if (DISCIPLINE_CONFIG[discId]?.calculationType === 'fte') {
+                    recalculateFteDiscipline(discId);
+                }
+            }
             
             for (const discId of Object.keys(mhEstimateState.disciplines)) {
                 recalculateUnifiedCosts(discId);
@@ -6910,30 +9646,89 @@ ${reasoning}`;
         }
 
         /**
-         * Recalculate Digital Delivery based on Assumed Construction Cost and Design Duration
+         * Recalculate Digital Delivery based on Initial Project Value and Design Duration
          */
+        /**
+         * Toggle FTE input fields visible/hidden for Pavement / Landscaping
+         */
+        function toggleFteInputs(discId, enabled) {
+            const inputs = document.getElementById(`fte-inputs-${discId}`);
+            if (inputs) inputs.style.display = enabled ? 'block' : 'none';
+        }
+
+        /**
+         * Recalculate MH for FTE-based disciplines (Pavement, Landscaping).
+         * MH = FTE × months × 160 hrs/month, using Roadway's weighted rate.
+         */
+        function recalculateFteDiscipline(discId) {
+            const state = mhEstimateState.disciplines[discId];
+            const config = DISCIPLINE_CONFIG[discId];
+            if (!state || !config) return;
+
+            const fteInput = document.getElementById(`fte-count-${discId}`);
+            const monthsInput = document.getElementById(`fte-months-${discId}`);
+            const fte = parseFloat(fteInput?.value ?? config.defaultFte) || 0;
+            const months = parseFloat(monthsInput?.value ?? config.defaultMonths) || 0;
+
+            state.fte = fte;
+            state.months = months;
+
+            const mh = Math.round(fte * (months / 12) * 2080);
+            state.mh = mh;
+            state.quantity = 1;
+            state.active = mh > 0;
+
+            // Use Roadway's weighted rate (same logic as Digital Delivery)
+            const rwRes = getDisciplineResources('roadway');
+            const rwState = mhEstimateState?.disciplines?.roadway;
+            const rwL4 = (rwState?.l4Percentage != null) ? rwState.l4Percentage : 30;
+            const weightedRate = (rwRes.lowRate * ((100 - rwL4) / 100)) + (rwRes.highRate * (rwL4 / 100));
+            state.rate = weightedRate;
+            state.weightedRate = weightedRate;
+
+            // Update Est. MH display
+            const mhEl = document.getElementById(`unified-mh-${discId}`);
+            if (mhEl) mhEl.textContent = formatMH(mh);
+
+            // Update Weighted Rate display
+            const rateEl = document.getElementById(`unified-hourly-rate-${discId}`);
+            if (rateEl) {
+                const rwRes2 = getDisciplineResources('roadway');
+                rateEl.innerHTML = `$${weightedRate.toFixed(2)}<br><span style="font-size:8px;color:#666;">${Math.round(100-rwL4)}% ${rwRes2.lowCode} + ${Math.round(rwL4)}% ${rwRes2.highCode}</span>`;
+            }
+
+            recalculateUnifiedCosts(discId);
+            updateUnifiedSummary();
+            saveToLocalStorage();
+        }
+
         function recalculateDigitalDelivery() {
             const state = mhEstimateState.disciplines.digitalDelivery;
             if (!state) return;
-            
-            // Get Assumed Construction Cost (in $ - convert to millions for calculation)
-            const assumedCostInput = document.getElementById('calc-assumed-construction-cost');
-            const assumedCostStr = assumedCostInput?.value?.replace(/[^0-9.]/g, '') || '0';
-            const assumedConstructionCost = parseFloat(assumedCostStr) || 0;
-            const assumedCostM = assumedConstructionCost / 1000000; // Convert to millions
+
+            // Get Initial Project Value (in $) and convert to millions for matrix lookup
+            const initialValueInput = document.getElementById('calc-est-construction-cost');
+            const initialValueStr = initialValueInput?.value?.replace(/[^0-9.]/g, '') || '0';
+            const initialProjectValue = parseFloat(initialValueStr) || 0;
+            const projectValueM = initialProjectValue / 1000000; // Convert $ to millions for matrix lookup
             
             // Get Design Duration (months)
             const durationInput = document.getElementById('calc-design-duration');
             const durationMonths = parseInt(durationInput?.value) || 12;
             
             // Calculate Digital Delivery MH using 3-step process
-            const result = calculateDigitalDeliveryMH(assumedCostM, durationMonths, 'Med');
-            
+            const result = calculateDigitalDeliveryMH(projectValueM, durationMonths, 'Med');
+
             // Update state
-            state.active = assumedCostM > 0;
-            state.quantity = assumedCostM;
+            state.active = projectValueM > 0;
+            state.quantity = projectValueM;
             state.mh = result.mh;
-            state.rate = ESDC_TSCD_HOURLY_RATE; // $64.50/hr for ESDC/TSCD
+            // Mirror Roadway's weighted rate (same complexity %)
+            const _rwRes = getDisciplineResources('roadway');
+            const _rwState = mhEstimateState?.disciplines?.roadway;
+            const _rwL4 = (_rwState?.l4Percentage !== undefined && _rwState?.l4Percentage !== null) ? _rwState.l4Percentage : 30;
+            const _rwWeightedRate = (_rwRes.lowRate * ((100 - _rwL4) / 100)) + (_rwRes.highRate * (_rwL4 / 100));
+            state.rate = _rwWeightedRate;
             state.rawLabor = result.rawLabor;
             state.burden = result.burden;
             state.gna = result.gna;
@@ -6955,8 +9750,8 @@ ${reasoning}`;
             const costEl = document.getElementById('unified-cost-digitalDelivery');
             
             if (mhEl) mhEl.textContent = formatMH(result.mh);
-            if (rateEl) rateEl.textContent = '$' + ESDC_TSCD_HOURLY_RATE.toFixed(2);
-            if (qtyEl) qtyEl.value = assumedCostM > 0 ? '$' + assumedCostM.toFixed(1) + 'M' : '0';
+            if (rateEl) rateEl.textContent = '$' + _rwWeightedRate.toFixed(2);
+            if (qtyEl) qtyEl.value = projectValueM > 0 ? '$' + Math.round(initialProjectValue).toLocaleString('en-US') : '0';
             if (rawLaborEl) rawLaborEl.textContent = '$' + Math.round(result.rawLabor).toLocaleString('en-US');
             if (burdenEl) burdenEl.textContent = '$' + Math.round(result.burden).toLocaleString('en-US');
             if (gnaEl) gnaEl.textContent = '$' + Math.round(result.gna).toLocaleString('en-US');
@@ -7138,20 +9933,24 @@ ${reasoning}`;
             const kieMultiplier = parseFloat(document.getElementById('calc-kie-multiplier')?.value || 2.85);
             
             // Calculate margin percent: KIE Multiplier - 1 (raw labor) - Burden Rate - G&A Rate
-            const marginPercent = (kieMultiplier - 1 - (burdenRate / 100) - (gnaRate / 100)) * 100;
-            
-            // Update the margin percent display
-            const marginPercentInput = document.getElementById('calc-margin-percent');
-            if (marginPercentInput) {
-                marginPercentInput.value = marginPercent.toFixed(2) + '%';
+            // If user has manually overridden, read from the field instead of computing
+            let marginPercent;
+            if (marginPercentManualOverride) {
+                marginPercent = parseFloat(document.getElementById('calc-margin-percent')?.value) || 0;
+            } else {
+                marginPercent = (kieMultiplier - 1 - (burdenRate / 100) - (gnaRate / 100)) * 100;
+                const marginPercentInput = document.getElementById('calc-margin-percent');
+                if (marginPercentInput) {
+                    marginPercentInput.value = marginPercent.toFixed(2);
+                }
             }
 
             // Calculate G&A and Margin for DIRECTS
             const directsGna = directsRawLabor * (gnaRate / 100);
             const directsMargin = directsRawLabor * (marginPercent / 100);
             const directsTotalLabor = directsRawLabor + directsBurden + directsGna + directsMargin;
-            // Total Cost = Raw Labor + Burden
-            const directsTotalCosts = directsRawLabor + directsBurden;
+            // Total Cost = Raw Labor + Burden + Expenses
+            const directsTotalCosts = directsRawLabor + directsBurden + directsExpenses;
             const directsAvgRate = directsMH > 0 ? directsRawLabor / directsMH : 0;
 
             // Update DIRECTS row
@@ -7185,8 +9984,8 @@ ${reasoning}`;
             const indirectsMargin = indirectsRawLabor * (marginPercent / 100);
             const indirectsTotalLabor = indirectsRawLabor + indirectsBurden + indirectsGna + indirectsMargin;
             const indirectsExpenses = 0;
-            // Total Cost = Raw Labor + Burden
-            const indirectsTotalCosts = indirectsRawLabor + indirectsBurden;
+            // Total Cost = Raw Labor + Burden + Expenses
+            const indirectsTotalCosts = indirectsRawLabor + indirectsBurden + indirectsExpenses;
 
             // Calculate FTEs based on design duration
             const designDurationInput = document.getElementById('calc-design-duration');
@@ -7222,8 +10021,8 @@ ${reasoning}`;
             const kieLaborMargin = directsMargin + indirectsMargin;
             const kieLaborTotalLabor = kieLaborRawLabor + kieLaborBurden + kieLaborGna + kieLaborMargin;
             const kieLaborExpenses = directsExpenses + indirectsExpenses;
-            // Total Cost = Raw Labor + Burden
-            const kieLaborTotalCosts = kieLaborRawLabor + kieLaborBurden;
+            // Total Cost = Raw Labor + Burden + Expenses
+            const kieLaborTotalCosts = kieLaborRawLabor + kieLaborBurden + kieLaborExpenses;
             const kieLaborAvgRate = kieLaborMH > 0 ? kieLaborRawLabor / kieLaborMH : 0;
 
             // Update KIE LABOR section
@@ -7314,8 +10113,8 @@ ${reasoning}`;
             const subsMargin = 0;
             const subsTotalLabor = subsRawLabor + subsBurden + subsGna + subsMargin;
             const subsExpenses = lsSubsExpenses + surveyExpenses + subsurfaceUtilityExpenses;
-            // Total Cost = Raw Labor + Burden
-            const subsTotalCosts = subsRawLabor + subsBurden;
+            // Total Cost = Raw Labor + Burden + Expenses
+            const subsTotalCosts = subsRawLabor + subsBurden + subsExpenses;
             const subsAvgRate = subsMH > 0 ? subsRawLabor / subsMH : 0;
 
             // Update SUBS section
@@ -7337,12 +10136,14 @@ ${reasoning}`;
             document.getElementById('subs-section-total-cost').textContent =
                 '$' + Math.round(subsTotalCosts).toLocaleString('en-US');
 
-            // Calculate IPC based on (KIE LABOR + SUBS) MH × IPC Fee
-            // Check if IPC is enabled
+            // Calculate IPC based on ALL job MHs except contingency × IPC Fee
+            // (calculateServiceRevenue is hoisted — safe to call before its source position)
             const ipcEnabled = document.getElementById('ipc-enabled-toggle')?.checked ?? true;
             const ipcFeeInput = document.getElementById('unified-ipc-fee');
             const ipcFeePerMH = ipcFeeInput ? parseFloat(ipcFeeInput.value) || 6 : 6;
-            const totalMHForIPC = kieLaborMH + subsMH;
+            const esdcForIPC = calculateServiceRevenue('esdc');
+            const tscdForIPC = calculateServiceRevenue('tscd');
+            const totalMHForIPC = kieLaborMH + esdcForIPC.mh + tscdForIPC.mh;
             const ipcExpenses = ipcEnabled ? totalMHForIPC * ipcFeePerMH : 0;
 
             // Update IPC row (only expenses column has a value)
@@ -7353,7 +10154,8 @@ ${reasoning}`;
             document.getElementById('ipc-total-burden').textContent = '$0';
             document.getElementById('ipc-total-gna').textContent = '$0';
             document.getElementById('ipc-total-margin').textContent = '$0';
-            document.getElementById('ipc-total-revenue').textContent = '$0';
+            document.getElementById('ipc-total-revenue').textContent =
+                '$' + Math.round(ipcExpenses).toLocaleString('en-US');
             document.getElementById('ipc-total-expenses').textContent =
                 '$' + Math.round(ipcExpenses).toLocaleString('en-US');
             document.getElementById('ipc-total-cost').textContent =
@@ -7390,9 +10192,9 @@ ${reasoning}`;
             document.getElementById('expenses-section-total-burden').textContent = '$0';
             document.getElementById('expenses-section-total-gna').textContent = '$0';
             document.getElementById('expenses-section-total-margin').textContent = '$0';
-            // Only ODC's are billable (IPC is not), so revenue = ODC's only
-            document.getElementById('expenses-section-total-revenue').textContent = 
-                '$' + Math.round(odcsExpenses).toLocaleString('en-US');
+            // EXPENSES section revenue = IPC + ODC's
+            document.getElementById('expenses-section-total-revenue').textContent =
+                '$' + Math.round(ipcExpenses + odcsExpenses).toLocaleString('en-US');
             document.getElementById('expenses-section-total-expenses').textContent =
                 '$' + Math.round(expensesSectionExpenses).toLocaleString('en-US');
             document.getElementById('expenses-section-total-cost').textContent =
@@ -7402,36 +10204,52 @@ ${reasoning}`;
             // The G&A column totals are already included in the LABOR section
 
             // Calculate ESCALATION based on raises over design duration
-            const escalationExpenses = calculateEscalation(kieLaborMH, kieLaborRawLabor);
+            const escalationRawLabor = calculateEscalation(kieLaborMH, kieLaborRawLabor);
+            // Calculate burden and G&A on escalation
+            const escalationBurden = escalationRawLabor * (burdenRate / 100);
+            const escalationGna = escalationRawLabor * (gnaRate / 100);
+            const escalationMarginValue = escalationRawLabor * (marginPercent / 100);
+            const escalationRevenue = escalationRawLabor + escalationBurden + escalationGna + escalationMarginValue;
+            // Total Cost = Raw Labor + Burden + Expenses (no expenses for escalation)
+            const escalationTotalCost = escalationRawLabor + escalationBurden + 0;
 
             // Update ESCALATION row
             document.getElementById('escalation-total-mh').textContent = '0';
             document.getElementById('escalation-avg-rate').textContent = '$0.00';
-            document.getElementById('escalation-total-raw-labor').textContent = '$0';
-            document.getElementById('escalation-total-burden').textContent = '$0';
-            document.getElementById('escalation-total-gna').textContent = '$0';
+            document.getElementById('escalation-total-raw-labor').textContent =
+                '$' + Math.round(escalationRawLabor).toLocaleString('en-US');
+            document.getElementById('escalation-total-burden').textContent =
+                '$' + Math.round(escalationBurden).toLocaleString('en-US');
+            document.getElementById('escalation-total-gna').textContent =
+                '$' + Math.round(escalationGna).toLocaleString('en-US');
             // Display escalation value in the margin column (where the button is now)
             const escalationMarginCell = document.getElementById('escalation-total-margin');
             if (escalationMarginCell) {
-                escalationMarginCell.innerHTML = '$' + Math.round(escalationExpenses).toLocaleString('en-US') + 
+                escalationMarginCell.innerHTML = '$' + Math.round(escalationMarginValue).toLocaleString('en-US') +
                     ' <button class="escalation-details-btn" onclick="openEscalationModal()" title="View Escalation Breakdown">📊</button>';
             }
-            document.getElementById('escalation-total-revenue').textContent = '$0';
-            document.getElementById('escalation-total-expenses').textContent =
-                '$' + Math.round(escalationExpenses).toLocaleString('en-US');
+            document.getElementById('escalation-total-revenue').textContent =
+                '$' + Math.round(escalationRevenue).toLocaleString('en-US');
+            document.getElementById('escalation-total-expenses').textContent = '$0';
             document.getElementById('escalation-total-cost').textContent =
-                '$' + Math.round(escalationExpenses).toLocaleString('en-US');
+                '$' + Math.round(escalationTotalCost).toLocaleString('en-US');
 
-            // Calculate CONTINGENCY: 5% of (Directs + Indirects MH) × Average Rate
+            // Calculate CONTINGENCY: contingency% of (Directs + Indirects + ESDC MH) × True Weighted Average Rate
             const contingencyPercentInput = document.getElementById('unified-contingency');
             const contingencyPercent = contingencyPercentInput ? parseFloat(contingencyPercentInput.value) || 5 : 5;
-            
-            // Total MH from Directs + Indirects (which is kieLaborMH)
-            const contingencyBaseMH = directsMH + indirectsMH;
-            // 5% of total MH
+
+            // Early ESDC calc for contingency base (calculateServiceRevenue is hoisted)
+            const esdcForContingency = calculateServiceRevenue('esdc');
+
+            // Base: Directs + Indirects + ESDC
+            const contingencyBaseMH = directsMH + indirectsMH + esdcForContingency.mh;
+            const contingencyBaseRawLabor = directsRawLabor + indirectsRawLabor + esdcForContingency.rawLabor;
+
+            // Contingency MH = contingency% of base MH
             const contingencyMH = Math.round(contingencyBaseMH * (contingencyPercent / 100));
-            // Average rate from directs + indirects
-            const contingencyAvgRate = contingencyBaseMH > 0 ? (directsRawLabor + indirectsRawLabor) / contingencyBaseMH : 0;
+
+            // True weighted average rate = Σ(rawLabor) / Σ(MH) — weights each source by its hours
+            const contingencyAvgRate = contingencyBaseMH > 0 ? contingencyBaseRawLabor / contingencyBaseMH : 0;
             // Contingency raw labor = contingency MH × avg rate
             const contingencyRawLabor = contingencyMH * contingencyAvgRate;
             // Calculate burden, G&A, and margin for contingency
@@ -7439,8 +10257,8 @@ ${reasoning}`;
             const contingencyGna = contingencyRawLabor * (gnaRate / 100);
             const contingencyMargin = contingencyRawLabor * (marginPercent / 100);
             const contingencyTotalRevenue = contingencyRawLabor + contingencyBurden + contingencyGna + contingencyMargin;
-            // Total Cost = Raw Labor + Burden
-            const contingencyTotalCosts = contingencyRawLabor + contingencyBurden;
+            // Total Cost = Raw Labor + Burden + Expenses
+            const contingencyTotalCosts = contingencyRawLabor + contingencyBurden + 0; // Contingency has no expenses
 
             // Update CONTINGENCY row
             document.getElementById('contingency-total-mh').textContent = formatMH(contingencyMH);
@@ -7465,6 +10283,23 @@ ${reasoning}`;
             // Helper function to calculate ESDC/TSCD from Assumed Construction Cost
             // Uses SELECTED power curve: production % at assumed cost, then Revenue = Assumed × (production %), MH = Raw Labor / $64.50
             function calculateServiceRevenue(discId) {
+                // Check if % of construction cost override toggle is ON (table row toggle is source of truth)
+                const toggleId = discId === 'esdc' ? 'esdc-pct-override-toggle' : 'tscd-pct-override-toggle';
+                const pctInputId = discId === 'esdc' ? 'calc-esdc-pct' : 'calc-tscd-pct';
+                const toggleEl = document.getElementById(toggleId);
+                if (toggleEl && toggleEl.checked && assumedConstructionCost > 0) {
+                    const pctEl = document.getElementById(pctInputId);
+                    const defaultPct = discId === 'esdc' ? 1.5 : 0.6;
+                    const pct = parseFloat(pctEl ? pctEl.value : defaultPct) || defaultPct;
+                    const revenue = assumedConstructionCost * (pct / 100);
+                    const rawLabor = revenue / kieMultiplier;
+                    const burden = rawLabor * (burdenRate / 100);
+                    const gna = rawLabor * (gnaRate / 100);
+                    const margin = rawLabor * (marginPercent / 100);
+                    const mh = Math.round(rawLabor / getEsdcTscdWeightedRate());
+                    return { mh, rate: pct, revenue, rawLabor, burden, gna, margin };
+                }
+
                 const benchmarks = getBenchmarkDataSync(discId);
                 if (!benchmarks || assumedConstructionCost <= 0) {
                     return { mh: 0, rate: 0, revenue: 0, rawLabor: 0, burden: 0, gna: 0, margin: 0 };
@@ -7491,8 +10326,8 @@ ${reasoning}`;
                 const burden = rawLabor * (burdenRate / 100);
                 const gna = rawLabor * (gnaRate / 100);
                 const margin = rawLabor * (marginPercent / 100);
-                // Est MH = Raw Labor / ESDC-TSCD hourly rate ($64.50)
-                const mh = Math.round(rawLabor / ESDC_TSCD_HOURLY_RATE);
+                // Est MH = Raw Labor / ESDC-TSCD weighted rate (50% complexity)
+                const mh = Math.round(rawLabor / getEsdcTscdWeightedRate());
 
                 return { mh, rate: productionPct, revenue, rawLabor, burden, gna, margin };
             }
@@ -7510,7 +10345,7 @@ ${reasoning}`;
             const esdcRevenueEl = document.getElementById('esdc-total-revenue');
             
             if (esdcMhEl) esdcMhEl.textContent = formatMH(esdcCalc.mh);
-            if (esdcRateEl) esdcRateEl.textContent = esdcCalc.rate.toFixed(2) + '%';
+            if (esdcRateEl) esdcRateEl.textContent = '$' + getEsdcTscdWeightedRate().toFixed(2);
             if (esdcRawLaborEl) esdcRawLaborEl.textContent = '$' + Math.round(esdcCalc.rawLabor).toLocaleString('en-US');
             if (esdcBurdenEl) esdcBurdenEl.textContent = '$' + Math.round(esdcCalc.burden).toLocaleString('en-US');
             if (esdcGnaEl) esdcGnaEl.textContent = '$' + Math.round(esdcCalc.gna).toLocaleString('en-US');
@@ -7519,8 +10354,8 @@ ${reasoning}`;
             const esdcExpensesEl = document.getElementById('esdc-total-expenses');
             const esdcCostEl = document.getElementById('esdc-total-cost');
             if (esdcExpensesEl) esdcExpensesEl.textContent = '$0'; // ESDC is labor-based, no expenses
-            // Total Cost = Raw Labor + Burden
-            const esdcTotalCost = esdcCalc.rawLabor + esdcCalc.burden;
+            // Total Cost = Raw Labor + Burden + Expenses
+            const esdcTotalCost = esdcCalc.rawLabor + esdcCalc.burden + 0; // ESDC has no expenses
             if (esdcCostEl) esdcCostEl.textContent = '$' + Math.round(esdcTotalCost).toLocaleString('en-US');
 
             // TSCD calculation
@@ -7536,7 +10371,7 @@ ${reasoning}`;
             const tscdRevenueEl = document.getElementById('tscd-total-revenue');
             
             if (tscdMhEl) tscdMhEl.textContent = formatMH(tscdCalc.mh);
-            if (tscdRateEl) tscdRateEl.textContent = tscdCalc.rate.toFixed(2) + '%';
+            if (tscdRateEl) tscdRateEl.textContent = '$' + getEsdcTscdWeightedRate().toFixed(2);
             if (tscdRawLaborEl) tscdRawLaborEl.textContent = '$' + Math.round(tscdCalc.rawLabor).toLocaleString('en-US');
             if (tscdBurdenEl) tscdBurdenEl.textContent = '$' + Math.round(tscdCalc.burden).toLocaleString('en-US');
             if (tscdGnaEl) tscdGnaEl.textContent = '$' + Math.round(tscdCalc.gna).toLocaleString('en-US');
@@ -7545,8 +10380,8 @@ ${reasoning}`;
             const tscdExpensesEl = document.getElementById('tscd-total-expenses');
             const tscdCostEl = document.getElementById('tscd-total-cost');
             if (tscdExpensesEl) tscdExpensesEl.textContent = '$0'; // TSCD is labor-based, no expenses
-            // Total Cost = Raw Labor + Burden
-            const tscdTotalCost = tscdCalc.rawLabor + tscdCalc.burden;
+            // Total Cost = Raw Labor + Burden + Expenses
+            const tscdTotalCost = tscdCalc.rawLabor + tscdCalc.burden + 0; // TSCD has no expenses
             if (tscdCostEl) tscdCostEl.textContent = '$' + Math.round(tscdTotalCost).toLocaleString('en-US');
 
             // ============================================
@@ -7554,14 +10389,18 @@ ${reasoning}`;
             // ============================================
             // Sum all sections: KIE Labor + SUBS + Expenses + Contingency + ESDC + TSCD + Escalation
             const grandTotalMH = kieLaborMH + subsMH + contingencyMH + (esdcCalc?.mh || 0) + (tscdCalc?.mh || 0);
-            const grandTotalRawLabor = kieLaborRawLabor + subsRawLabor + contingencyRawLabor + (esdcCalc?.rawLabor || 0) + (tscdCalc?.rawLabor || 0);
-            const grandTotalBurden = kieLaborBurden + subsBurden + contingencyBurden + (esdcCalc?.burden || 0) + (tscdCalc?.burden || 0);
-            const grandTotalGna = kieLaborGna + subsGna + contingencyGna + (esdcCalc?.gna || 0) + (tscdCalc?.gna || 0);
-            const grandTotalMargin = kieLaborMargin + subsMargin + contingencyMargin + (esdcCalc?.margin || 0) + (tscdCalc?.margin || 0);
-            const grandTotalExpenses = kieLaborExpenses + subsExpenses + expensesSectionExpenses + escalationExpenses;
+            const grandTotalRawLabor = kieLaborRawLabor + subsRawLabor + contingencyRawLabor + (esdcCalc?.rawLabor || 0) + (tscdCalc?.rawLabor || 0) + escalationRawLabor;
+            const grandTotalBurden = kieLaborBurden + subsBurden + contingencyBurden + (esdcCalc?.burden || 0) + (tscdCalc?.burden || 0) + escalationBurden;
+            const grandTotalGna = kieLaborGna + subsGna + contingencyGna + (esdcCalc?.gna || 0) + (tscdCalc?.gna || 0) + escalationGna;
+            const grandTotalMargin = kieLaborMargin + subsMargin + contingencyMargin + (esdcCalc?.margin || 0) + (tscdCalc?.margin || 0) + escalationMarginValue;
+            const grandTotalExpenses = kieLaborExpenses + subsExpenses + expensesSectionExpenses;
             // SUBS revenue = labor portion (0) + expenses (which are included in grandTotalExpenses)
-            const grandTotalRevenue = kieLaborTotalLabor + subsTotalLabor + subsExpenses + contingencyTotalRevenue + (esdcCalc?.revenue || 0) + (tscdCalc?.revenue || 0) + odcsExpenses;
-            const grandTotalCost = grandTotalRawLabor + grandTotalBurden;
+            const pursuitPct = parseFloat(document.getElementById('pursuit-pct-input')?.value) || 0.25;
+            const ipv = parseFloat(String(document.getElementById('calc-est-construction-cost')?.value || '').replace(/[$,]/g, '')) || 0;
+            const pursuitRevenue = ipv * (pursuitPct / 100);
+            const grandTotalRevenue = kieLaborTotalLabor + subsTotalLabor + subsExpenses + contingencyTotalRevenue + (esdcCalc?.revenue || 0) + (tscdCalc?.revenue || 0) + ipcExpenses + odcsExpenses + escalationRevenue + pursuitRevenue;
+            // Total Cost = Raw Labor + Burden + Expenses
+            const grandTotalCost = grandTotalRawLabor + grandTotalBurden + grandTotalExpenses;
 
             // Update Grand Totals row
             const grandMhEl = document.getElementById('grand-total-mh');
@@ -7572,6 +10411,10 @@ ${reasoning}`;
             const grandGnaEl = document.getElementById('grand-total-gna');
             const grandMarginEl = document.getElementById('grand-total-margin');
             const grandExpensesEl = document.getElementById('grand-total-expenses');
+
+            // Update Pursuit row revenue display
+            const pursuitRevEl = document.getElementById('pursuit-total-revenue');
+            if (pursuitRevEl) pursuitRevEl.textContent = '$' + Math.round(pursuitRevenue).toLocaleString('en-US');
 
             if (grandMhEl) grandMhEl.textContent = formatMH(grandTotalMH);
             if (grandRevenueEl) grandRevenueEl.textContent = '$' + Math.round(grandTotalRevenue).toLocaleString('en-US');
@@ -7594,7 +10437,7 @@ ${reasoning}`;
                 recalcTimer = setTimeout(recalculateAllUnifiedCosts, 300);
             };
 
-            const costParams = ['unified-burden', 'unified-gna', 'unified-contingency', 'unified-ipc-fee', 'unified-escalation', 'calc-est-construction-cost', 'calc-assumed-construction-cost', 'calc-kie-multiplier', 'calc-sub-multiplier', 'indirects-divisor', 'calc-design-duration', 'survey-subs-pct', 'subsurface-utility-subs-pct', 'geotech-subs-pct', 'odcs-pct'];
+            const costParams = ['unified-burden', 'unified-gna', 'unified-contingency', 'unified-ipc-fee', 'unified-escalation', 'calc-est-construction-cost', 'calc-assumed-construction-cost', 'calc-kie-multiplier', 'calc-sub-multiplier', 'calc-construction-gna', 'indirects-divisor', 'calc-design-duration', 'survey-subs-pct', 'subsurface-utility-subs-pct', 'geotech-subs-pct', 'odcs-pct'];
             costParams.forEach(id => {
                 const elem = document.getElementById(id);
                 if (elem) {
@@ -7783,10 +10626,10 @@ ${reasoning}`;
                     const mhElem = document.getElementById(`unified-mh-${discId}`);
                     if (mhElem) mhElem.textContent = formatMH(result.mh);
                     const allRateEl = document.getElementById(`unified-rate-all-${discId}`);
-                    if (discId === 'esdc' || discId === 'tscd') { if (allRateEl) allRateEl.textContent = '—'; }
+                    if (allRateEl && result.allRate != null) allRateEl.textContent = formatRate(result.allRate, unit);
                     const wideOpenEl = document.getElementById(`unified-wide-open-mh-${discId}`);
                     const customMHEl = document.getElementById(`unified-custom-mh-${discId}`);
-                    const wideOpenRate = (discId === 'esdc' || discId === 'tscd') ? result.rate : (state.allRate != null ? state.allRate : result.allRate || 0);
+                    const wideOpenRate = (state.allRate != null ? state.allRate : result.allRate || 0);
                     if (wideOpenEl) wideOpenEl.textContent = formatMH(Math.round(state.quantity * wideOpenRate));
                     if (customMHEl) customMHEl.textContent = formatMH(result.mh);
 
@@ -7995,7 +10838,7 @@ ${reasoning}`;
             const isEnabled = document.getElementById('ipc-enabled-toggle')?.checked ?? true;
             const ipcSection = document.getElementById('ipc-section');
             const ipcTbody = document.getElementById('ipc-tbody');
-            
+
             if (ipcSection) {
                 if (isEnabled) {
                     ipcSection.style.opacity = '1';
@@ -8010,7 +10853,11 @@ ${reasoning}`;
                     ipcTbody.style.opacity = '0.5';
                 }
             }
-            
+
+            // Show/hide "ON" label
+            const onLabel = document.getElementById('ipc-on-label');
+            if (onLabel) onLabel.style.display = isEnabled ? 'inline' : 'none';
+
             // Recalculate unified costs
             recalculateAllUnifiedCosts();
         }
@@ -8144,6 +10991,390 @@ ${reasoning}`;
         /**
          * Handle benchmark dataset change
          */
+
+        // ============================================
+        // NARRATIVE GENERATOR
+        // ============================================
+
+        function closeNarrativeModal() {
+            const modal = document.getElementById('narrative-modal');
+            if (modal) modal.style.display = 'none';
+        }
+
+        function generateNarrative() {
+            // ── helpers ──────────────────────────────────────────────────
+            function domTxt(id) {
+                const el = document.getElementById(id);
+                return el ? el.textContent.trim() : '';
+            }
+            function domVal(id, fallback) {
+                const el = document.getElementById(id);
+                return el ? (parseFloat(el.value) || fallback) : fallback;
+            }
+            function fmt$(n) { return '$' + Math.round(n || 0).toLocaleString('en-US'); }
+            function fmtMH(n) { return Math.round(n || 0).toLocaleString('en-US') + ' MH'; }
+            function discMH(id) {
+                const s = mhEstimateState.disciplines[id];
+                return s ? Math.round(s.mh || 0) : 0;
+            }
+            function discRev(id) {
+                const s = mhEstimateState.disciplines[id];
+                return s ? Math.round(s.totalRevenue || 0) : 0;
+            }
+            function discRate(id) {
+                const s = mhEstimateState.disciplines[id];
+                return s ? (s.weightedRate || 0) : 0;
+            }
+            function discQty(id) {
+                const s = mhEstimateState.disciplines[id];
+                return s ? (s.quantity || 0) : 0;
+            }
+            function discUnit(id) {
+                const cfg = DISCIPLINE_CONFIG ? DISCIPLINE_CONFIG[id] : null;
+                return cfg ? (cfg.unit || '') : '';
+            }
+            function sectionRev(domId) {
+                const el = document.getElementById(domId);
+                return el ? Math.round(parseFloat(String(el.textContent).replace(/[$,\s]/g, '')) || 0) : 0;
+            }
+
+            // ── project meta ─────────────────────────────────────────────
+            const projName   = (projectData.projectInfo && projectData.projectInfo.projectName) || 'Unnamed Project';
+            const client     = (projectData.commercialTerms && projectData.commercialTerms.client) || 'the Client';
+            const location   = (projectData.projectInfo && projectData.projectInfo.projectLocation) || '';
+            const prepDate   = new Date().toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
+
+            // ── cost parameters ───────────────────────────────────────────
+            const kie       = domVal('calc-kie-multiplier', 2.85);
+            const burden    = domVal('unified-burden', 66);
+            const gna       = domVal('unified-gna', 104);
+            const margin    = domVal('calc-margin-percent', 15);
+            const duration  = mhEstimateState.designDuration || 24;
+            const complexity= mhEstimateState.complexity || 'Med';
+            const assumedCostEl = document.getElementById('calc-assumed-construction-cost');
+            const assumedCost   = assumedCostEl ? (parseFloat(String(assumedCostEl.value).replace(/[$,]/g, '')) || 0) : 0;
+
+            // ── totals ────────────────────────────────────────────────────
+            const grandTotal    = sectionRev('grand-total-revenue');
+            const directsTotal  = sectionRev('unified-total-revenue');
+            const indirectsTotal= sectionRev('unified-indirect-total-revenue');
+            const subsTotal     = sectionRev('subs-section-total-revenue');
+            const expensesTotal = sectionRev('expenses-section-total-revenue');
+            const contingencyTotal = sectionRev('contingency-total-revenue');
+            const esdcRevenue   = sectionRev('esdc-total-revenue');
+            const tscdRevenue   = sectionRev('tscd-total-revenue');
+            const escalationTotal = sectionRev('escalation-total-revenue');
+
+            // ── ESDC/TSCD override state ──────────────────────────────────
+            const esdcToggle = document.getElementById('esdc-pct-override-toggle');
+            const tscdToggle = document.getElementById('tscd-pct-override-toggle');
+            const esdcPctEl  = document.getElementById('calc-esdc-pct');
+            const tscdPctEl  = document.getElementById('calc-tscd-pct');
+            const esdcUsesPct = esdcToggle && esdcToggle.checked;
+            const tscdUsesPct = tscdToggle && tscdToggle.checked;
+            const esdcPct = esdcUsesPct ? (parseFloat(esdcPctEl ? esdcPctEl.value : 1.5) || 1.5) : null;
+            const tscdPct = tscdUsesPct ? (parseFloat(tscdPctEl ? tscdPctEl.value : 0.6) || 0.6) : null;
+
+            // ── build discipline rows ─────────────────────────────────────
+            const directDiscs = [
+                { id:'digitalDelivery', label:'Digital Delivery' },
+                { id:'drainage',        label:'Drainage' },
+                { id:'environmental',   label:'Environmental' },
+                { id:'mot',             label:'MOT / Traffic Control' },
+                { id:'roadway',         label:'Roadway (Civil)' },
+                { id:'traffic',         label:'Traffic' },
+                { id:'utilities',       label:'Utilities & ROW' },
+                { id:'retainingWalls',  label:'Retaining Walls' },
+                { id:'noiseWalls',      label:'Noise Walls' },
+                { id:'structures',      label:'Structures / Bridges' },
+                { id:'miscStructures',  label:'Misc Structures' },
+                { id:'geotechnical',    label:'Geotechnical' },
+                { id:'pavement',        label:'Pavement' },
+                { id:'landscaping',     label:'Landscaping' },
+                { id:'systems',         label:'Systems' },
+                { id:'track',           label:'Track' },
+            ];
+
+            function discNarrative(d) {
+                const mh  = discMH(d.id);
+                const rev = discRev(d.id);
+                const rate= discRate(d.id);
+                const qty = discQty(d.id);
+                const unit= discUnit(d.id);
+                if (mh === 0 && rev === 0) return '';
+
+                let method = '';
+                if (d.id === 'digitalDelivery') {
+                    method = `Revenue is derived from a PRA (Production Rate Analysis) complexity matrix applied to the assumed construction cost and ${duration}-month design duration, yielding ${fmtMH(mh)} of estimated effort.`;
+                } else if (d.id === 'miscStructures') {
+                    method = `Misc Structures effort is estimated as a percentage of combined Roadway, Drainage, and Traffic man-hours, producing ${fmtMH(mh)} of effort.`;
+                } else {
+                    const qtyStr = qty > 0 ? ` at ${qty.toLocaleString('en-US')} ${unit}` : '';
+                    method = `A power regression benchmark curve${qtyStr} yields ${fmtMH(mh)} of estimated effort at a weighted hourly rate of ${fmt$(rate)}/hr. Revenue is computed as Raw Labor × KIE multiplier of ${kie.toFixed(2)}.`;
+                }
+                return `<div style="margin-bottom:14px;">
+<h4 style="margin:0 0 4px 0; font-size:13px; color:#1a1a2e;">${d.label}</h4>
+<table style="width:100%; border-collapse:collapse; font-size:12px; margin-bottom:6px;">
+<tr><td style="width:160px; color:#555;">Estimated Hours</td><td><strong>${mh.toLocaleString('en-US')} MH</strong></td><td style="width:160px; color:#555;">Revenue</td><td><strong>${fmt$(rev)}</strong></td></tr>
+</table>
+<p style="margin:0; font-size:12px; color:#444;">${method}</p></div>`;
+            }
+
+            const discRows = directDiscs.map(d => discNarrative(d)).filter(Boolean).join('');
+
+            // ── ESDC / TSCD narrative ─────────────────────────────────────
+            function serviceDiscNarrative(label, id, usesPct, pct, revenue) {
+                if (revenue === 0) return '';
+                const mh   = domTxt(id + '-total-mh') || '0';
+                const rateN = getEsdcTscdWeightedRate ? getEsdcTscdWeightedRate().toFixed(2) : '64.90';
+                let method;
+                if (usesPct && pct) {
+                    method = `Revenue is calculated using the Construction Cost Percentage Override method: <strong>${pct}%</strong> × Assumed Construction Cost of <strong>${fmt$(assumedCost)}</strong> = <strong>${fmt$(revenue)}</strong>. Man-hours are back-calculated as Raw Labor ÷ $${rateN}/hr weighted rate.`;
+                } else {
+                    const prodPct = domTxt(id + '-avg-rate');
+                    method = `Revenue is derived from a benchmark power curve production rate of <strong>${prodPct}</strong> applied to the assumed construction cost of <strong>${fmt$(assumedCost)}</strong>. Man-hours are back-calculated from Raw Labor ÷ $${rateN}/hr weighted rate.`;
+                }
+                return `<div style="margin-bottom:16px; border-left:3px solid #FFCD23; padding-left:12px;">
+<h4 style="margin:0 0 6px 0; font-size:13px; font-family:'Arial Black',Arial,sans-serif; color:#000;">${label}</h4>
+<table style="width:100%; border-collapse:collapse; font-size:12px; margin-bottom:6px;">
+<tr><td style="width:160px; color:#555; padding:4px 0;">Estimated Hours</td><td style="padding:4px 0;"><strong>${mh} MH</strong></td><td style="width:160px; color:#555; padding:4px 0;">Revenue</td><td style="padding:4px 0;"><strong>${fmt$(revenue)}</strong></td></tr>
+</table>
+<p style="margin:0; font-size:12px; color:#333;">${method}</p></div>`;
+            }
+
+            const esdcNarr = serviceDiscNarrative('ESDC — Environmental Survey & Data Collection', 'esdc', esdcUsesPct, esdcPct, esdcRevenue);
+            const tscdNarr = serviceDiscNarrative('TSCD — Traffic Signal & Control Design', 'tscd', tscdUsesPct, tscdPct, tscdRevenue);
+
+            // ── Kiewit brand constants ────────────────────────────────────
+            const KW_YELLOW  = '#FFCD23';
+            const KW_BLACK   = '#000000';
+            const KW_GRAY    = '#F4F4F4';
+            const KW_BORDER  = '#DDDDDD';
+            const FONT_BODY  = 'Arial, Helvetica, sans-serif';
+            const FONT_HEAD  = '"Arial Black", Arial, sans-serif';
+
+            // ── style helpers ────────────────────────────────────────────
+            const h2 = (t) => `
+<div style="margin:28px 0 12px 0; page-break-inside:avoid;">
+  <div style="background:${KW_BLACK}; color:${KW_YELLOW}; font-family:${FONT_HEAD}; font-size:13px; font-weight:900; letter-spacing:0.5px; padding:8px 14px; text-transform:uppercase;">${t}</div>
+</div>`;
+            const h3 = (t) => `
+<div style="margin:20px 0 8px 0;">
+  <span style="font-family:${FONT_HEAD}; font-size:12px; font-weight:900; color:${KW_BLACK}; border-bottom:2px solid ${KW_YELLOW}; padding-bottom:2px; text-transform:uppercase;">${t}</span>
+</div>`;
+            const discCard = (label, mh, rev, rate, qty, unit, method) => `
+<div style="margin-bottom:12px; border:1px solid ${KW_BORDER}; border-left:4px solid ${KW_YELLOW}; padding:10px 14px; page-break-inside:avoid;">
+  <div style="font-family:${FONT_HEAD}; font-size:12px; font-weight:900; color:${KW_BLACK}; margin-bottom:6px;">${label}</div>
+  <table style="width:100%; border-collapse:collapse; font-size:11px; margin-bottom:6px;">
+    <tr>
+      <td style="width:130px; color:#555; padding:2px 0;">Est. Hours</td><td style="padding:2px 0; font-weight:700;">${mh.toLocaleString('en-US')} MH</td>
+      <td style="width:130px; color:#555; padding:2px 0;">Revenue</td><td style="padding:2px 0; font-weight:700;">${fmt$(rev)}</td>
+      ${rate > 0 ? `<td style="width:130px; color:#555; padding:2px 0;">Wtd. Rate</td><td style="padding:2px 0; font-weight:700;">${fmt$(rate)}/hr</td>` : ''}
+    </tr>
+  </table>
+  <p style="margin:0; font-size:11px; color:#444; font-family:${FONT_BODY};">${method}</p>
+</div>`;
+
+            // rebuild discNarrative output using the new card style
+            function discCard2(d) {
+                const mh  = discMH(d.id);
+                const rev = discRev(d.id);
+                const rate= discRate(d.id);
+                const qty = discQty(d.id);
+                const unit= discUnit(d.id);
+                if (mh === 0 && rev === 0) return '';
+                let method;
+                if (d.id === 'digitalDelivery') {
+                    method = `Revenue derived from PRA complexity matrix applied to assumed construction cost and ${duration}-month design duration → ${mh.toLocaleString('en-US')} MH.`;
+                } else if (d.id === 'miscStructures') {
+                    method = `Effort estimated as a percentage of combined Roadway, Drainage, and Traffic man-hours → ${mh.toLocaleString('en-US')} MH.`;
+                } else {
+                    const qtyStr = qty > 0 ? ` at ${qty.toLocaleString('en-US')} ${unit}` : '';
+                    method = `Power regression benchmark curve${qtyStr} → ${mh.toLocaleString('en-US')} MH. Revenue = Raw Labor × KIE ${kie.toFixed(2)}.`;
+                }
+                return discCard(d.label, mh, rev, rate, qty, unit, method);
+            }
+            const discCards = directDiscs.map(d => discCard2(d)).filter(Boolean).join('');
+
+            const html = `
+<div style="font-family:${FONT_BODY}; font-size:13px; line-height:1.7; color:#222; background:#fff;">
+
+  <!-- KIEWIT HEADER BANNER -->
+  <div style="background:${KW_BLACK}; padding:0; margin-bottom:0;">
+    <div style="background:${KW_YELLOW}; height:6px;"></div>
+    <div style="display:flex; align-items:center; justify-content:space-between; padding:16px 24px;">
+      <div>
+        <div style="font-family:${FONT_HEAD}; font-size:22px; font-weight:900; color:${KW_YELLOW}; letter-spacing:1px; text-transform:uppercase;">KIEWIT</div>
+        <div style="font-family:${FONT_BODY}; font-size:10px; color:#ccc; letter-spacing:2px; text-transform:uppercase; margin-top:2px;">Engineering Group</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-family:${FONT_HEAD}; font-size:11px; color:${KW_YELLOW}; text-transform:uppercase; letter-spacing:0.5px;">Design Fee Estimate</div>
+        <div style="font-size:10px; color:#aaa; margin-top:2px;">${prepDate}</div>
+      </div>
+    </div>
+    <div style="background:${KW_YELLOW}; height:3px;"></div>
+  </div>
+
+  <!-- PROJECT TITLE BLOCK -->
+  <div style="background:#F8F8F8; border-bottom:2px solid ${KW_YELLOW}; padding:20px 24px 16px 24px; margin-bottom:4px;">
+    <div style="font-family:${FONT_HEAD}; font-size:20px; font-weight:900; color:${KW_BLACK}; text-transform:uppercase; letter-spacing:0.5px;">${projName}</div>
+    ${location ? `<div style="font-size:12px; color:#555; margin-top:4px;">${location}</div>` : ''}
+    ${client && client !== 'the Client' ? `<div style="font-size:12px; color:#555; margin-top:2px;">Prepared for: <strong>${client}</strong></div>` : ''}
+    <div style="margin-top:14px; display:flex; gap:24px; flex-wrap:wrap;">
+      <div style="background:#fff; border:1px solid ${KW_BORDER}; border-top:3px solid ${KW_YELLOW}; padding:10px 16px; min-width:160px;">
+        <div style="font-size:10px; color:#777; text-transform:uppercase; letter-spacing:0.5px;">Grand Total Fee</div>
+        <div style="font-family:${FONT_HEAD}; font-size:18px; font-weight:900; color:${KW_BLACK}; margin-top:2px;">${fmt$(grandTotal)}</div>
+      </div>
+      <div style="background:#fff; border:1px solid ${KW_BORDER}; border-top:3px solid ${KW_BLACK}; padding:10px 16px; min-width:160px;">
+        <div style="font-size:10px; color:#777; text-transform:uppercase; letter-spacing:0.5px;">Assumed Construction Cost</div>
+        <div style="font-family:${FONT_HEAD}; font-size:18px; font-weight:900; color:${KW_BLACK}; margin-top:2px;">${fmt$(assumedCost)}</div>
+      </div>
+      <div style="background:#fff; border:1px solid ${KW_BORDER}; border-top:3px solid ${KW_BLACK}; padding:10px 16px; min-width:120px;">
+        <div style="font-size:10px; color:#777; text-transform:uppercase; letter-spacing:0.5px;">Design Duration</div>
+        <div style="font-family:${FONT_HEAD}; font-size:18px; font-weight:900; color:${KW_BLACK}; margin-top:2px;">${duration} mo.</div>
+      </div>
+      <div style="background:#fff; border:1px solid ${KW_BORDER}; border-top:3px solid ${KW_BLACK}; padding:10px 16px; min-width:120px;">
+        <div style="font-size:10px; color:#777; text-transform:uppercase; letter-spacing:0.5px;">Complexity</div>
+        <div style="font-family:${FONT_HEAD}; font-size:18px; font-weight:900; color:${KW_BLACK}; margin-top:2px;">${complexity}</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="padding:0 24px 24px 24px;">
+
+    ${h2('1. Executive Summary')}
+    <p style="font-size:13px;">This design fee estimate has been prepared by Kiewit Engineering Group${client && client !== 'the Client' ? ' for <strong>' + client + '</strong>' : ''} for the <strong>${projName}</strong>${location ? ', located in ' + location : ''}. The estimate encompasses the full scope of design engineering services over a <strong>${duration}-month</strong> design period at a complexity classification of <strong>${complexity}</strong>.</p>
+    <p style="font-size:13px;">The total estimated design fee is <strong>${fmt$(grandTotal)}</strong>, grounded in an assumed construction cost of <strong>${fmt$(assumedCost)}</strong>. This fee covers direct discipline labor, design engineering indirects, subconsultants, direct project expenses, contingency, ESDC, TSCD, and construction cost escalation.</p>
+
+    <table style="width:100%; border-collapse:collapse; margin:16px 0; font-size:12px; font-family:${FONT_BODY};">
+      <thead><tr style="background:${KW_BLACK}; color:${KW_YELLOW};">
+        <th style="padding:9px 12px; text-align:left; font-family:${FONT_HEAD}; font-size:11px; letter-spacing:0.5px; text-transform:uppercase;">Cost Category</th>
+        <th style="padding:9px 12px; text-align:right; font-family:${FONT_HEAD}; font-size:11px; letter-spacing:0.5px; text-transform:uppercase;">Revenue</th>
+      </tr></thead>
+      <tbody>
+        <tr style="background:${KW_GRAY};"><td style="padding:8px 12px; border-bottom:1px solid ${KW_BORDER};">Design Engineering Directs</td><td style="padding:8px 12px; text-align:right; border-bottom:1px solid ${KW_BORDER};">${fmt$(directsTotal)}</td></tr>
+        <tr><td style="padding:8px 12px; border-bottom:1px solid ${KW_BORDER};">Design Engineering Indirects</td><td style="padding:8px 12px; text-align:right; border-bottom:1px solid ${KW_BORDER};">${fmt$(indirectsTotal)}</td></tr>
+        <tr style="background:${KW_GRAY};"><td style="padding:8px 12px; border-bottom:1px solid ${KW_BORDER};">Subconsultants</td><td style="padding:8px 12px; text-align:right; border-bottom:1px solid ${KW_BORDER};">${fmt$(subsTotal)}</td></tr>
+        <tr><td style="padding:8px 12px; border-bottom:1px solid ${KW_BORDER};">Base Design Engineering Expenses</td><td style="padding:8px 12px; text-align:right; border-bottom:1px solid ${KW_BORDER};">${fmt$(expensesTotal)}</td></tr>
+        <tr style="background:${KW_GRAY};"><td style="padding:8px 12px; border-bottom:1px solid ${KW_BORDER};">Contingency</td><td style="padding:8px 12px; text-align:right; border-bottom:1px solid ${KW_BORDER};">${fmt$(contingencyTotal)}</td></tr>
+        <tr><td style="padding:8px 12px; border-bottom:1px solid ${KW_BORDER};">ESDC</td><td style="padding:8px 12px; text-align:right; border-bottom:1px solid ${KW_BORDER};">${fmt$(esdcRevenue)}</td></tr>
+        <tr style="background:${KW_GRAY};"><td style="padding:8px 12px; border-bottom:1px solid ${KW_BORDER};">TSCD</td><td style="padding:8px 12px; text-align:right; border-bottom:1px solid ${KW_BORDER};">${fmt$(tscdRevenue)}</td></tr>
+        <tr><td style="padding:8px 12px; border-bottom:1px solid ${KW_BORDER};">Escalation</td><td style="padding:8px 12px; text-align:right; border-bottom:1px solid ${KW_BORDER};">${fmt$(escalationTotal)}</td></tr>
+      </tbody>
+      <tfoot><tr style="background:${KW_YELLOW};">
+        <td style="padding:10px 12px; font-family:${FONT_HEAD}; font-weight:900; font-size:13px; color:${KW_BLACK}; text-transform:uppercase;">Grand Total</td>
+        <td style="padding:10px 12px; text-align:right; font-family:${FONT_HEAD}; font-weight:900; font-size:13px; color:${KW_BLACK};">${fmt$(grandTotal)}</td>
+      </tr></tfoot>
+    </table>
+
+    ${h2('2. Assumptions')}
+    <p style="font-size:13px;">The following key parameters and assumptions underpin this estimate. All rates are sourced from the project cost calculation parameters at the time of generation.</p>
+    <table style="width:100%; border-collapse:collapse; font-size:12px; margin:12px 0; font-family:${FONT_BODY};">
+      <thead><tr style="background:${KW_BLACK}; color:${KW_YELLOW};">
+        <th style="padding:8px 12px; text-align:left; font-family:${FONT_HEAD}; font-size:11px; text-transform:uppercase; width:42%;">Parameter</th>
+        <th style="padding:8px 12px; text-align:left; font-family:${FONT_HEAD}; font-size:11px; text-transform:uppercase;">Value / Basis</th>
+      </tr></thead>
+      <tbody>
+        <tr style="background:${KW_GRAY};"><td style="padding:7px 12px; border-bottom:1px solid ${KW_BORDER};">KIE Multiplier</td><td style="padding:7px 12px; border-bottom:1px solid ${KW_BORDER};"><strong>${kie.toFixed(2)}</strong> — Raw Labor × KIE = Total Revenue</td></tr>
+        <tr><td style="padding:7px 12px; border-bottom:1px solid ${KW_BORDER};">Burden Rate</td><td style="padding:7px 12px; border-bottom:1px solid ${KW_BORDER};"><strong>${burden.toFixed(1)}%</strong> of Raw Labor (payroll taxes, benefits, insurance)</td></tr>
+        <tr style="background:${KW_GRAY};"><td style="padding:7px 12px; border-bottom:1px solid ${KW_BORDER};">G&A Rate</td><td style="padding:7px 12px; border-bottom:1px solid ${KW_BORDER};"><strong>${gna.toFixed(1)}%</strong> of Raw Labor (General & Administrative overhead)</td></tr>
+        <tr><td style="padding:7px 12px; border-bottom:1px solid ${KW_BORDER};">Margin</td><td style="padding:7px 12px; border-bottom:1px solid ${KW_BORDER};"><strong>${margin.toFixed(2)}%</strong> of Raw Labor (profit)</td></tr>
+        <tr style="background:${KW_GRAY};"><td style="padding:7px 12px; border-bottom:1px solid ${KW_BORDER};">Design Duration</td><td style="padding:7px 12px; border-bottom:1px solid ${KW_BORDER};"><strong>${duration} months</strong></td></tr>
+        <tr><td style="padding:7px 12px; border-bottom:1px solid ${KW_BORDER};">Complexity Classification</td><td style="padding:7px 12px; border-bottom:1px solid ${KW_BORDER};"><strong>${complexity}</strong></td></tr>
+        <tr style="background:${KW_GRAY};"><td style="padding:7px 12px; border-bottom:1px solid ${KW_BORDER};">Assumed Construction Cost</td><td style="padding:7px 12px; border-bottom:1px solid ${KW_BORDER};"><strong>${fmt$(assumedCost)}</strong> — basis for ESDC, TSCD, and subs</td></tr>
+        <tr><td style="padding:7px 12px; border-bottom:1px solid ${KW_BORDER};">FTE Hour Basis</td><td style="padding:7px 12px; border-bottom:1px solid ${KW_BORDER};"><strong>2,080 hrs/yr</strong> (FTE × months/12 × 2,080)</td></tr>
+        <tr style="background:${KW_GRAY};"><td style="padding:7px 12px; border-bottom:1px solid ${KW_BORDER};">Benchmark Source</td><td style="padding:7px 12px; border-bottom:1px solid ${KW_BORDER};">Internal project benchmarking database — power regression curves at provided quantities</td></tr>
+        <tr><td style="padding:7px 12px; border-bottom:1px solid ${KW_BORDER};">ESDC Methodology</td><td style="padding:7px 12px; border-bottom:1px solid ${KW_BORDER};">${esdcUsesPct ? `<strong>% Override:</strong> ${esdcPct}% of assumed construction cost` : '<strong>Benchmark:</strong> power curve production rate × assumed construction cost'}</td></tr>
+        <tr style="background:${KW_GRAY};"><td style="padding:7px 12px;">TSCD Methodology</td><td style="padding:7px 12px;">${tscdUsesPct ? `<strong>% Override:</strong> ${tscdPct}% of assumed construction cost` : '<strong>Benchmark:</strong> power curve production rate × assumed construction cost'}</td></tr>
+      </tbody>
+    </table>
+
+    ${h2('3. Discipline & Category Revenue Detail')}
+    <p style="font-size:13px;">The following section details each discipline and cost category, including estimated man-hours, total revenue, and the methodology used to derive each figure.</p>
+
+    ${h3('3.1 Design Engineering Directs')}
+    <p style="font-size:12px; color:#444;">Core design discipline labor. Revenue = Estimated MH × Weighted Hourly Rate × KIE Multiplier. Man-hours are benchmarked from historical data using power regression curves applied to quantity inputs.</p>
+    ${discCards || `<p style="color:#777; font-style:italic; font-size:12px;">No direct discipline data entered.</p>`}
+
+    ${h3('3.2 Design Engineering Indirects')}
+    <div style="border:1px solid ${KW_BORDER}; border-left:4px solid ${KW_BLACK}; padding:10px 14px; margin-bottom:12px;">
+    <p style="margin:0 0 6px 0; font-size:12px;">Overhead costs covering project management, QA/QC, administration, and coordination, applied as an overhead factor on direct labor.</p>
+    <p style="margin:0; font-size:12px;"><strong>Revenue: ${fmt$(indirectsTotal)}</strong></p>
+    </div>
+
+    ${h3('3.3 Subconsultants')}
+    <div style="border:1px solid ${KW_BORDER}; border-left:4px solid ${KW_BLACK}; padding:10px 14px; margin-bottom:12px;">
+    <p style="margin:0 0 6px 0; font-size:12px;">IPC (In-Place Costs markup) and lump-sum subconsultant agreements for specialty services not performed by Kiewit directly.</p>
+    <p style="margin:0; font-size:12px;"><strong>Revenue: ${fmt$(subsTotal)}</strong></p>
+    </div>
+
+    ${h3('3.4 Base Design Engineering Expenses')}
+    <div style="border:1px solid ${KW_BORDER}; border-left:4px solid ${KW_BLACK}; padding:10px 14px; margin-bottom:12px;">
+    <p style="margin:0 0 6px 0; font-size:12px;">Direct project expenses including travel, lodging, reproduction costs, and project supplies.</p>
+    <p style="margin:0; font-size:12px;"><strong>Revenue: ${fmt$(expensesTotal)}</strong></p>
+    </div>
+
+    ${h3('3.5 Contingency')}
+    <div style="border:1px solid ${KW_BORDER}; border-left:4px solid ${KW_BLACK}; padding:10px 14px; margin-bottom:12px;">
+    <p style="margin:0 0 6px 0; font-size:12px;">Reserve included to account for scope uncertainty, design changes, and unforeseen conditions.</p>
+    <p style="margin:0; font-size:12px;"><strong>Revenue: ${fmt$(contingencyTotal)}</strong></p>
+    </div>
+
+    ${h3('3.6 ESDC — Environmental Survey & Data Collection')}
+    ${esdcNarr || `<p style="color:#777; font-style:italic; font-size:12px;">ESDC not estimated (revenue = $0).</p>`}
+
+    ${h3('3.7 TSCD — Traffic Signal & Control Design')}
+    ${tscdNarr || `<p style="color:#777; font-style:italic; font-size:12px;">TSCD not estimated (revenue = $0).</p>`}
+
+    ${h3('3.8 Escalation')}
+    <div style="border:1px solid ${KW_BORDER}; border-left:4px solid ${KW_BLACK}; padding:10px 14px; margin-bottom:12px;">
+    <p style="margin:0 0 6px 0; font-size:12px;">Cost escalation applied over the ${duration}-month design period using a bell curve distribution to account for projected labor rate inflation.</p>
+    <p style="margin:0; font-size:12px;"><strong>Revenue: ${fmt$(escalationTotal)}</strong></p>
+    </div>
+
+  </div><!-- /padding wrapper -->
+
+  <!-- KIEWIT FOOTER -->
+  <div style="background:${KW_BLACK}; padding:10px 24px; display:flex; justify-content:space-between; align-items:center;">
+    <div style="background:${KW_YELLOW}; height:2px; position:absolute; top:0; left:0; right:0;"></div>
+    <div style="font-family:${FONT_HEAD}; font-size:10px; color:${KW_YELLOW}; letter-spacing:1px;">KIEWIT &nbsp;·&nbsp; ENGINEERING GROUP</div>
+    <div style="font-size:10px; color:#888;">Confidential — For Internal Use Only &nbsp;·&nbsp; ${prepDate}</div>
+  </div>
+
+</div>`;
+
+            const contentEl = document.getElementById('narrative-content');
+            if (contentEl) contentEl.innerHTML = html;
+            const modal = document.getElementById('narrative-modal');
+            if (modal) modal.style.display = 'block';
+        }
+
+        function downloadNarrativePDF() {
+            const contentEl = document.getElementById('narrative-content');
+            if (!contentEl) return;
+            const projName = (projectData.projectInfo && projectData.projectInfo.projectName) || 'Narrative';
+            const dateStr  = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+            const filename = `Narrative_${projName.replace(/[^a-zA-Z0-9]/g, '_')}_${dateStr}.pdf`;
+
+            if (window.html2pdf) {
+                const opt = {
+                    margin: [0.75, 0.75, 0.75, 0.75],
+                    filename,
+                    image: { type: 'jpeg', quality: 0.95 },
+                    html2canvas: { scale: 2, useCORS: true },
+                    jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
+                    pagebreak: { mode: ['css', 'legacy'] }
+                };
+                html2pdf().set(opt).from(contentEl).save();
+            } else {
+                const printWindow = window.open('', '_blank');
+                printWindow.document.write('<html><head><title>' + filename + '</title></head><body style="font-family:Georgia,serif;">' + contentEl.innerHTML + '</body></html>');
+                printWindow.document.close();
+                printWindow.focus();
+                setTimeout(() => printWindow.print(), 500);
+            }
+        }
+
         // Export to window for HTML onclick handlers
         window.initUnifiedEstimator = initUnifiedEstimator;
         window.updateUnifiedQuantity = updateUnifiedQuantity;
@@ -8170,6 +11401,13 @@ ${reasoning}`;
         window.handleBenchmarkDatasetChange = handleBenchmarkDatasetChange;
         window.selectAllBenchmarks = selectAllBenchmarks;
         window.handleDillonFileUpload = handleDillonFileUpload;
+        window.handleDillonCostUpload = handleDillonCostUpload;
+        window.generateCheckFile = generateCheckFile;
+        window.generateProjectFinancials = generateProjectFinancials;
+        window.generateC2CReport = generateC2CReport;
+        window.generateNarrative = generateNarrative;
+        window.downloadNarrativePDF = downloadNarrativePDF;
+        window.closeNarrativeModal = closeNarrativeModal;
 
         // Initialize header help tooltips (click to toggle)
         function initHeaderHelpTooltips() {
@@ -8642,12 +11880,12 @@ ${reasoning}`;
         function buildBudgetTable() {
             const table = document.getElementById('budget-table');
             const disciplineOrder = [
-                'roadway', 'drainage', 'mot', 'traffic', 'utilities',
+                'digitalDelivery', 'drainage', 'environmental', 'mot',
+                'roadway', 'traffic', 'utilities',
                 'retainingWalls', 'noiseWalls',
-                'bridgesPCGirder', 'bridgesSteel', 'bridgesRehab',
-                'miscStructures', 'geotechnical',
-                'systems', 'track', 'environmental',
-                'digitalDelivery'
+                'structures', 'miscStructures',
+                'geotechnical', 'pavement', 'landscaping',
+                'systems', 'track'
             ];
             const mhDisciplines = disciplineOrder
                 .map(id => DISCIPLINE_CONFIG[id]?.name)
@@ -16014,9 +19252,7 @@ Chunks: ${JSON.stringify(complexFieldsOnly, null, 2)}`;
                     'utilities': { qty: quantities.utilityRelocations || 0, reasoningKey: 'utilityRelocations' },
                     'retainingWalls': { qty: quantities.wallAreaSF || 0, reasoningKey: 'wallAreaSF' },
                     'noiseWalls': { qty: quantities.noiseWallAreaSF || 0, reasoningKey: 'noiseWallAreaSF' },
-                    'bridgesPCGirder': { qty: Math.round((quantities.bridgeDeckAreaSF || 0) * 0.7), reasoningKey: 'bridgeDeckAreaSF', note: '70% of total bridge deck area assumed as PC Girder' },
-                    'bridgesSteel': { qty: Math.round((quantities.bridgeDeckAreaSF || 0) * 0.2), reasoningKey: 'bridgeDeckAreaSF', note: '20% of total bridge deck area assumed as Steel' },
-                    'bridgesRehab': { qty: Math.round((quantities.bridgeDeckAreaSF || 0) * 0.1), reasoningKey: 'bridgeDeckAreaSF', note: '10% of total bridge deck area assumed as Rehabilitation' },
+                    'structures': { qty: quantities.bridgeDeckAreaSF || 0, reasoningKey: 'bridgeDeckAreaSF', note: 'Total bridge/structure deck area' },
                     'geotechnical': { qty: quantities.structureCount || quantities.bridgeCount || 0, reasoningKey: quantities.structureCount ? 'structureCount' : 'bridgeCount' },
                     'systems': { qty: quantities.trackLengthTF || 0, reasoningKey: 'trackLengthTF' },
                     'track': { qty: quantities.trackLengthTF || 0, reasoningKey: 'trackLengthTF' },
@@ -16122,9 +19358,7 @@ Chunks: ${JSON.stringify(complexFieldsOnly, null, 2)}`;
                 'utilities': quantities.utilityRelocations || 0,
                 'retainingWalls': quantities.wallAreaSF || 0,
                 'noiseWalls': quantities.noiseWallAreaSF || 0,
-                'bridgesPCGirder': Math.round((quantities.bridgeDeckAreaSF || 0) * 0.7),
-                'bridgesSteel': Math.round((quantities.bridgeDeckAreaSF || 0) * 0.2),
-                'bridgesRehab': Math.round((quantities.bridgeDeckAreaSF || 0) * 0.1),
+                'structures': quantities.bridgeDeckAreaSF || 0,
                 'geotechnical': quantities.structureCount || quantities.bridgeCount || 0,
                 'systems': quantities.trackLengthTF || 0,
                 'track': quantities.trackLengthTF || 0,
@@ -18130,11 +21364,31 @@ Chunks: ${JSON.stringify(complexFieldsOnly, null, 2)}`;
         window.calculateAssumedConstructionCost = calculateAssumedConstructionCost;
         window.toggleFieldEdit = toggleFieldEdit;
         window.calculateMarginPercent = calculateMarginPercent;
+        window.toggleMarginPercentEdit = toggleMarginPercentEdit;
+        window.applyManualMarginPercent = applyManualMarginPercent;
+        window.toggleEsdcTscdPct = toggleEsdcTscdPct;
+        window.toggleEsdcTscdOverride = toggleEsdcTscdOverride;
+        window.updatePursuitRevenue = updatePursuitRevenue;
         window.toggleRevenueDetails = toggleRevenueDetails;
         
+        // Sensitivity analysis modal
+        window.openSensitivityModal = openSensitivityModal;
+        window.closeSensitivityModal = closeSensitivityModal;
+        window.switchSensitivityTab = switchSensitivityTab;
+        window.renderCostVsFeeChart = renderCostVsFeeChart;
+
         // Escalation modal functions
         window.openEscalationModal = openEscalationModal;
         window.closeEscalationModal = closeEscalationModal;
+        window.openStructuresModal = openStructuresModal;
+        window.closeStructuresModal = closeStructuresModal;
+        window.addStructureRow = addStructureRow;
+        window.removeStructureRow = removeStructureRow;
+        window.saveStructureEntries = saveStructureEntries;
+        window.openStructureBenchmark = openStructureBenchmark;
+        window.toggleStructureBenchmarkProject = toggleStructureBenchmarkProject;
+        window.closeStructureBenchmarkModal = closeStructureBenchmarkModal;
+        window.updateStructureRowForecast = updateStructureRowForecast;
         window.recalculateEscalation = recalculateEscalation;
         window.resetEscalationToDefault = resetEscalationToDefault;
         window.applyEscalationChanges = applyEscalationChanges;

@@ -4,6 +4,12 @@
     "name": "Project Area",
     "uom": "AC"
   },
+  "regression": {
+    "a": 1665.9,
+    "b": -0.504,
+    "r2": 0.1517,
+    "source": "Excel trendline"
+  },
   "projects": [
     {
       "project": "IH 820 Southeast Connector",

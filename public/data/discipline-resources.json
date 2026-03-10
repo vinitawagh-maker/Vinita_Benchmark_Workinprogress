@@ -1,6 +1,6 @@
 {
   "description": "Discipline resource codes and billing rates (Low/High)",
-  "lastUpdated": "2026-01-26",
+  "lastUpdated": "2026-02-27",
   "disciplines": [
     {
       "discipline": "Roadway",
@@ -10,11 +10,11 @@
       "notes": "",
       "lowResource": {
         "code": "Civ.01",
-        "rate": 48.00
+        "rate": 62.10
       },
       "highResource": {
         "code": "Civ.02",
-        "rate": 55.20
+        "rate": 71.42
       }
     },
     {
@@ -25,11 +25,11 @@
       "notes": "",
       "lowResource": {
         "code": "Civ.01",
-        "rate": 48.00
+        "rate": 62.10
       },
       "highResource": {
         "code": "Civ.02",
-        "rate": 55.20
+        "rate": 71.42
       }
     },
     {
@@ -40,11 +40,11 @@
       "notes": "",
       "lowResource": {
         "code": "Str.01",
-        "rate": 52.00
+        "rate": 67.28
       },
       "highResource": {
         "code": "Str.02",
-        "rate": 59.80
+        "rate": 77.37
       }
     },
     {
@@ -55,11 +55,11 @@
       "notes": "See Tab 3",
       "lowResource": {
         "code": "Str.01",
-        "rate": 52.00
+        "rate": 67.28
       },
       "highResource": {
         "code": "Str.02",
-        "rate": 59.80
+        "rate": 77.37
       }
     },
     {
@@ -70,11 +70,11 @@
       "notes": "Match Roadway",
       "lowResource": {
         "code": "Civ.01",
-        "rate": 48.00
+        "rate": 62.10
       },
       "highResource": {
         "code": "Civ.02",
-        "rate": 55.20
+        "rate": 71.42
       }
     },
     {
@@ -85,11 +85,11 @@
       "notes": "",
       "lowResource": {
         "code": "Civ.01",
-        "rate": 48.00
+        "rate": 62.10
       },
       "highResource": {
         "code": "Civ.02",
-        "rate": 55.20
+        "rate": 71.42
       }
     },
     {
@@ -100,11 +100,11 @@
       "notes": "",
       "lowResource": {
         "code": "Systrk.01",
-        "rate": 64.00
+        "rate": 82.80
       },
       "highResource": {
         "code": "Systrk.02",
-        "rate": 73.60
+        "rate": 95.22
       }
     },
     {
@@ -115,11 +115,11 @@
       "notes": "Match Roadway",
       "lowResource": {
         "code": "Civ.01",
-        "rate": 48.00
+        "rate": 62.10
       },
       "highResource": {
         "code": "Civ.02",
-        "rate": 55.20
+        "rate": 71.42
       }
     },
     {
@@ -130,11 +130,11 @@
       "notes": "",
       "lowResource": {
         "code": "Geo.01",
-        "rate": 56.19
+        "rate": 72.70
       },
       "highResource": {
         "code": "Geo.02",
-        "rate": 64.62
+        "rate": 83.60
       }
     },
     {
@@ -145,11 +145,41 @@
       "notes": "",
       "lowResource": {
         "code": "Civ.01",
-        "rate": 48.00
+        "rate": 62.10
       },
       "highResource": {
         "code": "Civ.02",
-        "rate": 55.20
+        "rate": 71.42
+      }
+    },
+    {
+      "discipline": "ESDC",
+      "keyQuantity": "Project Cost",
+      "unit": "K$",
+      "disciplineLead": null,
+      "notes": "Fixed weighted rate $64.90 (50% complexity)",
+      "lowResource": {
+        "code": "TW.01",
+        "rate": 64.90
+      },
+      "highResource": {
+        "code": "TW.02",
+        "rate": 64.90
+      }
+    },
+    {
+      "discipline": "TSCD",
+      "keyQuantity": "Project Cost",
+      "unit": "K$",
+      "disciplineLead": null,
+      "notes": "Fixed weighted rate $64.90 (50% complexity)",
+      "lowResource": {
+        "code": "TW.01",
+        "rate": 64.90
+      },
+      "highResource": {
+        "code": "TW.02",
+        "rate": 64.90
       }
     }
   ]

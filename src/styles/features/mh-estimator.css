@@ -2,6 +2,12 @@
    MH Benchmark Estimator Styles
    =========================================== */
 
+/* Hide All Rate and Selected Rate columns */
+.col-all-rate,
+.col-selected-rate {
+    display: none;
+}
+
 .mh-estimator {
     border: 2px solid var(--color-primary);
     margin-bottom: 20px;
