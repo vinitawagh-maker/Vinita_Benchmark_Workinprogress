@@ -959,6 +959,30 @@
       "type": "Box Girder",
       "span_arrangement": "Single-Span",
       "scope": "Unknown"
+    },
+    {
+      "project": "30 Crossing Land Bridges",
+      "structure_name": "30 Crossing Land Bridges",
+      "fct_mhrs": 10567,
+      "eqty": 93670,
+      "uom": "SF",
+      "production_mhrs_per_ea": 0.11282958573178,
+      "applicable_job": "Multi-Span",
+      "type": "Steel Girder",
+      "span_arrangement": "Multi-Span",
+      "scope": "New/Reconstruct"
+    },
+    {
+      "project": "30 Crossing River Bridges",
+      "structure_name": "30 Crossing River Bridges",
+      "fct_mhrs": 40823,
+      "eqty": 689553,
+      "uom": "SF",
+      "production_mhrs_per_ea": 0.05920015953846,
+      "applicable_job": "Multi-Span",
+      "type": "Steel Girder",
+      "span_arrangement": "Multi-Span",
+      "scope": "New/Reconstruct"
     }
   ]
 }

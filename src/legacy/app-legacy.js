@@ -1620,6 +1620,7 @@ let projectData = {
             const filtered = benchmarks.projects.filter(p => {
                 if (filterType && p.structureType !== filterType) return false;
                 if (filterSpan && p.spanArrangement !== filterSpan) return false;
+                if (filterScope && p.structureScope !== filterScope) return false;
                 return true;
             });
 
@@ -1762,11 +1763,12 @@ let projectData = {
                 return;
             }
 
-            // Filter projects matching Type + Span (scope not used — applicable_job drives selection)
+            // Filter projects matching Type + Span + Scope
             const allProjects = benchmarks.projects;
             const filtered = allProjects.filter(p => {
                 if (filterType && p.structureType !== filterType) return false;
                 if (filterSpan && p.spanArrangement !== filterSpan) return false;
+                if (filterScope && p.structureScope !== filterScope) return false;
                 return true;
             });
 
@@ -1802,7 +1804,11 @@ let projectData = {
                     <div class="benchmark-discipline-section">
                         <div class="benchmark-discipline-header" style="cursor: default;">
                             <span>Structures — ${filterDesc}</span>
-                            <span class="benchmark-count" id="str-benchmark-count">${selectedCount}/${structureBenchmarkProjects.length} selected</span>
+                            <span style="display:flex; align-items:center; gap:6px;">
+                                <span class="benchmark-count" id="str-benchmark-count">${selectedCount}/${structureBenchmarkProjects.length} selected</span>
+                                <button onclick="checkAllStructureBenchmark()" style="background:#333;border:1px solid #555;color:#e0e0e0;padding:2px 8px;border-radius:3px;cursor:pointer;font-size:11px;">All</button>
+                                <button onclick="uncheckAllStructureBenchmark()" style="background:#333;border:1px solid #555;color:#e0e0e0;padding:2px 8px;border-radius:3px;cursor:pointer;font-size:11px;">None</button>
+                            </span>
                         </div>
                         <div class="benchmark-projects" id="str-benchmark-projects">
                 `;
@@ -1845,14 +1851,22 @@ let projectData = {
                             <div class="benchmark-chart-container">
                                 <div class="benchmark-chart-header">
                                     <h4>📈 FCT MHRs vs eQTY</h4>
-                                    <div class="benchmark-chart-legend">
-                                        <div class="legend-item" id="str-benchmark-legend-all">
-                                            <span class="legend-dot all-projects"></span>
-                                            <span class="legend-label">All Matching</span>
+                                    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                                        <div class="benchmark-chart-legend">
+                                            <div class="legend-item" id="str-benchmark-legend-all">
+                                                <span class="legend-dot all-projects"></span>
+                                                <span class="legend-label">All Matching</span>
+                                            </div>
+                                            <div class="legend-item">
+                                                <span class="legend-dot selected-projects"></span>
+                                                <span class="legend-label">Selected</span>
+                                            </div>
                                         </div>
-                                        <div class="legend-item">
-                                            <span class="legend-dot selected-projects"></span>
-                                            <span class="legend-label">Selected</span>
+                                        <div style="display:flex; gap:4px;">
+                                            <button id="str-curve-power" onclick="setStructureCurveType('power')"
+                                                style="background:${benchmarkCurveType==='power'?'#ffd700':'#222'};color:${benchmarkCurveType==='power'?'#000':'#e0e0e0'};border:1px solid #555;padding:3px 10px;border-radius:3px;cursor:pointer;font-size:11px;font-weight:bold;">Power</button>
+                                            <button id="str-curve-linear" onclick="setStructureCurveType('linear')"
+                                                style="background:${benchmarkCurveType==='linear'?'#ffd700':'#222'};color:${benchmarkCurveType==='linear'?'#000':'#e0e0e0'};border:1px solid #555;padding:3px 10px;border-radius:3px;cursor:pointer;font-size:11px;font-weight:bold;">Linear</button>
                                         </div>
                                     </div>
                                 </div>
@@ -1916,9 +1930,16 @@ let projectData = {
             const allPoints = allFiltered.map(toPoint).filter(p => p.x > 0 && p.y > 0);
             const selectedPoints = selected.map(toPoint).filter(p => p.x > 0 && p.y > 0);
 
-            // Regressions (linear for structures)
-            const allRegression = LinearRegression.calculate(allPoints);
-            const selectedRegression = LinearRegression.calculate(selectedPoints);
+            // Regressions — Power or Linear based on benchmarkCurveType
+            const useStrPower = benchmarkCurveType === 'power';
+            let allRegression, selectedRegression;
+            if (useStrPower) {
+                allRegression = PowerRegression.calculate(allPoints);
+                selectedRegression = PowerRegression.calculate(selectedPoints);
+            } else {
+                allRegression = LinearRegression.calculate(allPoints);
+                selectedRegression = LinearRegression.calculate(selectedPoints);
+            }
 
             // X-axis scaling
             const quantities = allPoints.map(p => p.x).sort((a, b) => a - b);
@@ -1928,16 +1949,27 @@ let projectData = {
             const xMin = Math.min(...quantities) * 0.5 || 1;
 
             // Generate curve points
-            const allCurvePoints = allRegression.valid ? LinearRegression.generateCurve(allRegression.m, allRegression.b, xMin, xMax, 60) : [];
-            const selectedCurvePoints = selectedRegression.valid ? LinearRegression.generateCurve(selectedRegression.m, selectedRegression.b, xMin, xMax, 60) : [];
+            let allCurvePoints, selectedCurvePoints;
+            if (useStrPower) {
+                allCurvePoints = allRegression.valid ? PowerRegression.generateCurve(allRegression.a, allRegression.b, xMin, xMax, 60) : [];
+                selectedCurvePoints = selectedRegression.valid ? PowerRegression.generateCurve(selectedRegression.a, selectedRegression.b, xMin, xMax, 60) : [];
+            } else {
+                allCurvePoints = allRegression.valid ? LinearRegression.generateCurve(allRegression.m, allRegression.b, xMin, xMax, 60) : [];
+                selectedCurvePoints = selectedRegression.valid ? LinearRegression.generateCurve(selectedRegression.m, selectedRegression.b, xMin, xMax, 60) : [];
+            }
 
             // Update equations
             const allEqEl = document.getElementById('str-benchmark-eq-all');
             const selEqEl = document.getElementById('str-benchmark-eq-selected');
             const allR2El = document.getElementById('str-benchmark-r2-all');
             const selR2El = document.getElementById('str-benchmark-r2-selected');
-            if (allEqEl) allEqEl.textContent = allRegression.valid ? LinearRegression.formatEquation(allRegression.m, allRegression.b) : 'Insufficient data';
-            if (selEqEl) selEqEl.textContent = selectedRegression.valid ? LinearRegression.formatEquation(selectedRegression.m, selectedRegression.b) : 'Insufficient data';
+            if (useStrPower) {
+                if (allEqEl) allEqEl.textContent = allRegression.valid ? PowerRegression.formatEquation(allRegression.a, allRegression.b) : 'Insufficient data';
+                if (selEqEl) selEqEl.textContent = selectedRegression.valid ? PowerRegression.formatEquation(selectedRegression.a, selectedRegression.b) : 'Insufficient data';
+            } else {
+                if (allEqEl) allEqEl.textContent = allRegression.valid ? LinearRegression.formatEquation(allRegression.m, allRegression.b) : 'Insufficient data';
+                if (selEqEl) selEqEl.textContent = selectedRegression.valid ? LinearRegression.formatEquation(selectedRegression.m, selectedRegression.b) : 'Insufficient data';
+            }
             if (allR2El) allR2El.textContent = allRegression.valid ? `R² = ${allRegression.r2.toFixed(4)}` : '';
             if (selR2El) selR2El.textContent = selectedRegression.valid ? `R² = ${selectedRegression.r2.toFixed(4)}` : '';
 
@@ -2009,6 +2041,31 @@ let projectData = {
                 // Update chart
                 updateStructureBenchmarkChart();
             }
+        }
+
+        function checkAllStructureBenchmark() {
+            structureBenchmarkProjects.forEach(p => p._sbApplicable = true);
+            document.querySelectorAll('#str-benchmark-projects input[type="checkbox"]').forEach(cb => cb.checked = true);
+            const countEl = document.getElementById('str-benchmark-count');
+            if (countEl) countEl.textContent = `${structureBenchmarkProjects.length}/${structureBenchmarkProjects.length} selected`;
+            updateStructureBenchmarkChart();
+        }
+
+        function uncheckAllStructureBenchmark() {
+            structureBenchmarkProjects.forEach(p => p._sbApplicable = false);
+            document.querySelectorAll('#str-benchmark-projects input[type="checkbox"]').forEach(cb => cb.checked = false);
+            const countEl = document.getElementById('str-benchmark-count');
+            if (countEl) countEl.textContent = `0/${structureBenchmarkProjects.length} selected`;
+            updateStructureBenchmarkChart();
+        }
+
+        function setStructureCurveType(type) {
+            benchmarkCurveType = type;
+            const powerBtn = document.getElementById('str-curve-power');
+            const linearBtn = document.getElementById('str-curve-linear');
+            if (powerBtn) { powerBtn.style.background = type === 'power' ? '#ffd700' : '#222'; powerBtn.style.color = type === 'power' ? '#000' : '#e0e0e0'; }
+            if (linearBtn) { linearBtn.style.background = type === 'linear' ? '#ffd700' : '#222'; linearBtn.style.color = type === 'linear' ? '#000' : '#e0e0e0'; }
+            updateStructureBenchmarkChart();
         }
 
         /**
@@ -4198,6 +4255,7 @@ let projectData = {
         // Benchmark chart instance (for the modal)
         let benchmarkChart = null;
         let currentBenchmarkDiscipline = null;
+        let benchmarkCurveType = 'power'; // 'power' or 'linear'
         
         /**
          * Create or update the benchmark regression chart
@@ -4263,7 +4321,11 @@ let projectData = {
             const meta = benchmarks.metadata || {};
             let allRegression, selectedRegression;
             
-            if (isRevenueBased && benchmarks.curve && benchmarks.curve.a && benchmarks.curve.b) {
+            if (benchmarkCurveType === 'linear') {
+                // User requested linear — always recalculate from data
+                allRegression = LinearRegression.calculate(allPoints);
+                selectedRegression = LinearRegression.calculate(selectedPoints);
+            } else if (isRevenueBased && benchmarks.curve && benchmarks.curve.a && benchmarks.curve.b) {
                 // Use curve from JSON file (ESDC/TSCD)
                 allRegression = {
                     valid: true,
@@ -4282,8 +4344,7 @@ let projectData = {
                     r2: meta.regression.r2 || 0
                 };
                 selectedRegression = PowerRegression.calculate(selectedPoints);
-            } else if (discId === 'structures') {
-                // Bridge Structures uses linear regression (y = mx + b)
+            } else if (discId === 'structures' || benchmarkCurveType === 'linear') {
                 allRegression = LinearRegression.calculate(allPoints);
                 selectedRegression = LinearRegression.calculate(selectedPoints);
             } else {
@@ -4291,7 +4352,7 @@ let projectData = {
                 selectedRegression = PowerRegression.calculate(selectedPoints);
             }
 
-            const useLinear = (discId === 'structures');
+            const useLinear = (discId === 'structures' || benchmarkCurveType === 'linear');
 
             // Smart X-axis scaling: focus on where data is dense (for ESDC/TSCD use selected only)
             const pointsForScale = isRevenueBased ? selectedPoints : allPoints;
@@ -5948,10 +6009,17 @@ ${reasoning}`;
         function calculateMiscStructuresMH(roadwayMH, drainageMH, trafficMH, selectedProjects = null) {
             const benchmarks = getBenchmarkDataSync('miscStructures');
             if (!benchmarks) return { mh: 0, rate: 0, baseMH: 0 };
-            
+
             const baseMH = roadwayMH + drainageMH + trafficMH;
-            const projects = selectedProjects || getApplicableProjects('miscStructures');
-            const rate = projects.length > 0 ? calculateWeightedRate(projects) : benchmarks.customRate;
+            const rawProjects = selectedProjects || getApplicableProjects('miscStructures');
+            // Normalize JSON field names (eqty/fct_mhrs/production_mhrs_per_ea) to expected names
+            const projects = rawProjects.map(p => ({
+                ...p,
+                mh:       p.mh       ?? p.fct_mhrs ?? 0,
+                quantity: p.quantity ?? p.eqty     ?? 0,
+                rate:     p.rate     ?? p.production_mhrs_per_ea ?? 0
+            }));
+            const rate = projects.length > 0 ? calculateWeightedRate(projects) : (benchmarks.customRate || 0);
             
             // Calculate statistical bounds for the estimate
             let mhBounds = null;
@@ -6254,6 +6322,7 @@ ${reasoning}`;
                 // Get resource rates for this discipline
                 const resources = getDisciplineResources(config.name);
                 
+                const isMatrix = config.calculationType === 'matrix';
                 row.innerHTML = `
                     <td>
                         <div class="discipline-name">
@@ -6272,16 +6341,33 @@ ${reasoning}`;
                     </td>
                     <td>${config.unit}</td>
                     <td class="benchmark-select-cell">
+                        ${isMatrix ? `
+                        <select id="mh-dd-complexity" onchange="updateDDComplexity()" title="Complexity level for Digital Delivery matrix"
+                                style="background:#1a1a2e; color:#e0e0e0; border:1px solid #444; padding:3px 5px; font-size:11px; border-radius:3px; width:100%;">
+                            <option value="Low">Low</option>
+                            <option value="Low-Med">Low-Med</option>
+                            <option value="Med" selected>Medium</option>
+                            <option value="Med-High">Med-High</option>
+                            <option value="High">High</option>
+                        </select>
+                        ` : `
                         <button class="btn-benchmark-select" onclick="showDisciplineBenchmark('${discId}')" title="Select benchmark projects for ${config.name}">
                             <span class="benchmark-icon">📊</span>
                             <span class="benchmark-btn-text">Select</span>
                         </button>
+                        `}
                     </td>
                     <td class="numeric">
-                        <span class="rate-display rate-all-projects" id="mh-rate-all-${discId}" title="${buildAllProjectsRateTooltip(discId, allProjectsRate, allProjects.length, config.unit)}">${formatRate(allProjectsRate, config.unit)}</span>
+                        ${isMatrix
+                            ? `<span class="rate-display" id="mh-rate-all-${discId}" style="color:#888; font-size:10px;">Matrix</span>`
+                            : `<span class="rate-display rate-all-projects" id="mh-rate-all-${discId}" title="${buildAllProjectsRateTooltip(discId, allProjectsRate, allProjects.length, config.unit)}">${formatRate(allProjectsRate, config.unit)}</span>`
+                        }
                     </td>
                     <td class="numeric">
-                        <span class="rate-display rate-selected" id="mh-rate-${discId}" title="${buildSelectedRateTooltip(discId, defaultRate, 0, config.unit)}">${formatRate(defaultRate, config.unit)}</span>
+                        ${isMatrix
+                            ? `<span class="rate-display" id="mh-rate-${discId}" style="color:#888; font-size:10px;">Matrix</span>`
+                            : `<span class="rate-display rate-selected" id="mh-rate-${discId}" title="${buildSelectedRateTooltip(discId, defaultRate, 0, config.unit)}">${formatRate(defaultRate, config.unit)}</span>`
+                        }
                     </td>
                     <td class="numeric">
                         <span class="mh-value" id="mh-value-${discId}">0</span>
@@ -6289,7 +6375,7 @@ ${reasoning}`;
                     </td>
                     <td class="numeric">
                         <div class="l4-input-wrapper">
-                            <input type="number" class="l4-input" id="mh-l4-pct-${discId}" 
+                            <input type="number" class="l4-input" id="mh-l4-pct-${discId}"
                                    value="30" min="0" max="100" step="5"
                                    onchange="updateL4Percentage('${discId}')"
                                    title="% MH allocated to Level 4+ Engineers">
@@ -6297,7 +6383,10 @@ ${reasoning}`;
                         </div>
                     </td>
                     <td>
-                        <span class="projects-used" id="mh-projects-${discId}" title="Click to expand">—</span>
+                        ${isMatrix
+                            ? `<span class="projects-used" id="mh-projects-${discId}" style="color:#888; font-size:10px;">PRA Matrix</span>`
+                            : `<span class="projects-used" id="mh-projects-${discId}" title="Click to expand">—</span>`
+                        }
                     </td>
                 `;
                 
@@ -6656,6 +6745,32 @@ ${reasoning}`;
 
             updateMHRowDisplay(discId, state);
             recalculateTotalMH();
+
+            // Misc Structures derives from Roadway + Drainage + Traffic — update it live
+            if (discId === 'roadway' || discId === 'drainage' || discId === 'traffic') {
+                recalculateMiscStructures();
+            }
+        }
+
+        /**
+         * Recalculate Misc Structures MH from current Roadway + Drainage + Traffic MH
+         */
+        function recalculateMiscStructures() {
+            const msState = mhEstimateState.disciplines.miscStructures;
+            if (!msState || !msState.active) return;
+            const rdwyMH = mhEstimateState.disciplines.roadway?.mh || 0;
+            const drnMH  = mhEstimateState.disciplines.drainage?.mh || 0;
+            const trfMH  = mhEstimateState.disciplines.traffic?.mh || 0;
+            const baseMH = rdwyMH + drnMH + trfMH;
+            msState.quantity = baseMH;
+            const result = calculateMiscStructuresMH(rdwyMH, drnMH, trfMH);
+            msState.mh = result.mh;
+            msState.rate = result.rate;
+            // Update the quantity input to show the auto-populated base MH
+            const qtyInput = document.getElementById('mh-qty-miscStructures');
+            if (qtyInput) qtyInput.value = baseMH.toLocaleString('en-US');
+            updateMHRowDisplay('miscStructures', msState);
+            recalculateTotalMH();
         }
 
         /**
@@ -6664,14 +6779,34 @@ ${reasoning}`;
         function updateMHInputs() {
             mhEstimateState.designDuration = parseInt(document.getElementById('mh-design-duration').value) || 20;
             mhEstimateState.complexity = document.getElementById('mh-complexity').value || 'Med';
-            
-            // Recalculate Digital Delivery if active
+
+            // Recalculate Digital Delivery if active (uses its own per-row complexity)
             const ddState = mhEstimateState.disciplines.digitalDelivery;
             if (ddState && ddState.active && mhEstimateState.projectCost > 0) {
                 const costK = mhEstimateState.projectCost / 1000;
-                const ddResult = calculateDigitalDeliveryMH(costK, mhEstimateState.designDuration, mhEstimateState.complexity);
+                const ddComplexity = document.getElementById('mh-dd-complexity')?.value || ddState.complexity || 'Med';
+                const ddResult = calculateDigitalDeliveryMH(costK, mhEstimateState.designDuration, ddComplexity);
                 ddState.mh = ddResult.mh;
-                ddState.rate = ddResult.mh / costK;
+                ddState.rate = costK > 0 ? ddResult.mh / costK : 0;
+                ddState.complexity = ddComplexity;
+                updateMHRowDisplay('digitalDelivery', ddState);
+                recalculateTotalMH();
+            }
+        }
+
+        /**
+         * Update Digital Delivery MH when its per-row complexity dropdown changes
+         */
+        function updateDDComplexity() {
+            const complexity = document.getElementById('mh-dd-complexity')?.value || 'Med';
+            const ddState = mhEstimateState.disciplines.digitalDelivery;
+            if (!ddState) return;
+            ddState.complexity = complexity;
+            if (ddState.active && mhEstimateState.projectCost > 0) {
+                const costK = mhEstimateState.projectCost / 1000;
+                const ddResult = calculateDigitalDeliveryMH(costK, mhEstimateState.designDuration, complexity);
+                ddState.mh = ddResult.mh;
+                ddState.rate = costK > 0 ? ddResult.mh / costK : 0;
                 updateMHRowDisplay('digitalDelivery', ddState);
                 recalculateTotalMH();
             }
@@ -6850,13 +6985,16 @@ ${reasoning}`;
          * @param {string|null} singleDiscipline - If provided, only show this discipline
          */
         function showBenchmarkSelection(singleDiscipline = null) {
+            // Digital Delivery uses its own per-row complexity dropdown — not the benchmark modal
+            if (singleDiscipline === 'digitalDelivery') return;
+
             // Get active disciplines, or just the single one if specified
             let activeDisciplines;
             if (singleDiscipline) {
                 activeDisciplines = [singleDiscipline];
             } else {
                 activeDisciplines = Object.entries(mhEstimateState.disciplines)
-                    .filter(([_, state]) => state.active)
+                    .filter(([id, state]) => state.active && id !== 'digitalDelivery')
                     .map(([id, _]) => id);
             }
             
@@ -6934,7 +7072,11 @@ ${reasoning}`;
                         <div class="benchmark-discipline-section" id="benchmark-section-${discId}">
                             <div class="benchmark-discipline-header" onclick="toggleBenchmarkSection('${discId}')">
                                 <span>${arrowSymbol} ${config.name}</span>
-                                <span class="benchmark-count" id="benchmark-count-${discId}">${selectedCount}/${benchmarks.projects.length} selected</span>
+                                <span style="display:flex; align-items:center; gap:6px;">
+                                    <span class="benchmark-count" id="benchmark-count-${discId}">${selectedCount}/${benchmarks.projects.length} selected</span>
+                                    <button onclick="event.stopPropagation(); checkAllBenchmark('${discId}')" style="font-size:10px; padding:1px 6px; background:#1a3a1a; color:#00ff00; border:1px solid #00aa00; border-radius:3px; cursor:pointer;">All</button>
+                                    <button onclick="event.stopPropagation(); uncheckAllBenchmark('${discId}')" style="font-size:10px; padding:1px 6px; background:#3a1a1a; color:#ff6666; border:1px solid #aa0000; border-radius:3px; cursor:pointer;">None</button>
+                                </span>
                             </div>
                             <div class="benchmark-projects ${hiddenClass}" id="benchmark-projects-${discId}">
                     `;
@@ -6980,14 +7122,23 @@ ${reasoning}`;
                             <div class="benchmark-chart-container">
                                 <div class="benchmark-chart-header">
                                     <h4 id="benchmark-chart-title">📈 ${(singleDiscipline === 'esdc' || singleDiscipline === 'tscd') ? 'Revenue vs Project Cost' : 'Rate vs Quantity'}</h4>
-                                    <div class="benchmark-chart-legend">
-                                        <div class="legend-item" id="benchmark-legend-all">
-                                            <span class="legend-dot all-projects"></span>
-                                            <span class="legend-label">All Projects</span>
+                                    <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+                                        <div class="benchmark-chart-legend">
+                                            <div class="legend-item" id="benchmark-legend-all">
+                                                <span class="legend-dot all-projects"></span>
+                                                <span class="legend-label">All Projects</span>
+                                            </div>
+                                            <div class="legend-item">
+                                                <span class="legend-dot selected-projects"></span>
+                                                <span class="legend-label">Selected Projects</span>
+                                            </div>
                                         </div>
-                                        <div class="legend-item">
-                                            <span class="legend-dot selected-projects"></span>
-                                            <span class="legend-label">Selected Projects</span>
+                                        <div style="display:flex; align-items:center; gap:4px; font-size:11px; color:#aaa;">
+                                            <span>Curve:</span>
+                                            <button id="benchmark-curve-power" onclick="setBenchmarkCurveType('power')"
+                                                style="font-size:10px; padding:2px 7px; border-radius:3px; cursor:pointer; background:${benchmarkCurveType==='power'?'#ffd700':'#222'}; color:${benchmarkCurveType==='power'?'#000':'#aaa'}; border:1px solid ${benchmarkCurveType==='power'?'#ffd700':'#555'}; font-weight:${benchmarkCurveType==='power'?'bold':'normal'};">Power</button>
+                                            <button id="benchmark-curve-linear" onclick="setBenchmarkCurveType('linear')"
+                                                style="font-size:10px; padding:2px 7px; border-radius:3px; cursor:pointer; background:${benchmarkCurveType==='linear'?'#ffd700':'#222'}; color:${benchmarkCurveType==='linear'?'#000':'#aaa'}; border:1px solid ${benchmarkCurveType==='linear'?'#ffd700':'#555'}; font-weight:${benchmarkCurveType==='linear'?'bold':'normal'};">Linear</button>
                                         </div>
                                     </div>
                                 </div>
@@ -7110,6 +7261,48 @@ ${reasoning}`;
                     updateBenchmarkChart(discId);
                 }
             }
+        }
+
+        /**
+         * Check all benchmark projects for a discipline
+         */
+        function checkAllBenchmark(discId) {
+            const benchmarks = getBenchmarkDataSync(discId);
+            if (!benchmarks) return;
+            benchmarks.projects.forEach(p => { p.applicable = true; });
+            // Update checkboxes in UI
+            const container = document.getElementById(`benchmark-projects-${discId}`);
+            if (container) container.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = true; });
+            const countEl = document.getElementById(`benchmark-count-${discId}`);
+            if (countEl) countEl.textContent = `${benchmarks.projects.length}/${benchmarks.projects.length} selected`;
+            if (currentBenchmarkDiscipline === discId) updateBenchmarkChart(discId);
+        }
+
+        /**
+         * Uncheck all benchmark projects for a discipline
+         */
+        function uncheckAllBenchmark(discId) {
+            const benchmarks = getBenchmarkDataSync(discId);
+            if (!benchmarks) return;
+            benchmarks.projects.forEach(p => { p.applicable = false; });
+            const container = document.getElementById(`benchmark-projects-${discId}`);
+            if (container) container.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = false; });
+            const countEl = document.getElementById(`benchmark-count-${discId}`);
+            if (countEl) countEl.textContent = `0/${benchmarks.projects.length} selected`;
+            if (currentBenchmarkDiscipline === discId) updateBenchmarkChart(discId);
+        }
+
+        /**
+         * Set the regression curve type (power or linear) and refresh chart
+         */
+        function setBenchmarkCurveType(type) {
+            benchmarkCurveType = type;
+            // Update button styles
+            const powerBtn = document.getElementById('benchmark-curve-power');
+            const linearBtn = document.getElementById('benchmark-curve-linear');
+            if (powerBtn) { powerBtn.style.background = type === 'power' ? '#ffd700' : '#222'; powerBtn.style.color = type === 'power' ? '#000' : '#aaa'; powerBtn.style.border = type === 'power' ? '1px solid #ffd700' : '1px solid #555'; powerBtn.style.fontWeight = type === 'power' ? 'bold' : 'normal'; }
+            if (linearBtn) { linearBtn.style.background = type === 'linear' ? '#ffd700' : '#222'; linearBtn.style.color = type === 'linear' ? '#000' : '#aaa'; linearBtn.style.border = type === 'linear' ? '1px solid #ffd700' : '1px solid #555'; linearBtn.style.fontWeight = type === 'linear' ? 'bold' : 'normal'; }
+            if (currentBenchmarkDiscipline) updateBenchmarkChart(currentBenchmarkDiscipline);
         }
 
         /**
@@ -7564,8 +7757,20 @@ ${reasoning}`;
                            onblur="updateUnifiedQuantity('${discId}')">
                 </td>`;
             }
+            const isMatrix = config.calculationType === 'matrix';
             const benchmarkCell = isEsdcTscd
                 ? `<td class="mh-col" title="Picker is next to discipline name">—</td>`
+                : isMatrix
+                ? `<td class="mh-col">
+                    <select id="mh-dd-complexity" onchange="updateDDComplexity()" title="Complexity level for Digital Delivery matrix"
+                            style="background:#1a1a2e; color:#e0e0e0; border:1px solid #444; padding:3px 5px; font-size:11px; border-radius:3px; width:100%;">
+                        <option value="Low">Low</option>
+                        <option value="Low-Med">Low-Med</option>
+                        <option value="Med" selected>Medium</option>
+                        <option value="Med-High">Med-High</option>
+                        <option value="High">High</option>
+                    </select>
+                   </td>`
                 : isFte
                 ? `<td class="mh-col">
                     <label style="display:flex;align-items:center;gap:4px;font-size:10px;cursor:pointer;">
@@ -21369,6 +21574,11 @@ Chunks: ${JSON.stringify(complexFieldsOnly, null, 2)}`;
         window.toggleEsdcTscdPct = toggleEsdcTscdPct;
         window.toggleEsdcTscdOverride = toggleEsdcTscdOverride;
         window.updatePursuitRevenue = updatePursuitRevenue;
+        window.updateDDComplexity = updateDDComplexity;
+        window.recalculateMiscStructures = recalculateMiscStructures;
+        window.checkAllBenchmark = checkAllBenchmark;
+        window.uncheckAllBenchmark = uncheckAllBenchmark;
+        window.setBenchmarkCurveType = setBenchmarkCurveType;
         window.toggleRevenueDetails = toggleRevenueDetails;
         
         // Sensitivity analysis modal
@@ -21388,6 +21598,9 @@ Chunks: ${JSON.stringify(complexFieldsOnly, null, 2)}`;
         window.openStructureBenchmark = openStructureBenchmark;
         window.toggleStructureBenchmarkProject = toggleStructureBenchmarkProject;
         window.closeStructureBenchmarkModal = closeStructureBenchmarkModal;
+        window.checkAllStructureBenchmark = checkAllStructureBenchmark;
+        window.uncheckAllStructureBenchmark = uncheckAllStructureBenchmark;
+        window.setStructureCurveType = setStructureCurveType;
         window.updateStructureRowForecast = updateStructureRowForecast;
         window.recalculateEscalation = recalculateEscalation;
         window.resetEscalationToDefault = resetEscalationToDefault;
