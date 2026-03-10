@@ -1863,9 +1863,9 @@ let projectData = {
                                         </div>
                                         <div style="display:flex; gap:4px;">
                                             <button id="str-curve-power" onclick="setStructureCurveType('power')"
-                                                style="background:${benchmarkCurveType==='power'?'#ffd700':'#222'};color:${benchmarkCurveType==='power'?'#000':'#e0e0e0'};border:1px solid #555;padding:3px 10px;border-radius:3px;cursor:pointer;font-size:11px;font-weight:bold;">Power</button>
+                                                style="background:${getCurveType('structures')==='power'?'#ffd700':'#222'};color:${getCurveType('structures')==='power'?'#000':'#e0e0e0'};border:1px solid #555;padding:3px 10px;border-radius:3px;cursor:pointer;font-size:11px;font-weight:bold;">Power</button>
                                             <button id="str-curve-linear" onclick="setStructureCurveType('linear')"
-                                                style="background:${benchmarkCurveType==='linear'?'#ffd700':'#222'};color:${benchmarkCurveType==='linear'?'#000':'#e0e0e0'};border:1px solid #555;padding:3px 10px;border-radius:3px;cursor:pointer;font-size:11px;font-weight:bold;">Linear</button>
+                                                style="background:${getCurveType('structures')==='linear'?'#ffd700':'#222'};color:${getCurveType('structures')==='linear'?'#000':'#e0e0e0'};border:1px solid #555;padding:3px 10px;border-radius:3px;cursor:pointer;font-size:11px;font-weight:bold;">Linear</button>
                                         </div>
                                     </div>
                                 </div>
@@ -1929,8 +1929,8 @@ let projectData = {
             const allPoints = allFiltered.map(toPoint).filter(p => p.x > 0 && p.y > 0);
             const selectedPoints = selected.map(toPoint).filter(p => p.x > 0 && p.y > 0);
 
-            // Regressions — Power or Linear based on benchmarkCurveType
-            const useStrPower = benchmarkCurveType === 'power';
+            // Regressions — Power or Linear based on per-discipline setting
+            const useStrPower = getCurveType('structures') === 'power';
             let allRegression, selectedRegression;
             if (useStrPower) {
                 allRegression = PowerRegression.calculate(allPoints);
@@ -2059,7 +2059,7 @@ let projectData = {
         }
 
         function setStructureCurveType(type) {
-            benchmarkCurveType = type;
+            benchmarkCurveTypes['structures'] = type;
             const powerBtn = document.getElementById('str-curve-power');
             const linearBtn = document.getElementById('str-curve-linear');
             if (powerBtn) { powerBtn.style.background = type === 'power' ? '#ffd700' : '#222'; powerBtn.style.color = type === 'power' ? '#000' : '#e0e0e0'; }
@@ -4121,7 +4121,7 @@ let projectData = {
             if (rate == null) {
                 const allPoints = buildRatePoints(benchmarks.projects, false);
                 if (allPoints.length < 2) return null;
-                const useLinear = (benchmarkCurveType === 'linear' || discId === 'structures');
+                const useLinear = getCurveType(discId) === 'linear';
                 if (useLinear) {
                     const reg = LinearRegression.calculate(allPoints);
                     if (reg.valid) {
@@ -4223,7 +4223,7 @@ let projectData = {
             const selectedPoints = buildRatePoints(selectedProjects, false);
             if (selectedPoints.length < 2) return null;
             let rate = null;
-            const useLinearSel = (benchmarkCurveType === 'linear' || discId === 'structures');
+            const useLinearSel = getCurveType(discId) === 'linear';
             if (useLinearSel) {
                 const reg = LinearRegression.calculate(selectedPoints);
                 if (reg.valid) {
@@ -4256,7 +4256,8 @@ let projectData = {
         // Benchmark chart instance (for the modal)
         let benchmarkChart = null;
         let currentBenchmarkDiscipline = null;
-        let benchmarkCurveType = 'power'; // 'power' or 'linear'
+        const benchmarkCurveTypes = {}; // per-discipline: { [discId]: 'power'|'linear' }
+        const getCurveType = (discId) => benchmarkCurveTypes[discId] || 'power';
         
         /**
          * Create or update the benchmark regression chart
@@ -4322,7 +4323,9 @@ let projectData = {
             const meta = benchmarks.metadata || {};
             let allRegression, selectedRegression;
             
-            if (benchmarkCurveType === 'linear') {
+            const useLinear = getCurveType(discId) === 'linear';
+
+            if (useLinear) {
                 // User requested linear — always recalculate from data
                 allRegression = LinearRegression.calculate(allPoints);
                 selectedRegression = LinearRegression.calculate(selectedPoints);
@@ -4334,7 +4337,6 @@ let projectData = {
                     b: benchmarks.curve.b,
                     r2: benchmarks.curve.r2 || 0
                 };
-                // For selected, recalculate from selected points
                 selectedRegression = PowerRegression.calculate(selectedPoints);
             } else if (meta.regression && typeof meta.regression.a === 'number' && typeof meta.regression.b === 'number') {
                 // Use stored Excel regression coefficients for All Projects curve
@@ -4345,15 +4347,10 @@ let projectData = {
                     r2: meta.regression.r2 || 0
                 };
                 selectedRegression = PowerRegression.calculate(selectedPoints);
-            } else if (discId === 'structures' || benchmarkCurveType === 'linear') {
-                allRegression = LinearRegression.calculate(allPoints);
-                selectedRegression = LinearRegression.calculate(selectedPoints);
             } else {
                 allRegression = PowerRegression.calculate(allPoints);
                 selectedRegression = PowerRegression.calculate(selectedPoints);
             }
-
-            const useLinear = (discId === 'structures' || benchmarkCurveType === 'linear');
 
             // Smart X-axis scaling: focus on where data is dense (for ESDC/TSCD use selected only)
             const pointsForScale = isRevenueBased ? selectedPoints : allPoints;
@@ -7146,9 +7143,9 @@ ${reasoning}`;
                                         <div style="display:flex; align-items:center; gap:4px; font-size:11px; color:#aaa;">
                                             <span>Curve:</span>
                                             <button id="benchmark-curve-power" onclick="setBenchmarkCurveType('power')"
-                                                style="font-size:10px; padding:2px 7px; border-radius:3px; cursor:pointer; background:${benchmarkCurveType==='power'?'#ffd700':'#222'}; color:${benchmarkCurveType==='power'?'#000':'#aaa'}; border:1px solid ${benchmarkCurveType==='power'?'#ffd700':'#555'}; font-weight:${benchmarkCurveType==='power'?'bold':'normal'};">Power</button>
+                                                style="font-size:10px; padding:2px 7px; border-radius:3px; cursor:pointer; background:${getCurveType(singleDiscipline||activeDisciplines[0])==='power'?'#ffd700':'#222'}; color:${getCurveType(singleDiscipline||activeDisciplines[0])==='power'?'#000':'#aaa'}; border:1px solid ${getCurveType(singleDiscipline||activeDisciplines[0])==='power'?'#ffd700':'#555'}; font-weight:${getCurveType(singleDiscipline||activeDisciplines[0])==='power'?'bold':'normal'};">Power</button>
                                             <button id="benchmark-curve-linear" onclick="setBenchmarkCurveType('linear')"
-                                                style="font-size:10px; padding:2px 7px; border-radius:3px; cursor:pointer; background:${benchmarkCurveType==='linear'?'#ffd700':'#222'}; color:${benchmarkCurveType==='linear'?'#000':'#aaa'}; border:1px solid ${benchmarkCurveType==='linear'?'#ffd700':'#555'}; font-weight:${benchmarkCurveType==='linear'?'bold':'normal'};">Linear</button>
+                                                style="font-size:10px; padding:2px 7px; border-radius:3px; cursor:pointer; background:${getCurveType(singleDiscipline||activeDisciplines[0])==='linear'?'#ffd700':'#222'}; color:${getCurveType(singleDiscipline||activeDisciplines[0])==='linear'?'#000':'#aaa'}; border:1px solid ${getCurveType(singleDiscipline||activeDisciplines[0])==='linear'?'#ffd700':'#555'}; font-weight:${getCurveType(singleDiscipline||activeDisciplines[0])==='linear'?'bold':'normal'};">Linear</button>
                                         </div>
                                     </div>
                                 </div>
@@ -7306,7 +7303,7 @@ ${reasoning}`;
          * Set the regression curve type (power or linear) and refresh chart
          */
         function setBenchmarkCurveType(type) {
-            benchmarkCurveType = type;
+            if (currentBenchmarkDiscipline) benchmarkCurveTypes[currentBenchmarkDiscipline] = type;
             // Update button styles
             const powerBtn = document.getElementById('benchmark-curve-power');
             const linearBtn = document.getElementById('benchmark-curve-linear');
