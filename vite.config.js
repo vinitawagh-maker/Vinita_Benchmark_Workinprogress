@@ -6,7 +6,7 @@ export default defineConfig(({ command, mode }) => {
 
   return {
     // Base public path (GitHub Pages uses repo subpath in production)
-    base: isDev ? '/' : '/Design_Estimate/',
+    base: isDev ? '/' : '/VinitaBenchmark/',
 
     // Root directory
     root: '.',
