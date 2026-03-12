@@ -8018,6 +8018,11 @@ ${reasoning}`;
                            value="${state.subsPct ?? ''}" min="0" max="100" step="1" placeholder="0"
                            onchange="updateSubsPct('${discId}', this.value)"
                            title="% of work subcontracted out">
+                    <input type="number" class="qty-input sub-rate-input" id="unified-sub-rate-${discId}"
+                           value="${state.subRate ?? ''}" min="0" step="1" placeholder="$/hr"
+                           onchange="updateSubRate('${discId}', this.value)"
+                           title="Sub rate ($/hr) — leave blank to use KIE weighted rate"
+                           style="margin-top:2px; width:60px; font-size:9px;">
                 </td>
                 <td class="mh-col numeric col-all-rate">
                     <span id="unified-rate-all-${discId}">${formatRate(allProjectsRate, unit)}</span>
@@ -9846,6 +9851,15 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             saveToLocalStorage();
         }
 
+        function updateSubRate(discId, value) {
+            const state = mhEstimateState.disciplines[discId];
+            if (!state) return;
+            const rate = parseFloat(value);
+            state.subRate = isNaN(rate) ? null : Math.max(0, rate);
+            updateUnifiedSummary();
+            saveToLocalStorage();
+        }
+
         function updateUnifiedL4(discId) {
             const l4Input = document.getElementById(`unified-l4-${discId}`);
             if (!l4Input) return;
@@ -10123,7 +10137,9 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             if (discId !== 'esdc' && discId !== 'tscd') {
                 const subPctDisp = (state.subsPct || 0) / 100;
                 const subMHDisp = Math.round((state.mh || 0) * subPctDisp);
-                const subLaborDisp = subMHDisp * weightedRate;
+                // Use per-discipline sub rate if provided, otherwise fall back to KIE weighted rate
+                const effectiveSubRate = (state.subRate != null && state.subRate > 0) ? state.subRate : weightedRate;
+                const subLaborDisp = subMHDisp * effectiveSubRate;
                 const subBurdenDisp = subLaborDisp * (burdenRate / 100);
                 const subGenExpenses = 0; // general sub expenses placeholder
                 const subLsExpenses = 0;  // LS sub expenses at section level, not per-discipline
@@ -10709,7 +10725,8 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
                 const subMH = Math.round(totalMH * subPct);
                 if (subMH > 0) {
                     subsMH += subMH;
-                    subsRawLabor += subMH * (state.weightedRate || 0);
+                    const effSubRate = (state.subRate != null && state.subRate > 0) ? state.subRate : (state.weightedRate || 0);
+                    subsRawLabor += subMH * effSubRate;
                 }
             }
 
@@ -22026,6 +22043,7 @@ Chunks: ${JSON.stringify(complexFieldsOnly, null, 2)}`;
         window.closeBenchmarkModal = closeBenchmarkModal;
         window.applyBenchmarkSelection = applyBenchmarkSelection;
         window.updateSubsPct = updateSubsPct;
+        window.updateSubRate = updateSubRate;
         window.toggleBenchmarkOverride = toggleBenchmarkOverride;
         window.updateBenchmarkOverrideMH = updateBenchmarkOverrideMH;
         window.updateBenchmarkOverrideRate = updateBenchmarkOverrideRate;

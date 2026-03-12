@@ -896,6 +896,28 @@
     box-shadow: 0 0 0 2px rgba(255, 210, 0, 0.25);
 }
 
+.sub-rate-input {
+    width: 54px;
+    padding: 2px 4px;
+    background: #FFF2D9;
+    border: 1px solid #FFC212;
+    border-radius: 3px;
+    font-size: 9px;
+    color: #000000;
+    text-align: right;
+}
+
+.sub-rate-input:focus {
+    outline: none;
+    border-color: #FFD200;
+    box-shadow: 0 0 0 2px rgba(255, 210, 0, 0.25);
+}
+
+.sub-rate-input::placeholder {
+    color: #999;
+    font-style: italic;
+}
+
 /* Complexity dropdown — cream DM input style when enabled */
 #unified-complexity:not(:disabled) {
     background: #FFF2D9;
