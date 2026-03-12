@@ -596,15 +596,16 @@
     background: linear-gradient(135deg, #64b5f6 0%, #42a5f5 100%);
 }
 
-/* Benchmark Select Button - Light Theme */
+/* Benchmark Select Button - Kiewit Cream */
 .benchmarking-step .btn-benchmark-select {
-    background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
-    border: 1px solid #90caf9;
-    color: #1565c0;
+    background: #FFF2D9;
+    border: 1px solid #FFC212;
+    color: #000000;
 }
 
 .benchmarking-step .btn-benchmark-select:hover {
-    background: linear-gradient(135deg, #bbdefb 0%, #90caf9 100%);
+    background: #FFD200;
+    border-color: #000000;
 }
 
 /* Responsive */
@@ -855,6 +856,59 @@
     cursor: not-allowed;
 }
 
+/* Management Override highlight on Est. MH cell */
+.unified-estimate-table td.mgmt-override-active {
+    background: #fff9e0 !important;
+    border-left: 3px solid #FFD200 !important;
+    position: relative;
+}
+
+.unified-estimate-table td.mgmt-override-active span {
+    color: #193246;
+    font-weight: 700;
+}
+
+.unified-estimate-table td.mgmt-override-active::after {
+    content: '★';
+    font-size: 8px;
+    color: #e53935;
+    position: absolute;
+    top: 1px;
+    right: 2px;
+    line-height: 1;
+}
+
+/* % Subs input styling — cream DM input */
+.subs-pct-input {
+    width: 48px;
+    padding: 2px 4px;
+    background: #FFF2D9;
+    border: 1px solid #FFC212;
+    border-radius: 3px;
+    font-size: 10px;
+    color: #000000;
+    text-align: right;
+}
+
+.subs-pct-input:focus {
+    outline: none;
+    border-color: #FFD200;
+    box-shadow: 0 0 0 2px rgba(255, 210, 0, 0.25);
+}
+
+/* Complexity dropdown — cream DM input style when enabled */
+#unified-complexity:not(:disabled) {
+    background: #FFF2D9;
+    border: 1px solid #FFC212;
+    color: #000000;
+}
+
+#unified-complexity:not(:disabled):focus {
+    border-color: #FFD200;
+    box-shadow: 0 0 0 2px rgba(255, 210, 0, 0.25);
+    outline: none;
+}
+
 .btn-step {
     width: 100%;
     padding: 3px 8px;
@@ -995,8 +1049,8 @@
     position: sticky;
     bottom: 0;
     z-index: 100;
-    background: #f5f5f5;
-    box-shadow: 0 -2px 4px rgba(0,0,0,0.1);
+    background: #e8eef2;
+    box-shadow: 0 -2px 6px rgba(25, 50, 70, 0.12);
 }
 
 .unified-estimate-table th {
@@ -1167,35 +1221,38 @@
 
 .unified-estimate-table tfoot .frozen-col {
     z-index: 15;
-    background: #f5f5f5;
+    background: #e8eef2;
     font-weight: 700;
-    color: #333;
+    color: #000000;
     font-size: 11px;
 }
 
-/* MH Columns - Blue Theme */
+/* MH Columns - Glacier/neutral (calculated, read-only) */
 .unified-estimate-table thead .mh-col {
-    background: #e3f2fd;
-    color: #1565c0;
+    background: #e8eef2;
+    color: #193246;
     font-weight: 600;
     padding: 2px 2px;
-    border-bottom: 2px solid #90caf9;
+    border-bottom: 2px solid #81A1B2;
     font-size: 10px;
-    line-height: 1;
+    line-height: 1.1;
+    white-space: normal;
+    word-break: break-word;
 }
 
 .unified-estimate-table tbody td.mh-col {
     background: #ffffff;
-    color: var(--color-text-dark);
+    color: #193246;
     padding: 1px 2px;
-    border-bottom: 1px solid #e3f2fd;
+    border-bottom: 1px solid #e6e6e6;
     line-height: 1;
 }
 
 /* Discipline rows under DIRECTS - larger font */
 #unified-estimate-tbody tr td {
     font-size: 12px;
-    padding: 4px 4px;
+    padding: 2px 4px;
+    line-height: 1;
 }
 
 #unified-estimate-tbody tr td.frozen-col {
@@ -1204,48 +1261,50 @@
 }
 
 .unified-estimate-table tbody tr:hover td.mh-col {
-    background: #f5f9ff;
+    background: #f5f5f5;
 }
 
 .unified-estimate-table tfoot td.mh-col {
-    background: #f5f5f5;
+    background: #e8eef2;
     padding: 2px 2px;
     font-weight: 600;
     font-size: 11px;
 }
 
-/* Cost Columns - Green Theme */
+/* Cost Columns - Cornflower blue (revenue/financial) */
 .unified-estimate-table thead .cost-col {
-    background: #c8e6c9;
-    color: #2e7d32;
+    background: #5587B8;
+    color: #ffffff;
     font-weight: 600;
     padding: 2px 2px;
-    border-bottom: 2px solid #81c784;
+    border-bottom: 2px solid #375D80;
     font-size: 10px;
-    line-height: 1;
+    line-height: 1.1;
+    white-space: normal;
+    word-break: break-word;
     min-width: auto !important;
 }
 
 /* Ensure first cost column (Weighted Rate) is independent */
 .unified-estimate-table thead .cost-col:first-of-type,
 .unified-estimate-table tbody .cost-col:first-of-type {
-    border-left: 2px solid #81c784;
+    border-left: 2px solid #375D80;
 }
 
 .unified-estimate-table tbody td.cost-col {
-    background: #f1f8f1;
-    color: var(--color-text-dark);
+    background: #edf3f9;
+    color: #000000;
     padding: 1px 2px;
-    border-bottom: 1px solid #c8e6c9;
+    border-bottom: 1px solid #c0d8ee;
     line-height: 1;
 }
 
 .unified-estimate-table tbody tr:hover td.cost-col {
-    background: #e8f5e9;
+    background: #dce8f5;
 }
 
 .unified-estimate-table tfoot td.cost-col {
-    background: #f5f5f5;
+    background: #e8eef2;
     padding: 2px 2px;
     font-weight: 600;
     font-size: 11px;
@@ -1253,11 +1312,11 @@
 
 /* Visual Separation Between MH and Cost */
 .unified-estimate-table th.mh-toggle-header {
-    border-right: 2px solid #757575;
+    border-right: 2px solid #81A1B2;
 }
 
 .unified-estimate-table td.mh-col:nth-last-of-type(1) {
-    border-right: 2px solid #64b5f6;
+    border-right: 2px solid #81A1B2;
 }
 
 /* Visual alignment indicators */
@@ -1313,9 +1372,9 @@
 
 /* Benchmark Button in Section Headers */
 .unified-estimate-table .section-header .benchmark-btn {
-    background: none;
-    border: 1px solid #5c6bc0;
-    color: #5c6bc0;
+    background: #FFF2D9;
+    border: 1px solid #FFC212;
+    color: #000000;
     cursor: pointer;
     font-size: 10px;
     padding: 1px 4px;
@@ -1326,8 +1385,9 @@
 }
 
 .unified-estimate-table .section-header .benchmark-btn:hover {
-    background: #5c6bc0;
-    color: white;
+    background: #FFD200;
+    border-color: #FFC212;
+    color: #000000;
 }
 
 /* Indentation Levels */
@@ -1381,7 +1441,7 @@
 }
 
 .indirects-toggle-switch input:checked + .indirects-toggle-slider {
-    background-color: #4caf50;
+    background-color: #FFD200;
 }
 
 .indirects-toggle-switch input:checked + .indirects-toggle-slider:before {
@@ -1428,46 +1488,45 @@
     background: #fff;
 }
 
-/* Indirects Divisor Input */
-.indirects-divisor-wrapper {
+/* Indirects FTE Input */
+.indirects-fte-wrapper {
     display: inline-flex;
     align-items: center;
     margin-left: 6px;
     font-size: 10px;
     color: #666;
     font-weight: normal;
-    gap: 2px;
+    gap: 3px;
 }
 
-.indirects-divisor-wrapper .divisor-label {
+.indirects-fte-wrapper .fte-label {
     font-size: 10px;
-    color: #666;
+    color: #888;
     font-weight: normal;
 }
 
-.indirects-divisor-input {
-    width: 16px;
-    padding: 0 1px;
+.indirects-fte-input {
+    width: 36px;
+    padding: 0 2px;
     font-size: 10px;
-    border: 1px solid #999;
+    border: 1px solid #FFC212;
     border-radius: 2px;
     text-align: center;
     height: 14px;
-    background: #e0e0e0;
+    background: #FFF2D9;
     color: #333;
     -moz-appearance: textfield;
 }
 
-/* Show spinner arrows on hover/focus */
-.indirects-divisor-input::-webkit-inner-spin-button,
-.indirects-divisor-input::-webkit-outer-spin-button {
+.indirects-fte-input::-webkit-inner-spin-button,
+.indirects-fte-input::-webkit-outer-spin-button {
     opacity: 1;
     height: 12px;
 }
 
-.indirects-divisor-input:focus {
+.indirects-fte-input:focus {
     outline: none;
-    border-color: #1976d2;
+    border-color: #FFC212;
     background: #fff;
 }
 
@@ -1553,7 +1612,7 @@
 }
 
 .ipc-toggle-switch input:checked + .ipc-toggle-slider {
-    background-color: #4caf50;
+    background-color: #FFD200;
 }
 
 .ipc-toggle-switch input:checked + .ipc-toggle-slider:before {
@@ -1622,11 +1681,11 @@ tbody.hidden {
 
 /* Grand Totals Row */
 .unified-estimate-table .totals-row {
-    background: #2a5298;
-    color: #fff;
+    background: #000000;
+    color: #FFD200;
     font-weight: 700;
     font-size: 12px;
-    border-top: 3px solid #1a3a6e;
+    border-top: 3px solid #FFD200;
 }
 
 .unified-estimate-table .totals-row td {
@@ -1635,8 +1694,8 @@ tbody.hidden {
 }
 
 .unified-estimate-table .totals-row .totals-label {
-    background: #2a5298;
-    color: #fff;
+    background: #000000;
+    color: #FFD200;
 }
 
 .unified-estimate-table .totals-row .numeric {
@@ -1644,13 +1703,15 @@ tbody.hidden {
 }
 
 .unified-estimate-table tfoot #unified-total-mh {
-    color: #0d47a1;
+    color: #193246;
     font-size: 12px;
+    font-weight: 700;
 }
 
 .unified-estimate-table tfoot #unified-total-cost {
-    color: #1b5e20;
+    color: #375D80;
     font-size: 12px;
+    font-weight: 700;
 }
 
 /* Input Fields in Table */
@@ -1694,20 +1755,38 @@ tbody.hidden {
     max-width: 80px;
 }
 
-/* Benchmark Button */
+/* Benchmark Button - Kiewit Cream */
 .unified-estimate-table .btn-benchmark-select {
     padding: 2px 6px;
     font-size: 9px;
-    background: linear-gradient(135deg, #64b5f6 0%, #2196f3 100%);
-    border: 1px solid #1e88e5;
-    color: #ffffff;
+    background: #FFF2D9;
+    border: 1px solid #FFC212;
+    color: #000000;
     border-radius: 3px;
     cursor: pointer;
     line-height: 1;
 }
 
 .unified-estimate-table .btn-benchmark-select:hover {
-    background: linear-gradient(135deg, #90caf9 0%, #42a5f5 100%);
+    background: #FFD200;
+    border-color: #000000;
+}
+
+/* Structures Enter Button - Kiewit Cream */
+.unified-estimate-table .btn-structures-entry {
+    padding: 2px 6px;
+    font-size: 9px;
+    background: #FFF2D9;
+    border: 1px solid #FFC212;
+    color: #000000;
+    border-radius: 3px;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.unified-estimate-table .btn-structures-entry:hover {
+    background: #FFD200;
+    border-color: #000000;
 }
 
 /* Select All Benchmarks Button in Header */
@@ -1744,6 +1823,18 @@ tbody.hidden {
 .unified-actions .btn-mh {
     padding: 6px 12px;
     font-size: 10px;
+    background: #000000;
+    color: #ffffff;
+    border-color: #000000;
+    border-radius: 5px;
+    font-weight: 600;
+}
+
+.unified-actions .btn:hover,
+.unified-actions .btn-mh:hover {
+    background: #193246;
+    border-color: #193246;
+    color: #FFD200;
 }
 
 /* Revenue Detail Columns - Hidden by Default */
@@ -1753,6 +1844,85 @@ tbody.hidden {
 
 .revenue-details-visible .revenue-detail-col {
     display: table-cell;
+}
+
+/* ── KIE vs Sub Column Color Scheme ──────────────────── */
+/* KIE columns: Kiewit blue pastels */
+.unified-estimate-table thead .cost-col.revenue-detail-col:not(.sub-cost-col) {
+    background: #375D80;
+    color: #ffffff;
+    border-bottom: 2px solid #193246;
+}
+
+.unified-estimate-table tbody td.cost-col.revenue-detail-col:not(.sub-cost-col) {
+    background: #e3f2fd;
+    color: #193246;
+    border-bottom: 1px solid #bbdefb;
+}
+
+.unified-estimate-table tbody tr:hover td.cost-col.revenue-detail-col:not(.sub-cost-col) {
+    background: #bbdefb;
+}
+
+.unified-estimate-table tfoot td.cost-col.revenue-detail-col:not(.sub-cost-col) {
+    background: #bbdefb;
+    color: #193246;
+}
+
+.unified-estimate-table tbody td.cost-col.revenue-detail-col.section-header:not(.sub-cost-col) {
+    background: #d0e4f5;
+}
+
+/* Sub columns: Kiewit warm cream/gold pastels */
+.unified-estimate-table thead .cost-col.sub-cost-col {
+    background: #b8860b;
+    color: #ffffff;
+    border-bottom: 2px solid #8b6508;
+}
+
+.unified-estimate-table tbody td.cost-col.sub-cost-col {
+    background: #fff9e6;
+    color: #193246;
+    border-bottom: 1px solid #fff3cc;
+}
+
+.unified-estimate-table tbody tr:hover td.cost-col.sub-cost-col {
+    background: #fff3cc;
+}
+
+.unified-estimate-table tfoot td.cost-col.sub-cost-col {
+    background: #fff3cc;
+    color: #193246;
+}
+
+.unified-estimate-table tbody td.cost-col.sub-cost-col.section-header {
+    background: #ffecb3;
+}
+
+/* LS Sub Expenses column: Kiewit teal/glacier (distinct KIE color) */
+.unified-estimate-table thead .cost-col.ls-sub-expenses-col {
+    background: #2e7d7d;
+    color: #ffffff;
+    border-bottom: 2px solid #1b4d4d;
+}
+
+.unified-estimate-table tbody td.cost-col.ls-sub-expenses-col {
+    background: #e0f2f1;
+    color: #193246;
+    border-bottom: 1px solid #b2dfdb;
+}
+
+.unified-estimate-table tbody tr:hover td.cost-col.ls-sub-expenses-col {
+    background: #b2dfdb;
+}
+
+.unified-estimate-table tfoot td.cost-col.ls-sub-expenses-col {
+    background: #b2dfdb;
+    color: #193246;
+}
+
+.unified-estimate-table tbody td.cost-col.ls-sub-expenses-col.section-header {
+    background: #c8e6c9;
 }
 
 /* Clickable Revenue Cell */
@@ -1786,11 +1956,327 @@ tbody.hidden {
     padding-right: 18px;
 }
 
+/* MH Detail expand/collapse (mirrors revenue pattern) */
+.mh-detail-col {
+    display: none;
+}
+.mh-details-visible .mh-detail-col {
+    display: table-cell;
+}
+.clickable-mh {
+    cursor: pointer;
+    background: rgba(255, 210, 0, 0.08) !important;
+    position: relative;
+    padding-right: 18px !important;
+}
+.clickable-mh:hover {
+    background: rgba(255, 210, 0, 0.18) !important;
+}
+.clickable-mh::after {
+    content: "▶";
+    font-size: 8px;
+    color: #FFD200;
+    position: absolute;
+    right: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+.mh-details-visible .clickable-mh::after {
+    content: "▼";
+}
+
+/* ============================================
+   Ribbon Layout (redesigned Step 4 top area)
+   ============================================ */
+
+/* Benchmark Dataset Row */
+.ribbon-benchmark-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #000000;
+    border: 1px solid #193246;
+    border-radius: 6px;
+    padding: 7px 14px;
+    margin-bottom: 6px;
+}
+
+.ribbon-bmark-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: #FFD200;
+    white-space: nowrap;
+}
+
+.ribbon-benchmark-row select {
+    flex: 0 0 220px;
+}
+
+/* Shared ribbon base */
+.ribbon {
+    background: #ffffff;
+    border: 1px solid #c0d0d9;
+    border-radius: 8px;
+    margin-bottom: 6px;
+    box-shadow: 0 1px 3px rgba(25, 50, 70, 0.07);
+}
+
+/* Ribbon 1: Input Parameters */
+.ribbon-inputs-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+}
+
+.ribbon-box {
+    padding: 5px 10px;
+    border-right: 1px solid #c0d0d9;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.ribbon-box:last-child {
+    border-right: none;
+}
+
+.ribbon-box-label {
+    font-size: 9px;
+    font-weight: 600;
+    color: #000000;
+    line-height: 1.2;
+}
+
+.ribbon-box input,
+.ribbon-box select {
+    width: 100%;
+    font-size: 11px;
+    padding: 3px 5px;
+    border: 1px solid #b3b3b3;
+    border-radius: 4px;
+    background: #ffffff;
+    color: #193246;
+    box-sizing: border-box;
+}
+
+.ribbon-box input[type="date"] {
+    cursor: pointer;
+}
+
+/* Ribbon 2: Management Override */
+.ribbon-override-row {
+    overflow: hidden;
+}
+
+.ribbon-override-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 14px;
+    background: #e8eef2;
+    border-bottom: 1px solid #81A1B2;
+    cursor: pointer;
+    user-select: none;
+    border-radius: 6px 6px 0 0;
+}
+
+.ribbon-override-row.collapsed .ribbon-override-header {
+    border-radius: 6px;
+    border-bottom: none;
+}
+
+.ribbon-override-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: #000000;
+}
+
+.ribbon-override-subtitle {
+    font-size: 10px;
+    color: #81A1B2;
+    font-weight: 400;
+}
+
+.ribbon-override-content {
+    display: flex;
+    flex-direction: row;
+    gap: 0;
+    padding: 10px 14px;
+    background: #ffffff;
+}
+
+.ribbon-override-row.collapsed .ribbon-override-content {
+    display: none;
+}
+
+.override-section {
+    flex: 1;
+    min-width: 0;
+    padding: 0 10px;
+    border-right: 1px dashed #81A1B2;
+}
+
+.override-section:first-child {
+    padding-left: 0;
+}
+
+.override-section:last-child {
+    border-right: none;
+}
+
+.override-section-label {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 0 0 6px 0;
+}
+
+.override-design-label {
+    color: #5587B8;
+}
+
+.override-construction-label {
+    color: #375D80;
+}
+
+.override-fields-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px 8px;
+}
+
+.override-construction .override-fields-grid {
+    grid-template-columns: repeat(5, 1fr);
+}
+
+.override-section .input-group {
+    margin: 0;
+}
+
+.override-section .input-group label {
+    font-size: 9px;
+    color: #81A1B2;
+    line-height: 1.2;
+    margin-bottom: 2px;
+}
+
+.override-section .input-group input[type="number"],
+.override-section .input-group input[type="text"] {
+    width: 100%;
+    font-size: 11px;
+    padding: 3px 5px;
+    border: 1px solid #81A1B2;
+    border-radius: 3px;
+    box-sizing: border-box;
+    background: #ffffff;
+    color: #000000;
+}
+
+.override-section .input-group input[type="number"]:focus,
+.override-section .input-group input[type="text"]:focus {
+    border-color: #375D80;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(85, 135, 184, 0.15);
+}
+
+/* DM Input Areas - Cream bg, Kiewit Yellow border (Design Manager entry fields) */
+.ribbon-inputs-row .ribbon-box {
+    background: #FFF2D9;
+    border-top: 2px solid #FFD200;
+}
+
+.ribbon-inputs-row .ribbon-box input,
+.ribbon-inputs-row .ribbon-box select {
+    background: #ffffff;
+    border-color: #FFC212;
+}
+
+.ribbon-inputs-row .ribbon-box input:focus,
+.ribbon-inputs-row .ribbon-box select:focus {
+    border-color: #000000;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(255, 210, 0, 0.35);
+}
+
+/* DM quantity inputs in the estimate table - Cream bg, yellow border */
+.unified-estimate-table .qty-input {
+    background: #FFF2D9;
+    border-color: #FFC212;
+    color: #000000;
+}
+
+.unified-estimate-table .qty-input:focus {
+    border-color: #000000;
+    box-shadow: 0 0 0 1px rgba(255, 210, 0, 0.35);
+}
+
+
+/* Ribbon 3: Action Buttons */
+.ribbon-buttons-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 14px;
+    flex-wrap: wrap;
+}
+
+.ribbon-buttons-row .btn-step,
+.ribbon-buttons-row .btn-calculate {
+    width: auto;
+    min-height: unset;
+    height: 28px;
+    padding: 0 12px;
+    font-size: 11px;
+    font-weight: 600;
+    background: #000000;
+    border: 1px solid #000000;
+    color: #ffffff;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background 0.15s, box-shadow 0.15s;
+    text-transform: none;
+    letter-spacing: 0;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.ribbon-buttons-row .btn-step:hover,
+.ribbon-buttons-row .btn-calculate:hover {
+    background: #193246;
+    border-color: #193246;
+    transform: none;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
+}
+
 /* Responsive */
 @media (max-width: 1200px) {
+    .ribbon-inputs-row {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .ribbon-override-content {
+        flex-direction: column;
+    }
+
+    .override-section {
+        border-right: none;
+        border-bottom: 1px dashed #ccc;
+        padding: 0 0 8px 0;
+        margin-bottom: 8px;
+    }
+
+    .override-section:last-child {
+        border-bottom: none;
+    }
+
+    .override-fields-grid,
+    .override-construction .override-fields-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
     .unified-input-grid {
         grid-template-columns: 1fr;
-        margin-left: 0; /* Remove offset on mobile */
+        margin-left: 0;
     }
 
     .input-row {

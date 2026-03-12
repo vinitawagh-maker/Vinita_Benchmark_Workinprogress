@@ -15,98 +15,112 @@
       "fct_mhrs": 133332,
       "eqty": 550674,
       "uom": "LF",
-      "production_mhrs_per_ea": 0.242
+      "production_mhrs_per_ea": 0.242,
+      "applicable_job": true
     },
     {
       "project": "BC Highway 1",
       "fct_mhrs": 4556,
       "eqty": 1120,
       "uom": "LF",
-      "production_mhrs_per_ea": 4.068
+      "production_mhrs_per_ea": 4.068,
+      "applicable_job": false
     },
     {
       "project": "BC Highway 5",
       "fct_mhrs": 6097,
       "eqty": 2300,
       "uom": "LF",
-      "production_mhrs_per_ea": 2.651
+      "production_mhrs_per_ea": 2.651,
+      "applicable_job": false
     },
     {
       "project": "Federal Way Link Extension",
       "fct_mhrs": 74720,
       "eqty": 165248,
       "uom": "LF",
-      "production_mhrs_per_ea": 0.452
+      "production_mhrs_per_ea": 0.452,
+      "applicable_job": false
     },
     {
       "project": "Foothill Phase 2A LRT",
       "fct_mhrs": 13279,
       "eqty": 180566,
       "uom": "LF",
-      "production_mhrs_per_ea": 0.074
+      "production_mhrs_per_ea": 0.074,
+      "applicable_job": false
     },
     {
       "project": "Foothill Phase 2B1 LRT",
       "fct_mhrs": 58164,
       "eqty": 120338,
       "uom": "LF",
-      "production_mhrs_per_ea": 0.483
+      "production_mhrs_per_ea": 0.483,
+      "applicable_job": false
     },
     {
       "project": "I-15 Tropicana",
       "fct_mhrs": 24245,
       "eqty": 48206,
       "uom": "LF",
-      "production_mhrs_per_ea": 0.503
+      "production_mhrs_per_ea": 0.503,
+      "applicable_job": true
     },
     {
       "project": "I-17 Anthem",
       "fct_mhrs": 53211,
       "eqty": 325987,
       "uom": "LF",
-      "production_mhrs_per_ea": 0.163
+      "production_mhrs_per_ea": 0.163,
+      "applicable_job": true
     },
     {
       "project": "Ottawa LRT",
       "fct_mhrs": 192084,
       "eqty": 556235,
       "uom": "LF",
-      "production_mhrs_per_ea": 0.345
+      "production_mhrs_per_ea": 0.345,
+      "applicable_job": false
     },
     {
       "project": "Tijuana River Barrier",
       "fct_mhrs": 547,
       "eqty": 2807,
       "uom": "LF",
-      "production_mhrs_per_ea": 0.195
+      "production_mhrs_per_ea": 0.195,
+      "applicable_job": false
     },
     {
       "project": "30 Crossing",
       "fct_mhrs": 40907,
       "eqty": 57768,
       "uom": "LF",
-      "production_mhrs_per_ea": 0.708
+      "production_mhrs_per_ea": 0.708,
+      "applicable_job": true
     },
     {
       "project": "CHPE Transmission",
       "fct_mhrs": 3410,
       "eqty": 23450,
       "uom": "LF",
-      "production_mhrs_per_ea": 0.145
+      "production_mhrs_per_ea": 0.145,
+      "applicable_job": false
     },
     {
       "project": "US 97",
       "fct_mhrs": 21330,
       "eqty": 102183,
       "uom": "LF",
-      "production_mhrs_per_ea": 0.209
+      "production_mhrs_per_ea": 0.209,
+      "applicable_job": true
     },
     {
       "project": "264th Street Interchange",
       "fct_mhrs": 26964,
       "eqty": 51920,
       "uom": "LF",
-      "production_mhrs_per_ea": 0.519
+      "production_mhrs_per_ea": 0.519,
+      "applicable_job": true
     }
   ]
 }

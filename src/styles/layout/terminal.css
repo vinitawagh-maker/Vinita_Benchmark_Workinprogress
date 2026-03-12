@@ -11,7 +11,7 @@
 }
 
 .terminal-header {
-    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+    background: #000000;
     color: #ffffff;
     padding: 12px 20px;
     font-weight: 700;
@@ -20,6 +20,7 @@
     align-items: center;
     gap: 16px;
     border-radius: 11px 11px 0 0;
+    border-left: 4px solid #FFD200;
 }
 
 .terminal-header .btn {
@@ -30,25 +31,25 @@
 }
 
 .terminal-header .btn-primary {
-    background: #ffffff;
-    color: var(--color-primary-dark);
-    border-color: #ffffff;
+    background: #FFD200;
+    color: #000000;
+    border-color: #FFD200;
 }
 
 .terminal-header .btn-primary:hover {
-    background: #f5f5f5;
-    border-color: #f5f5f5;
+    background: #FFC212;
+    border-color: #FFC212;
 }
 
 .terminal-header .btn:not(.btn-primary) {
     background: transparent;
     color: #ffffff;
-    border-color: rgba(255, 255, 255, 0.5);
+    border-color: rgba(255, 255, 255, 0.4);
 }
 
 .terminal-header .btn:not(.btn-primary):hover {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: #ffffff;
+    background: #193246;
+    border-color: rgba(255, 255, 255, 0.7);
 }
 
 .terminal-body {

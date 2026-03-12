@@ -10,77 +10,88 @@
       "fct_mhrs": 170668,
       "eqty": 550674,
       "uom": "LF",
-      "production_mhrs_per_ea": 0.31
+      "production_mhrs_per_ea": 0.31,
+      "applicable_job": true
     },
     {
       "project": "BC Highway 1",
       "fct_mhrs": 3645,
       "eqty": 1120,
       "uom": "LF",
-      "production_mhrs_per_ea": 3.254
+      "production_mhrs_per_ea": 3.254,
+      "applicable_job": false
     },
     {
       "project": "BC Highway 5",
       "fct_mhrs": 1050,
       "eqty": 2300,
       "uom": "LF",
-      "production_mhrs_per_ea": 0.457
+      "production_mhrs_per_ea": 0.457,
+      "applicable_job": false
     },
     {
       "project": "Federal Way Link Extension",
       "fct_mhrs": 32305,
       "eqty": 83559,
       "uom": "LF",
-      "production_mhrs_per_ea": 0.387
+      "production_mhrs_per_ea": 0.387,
+      "applicable_job": false
     },
     {
       "project": "Foothill Phase 2A LRT",
       "fct_mhrs": 3500,
       "eqty": 25667,
       "uom": "LF",
-      "production_mhrs_per_ea": 0.136
+      "production_mhrs_per_ea": 0.136,
+      "applicable_job": false
     },
     {
       "project": "Foothill Phase 2B1 LRT",
       "fct_mhrs": 7873,
       "eqty": 17105,
       "uom": "LF",
-      "production_mhrs_per_ea": 0.46
+      "production_mhrs_per_ea": 0.46,
+      "applicable_job": false
     },
     {
       "project": "I-15 Tropicana",
       "fct_mhrs": 11263,
       "eqty": 48206,
       "uom": "LF",
-      "production_mhrs_per_ea": 0.234
+      "production_mhrs_per_ea": 0.234,
+      "applicable_job": true
     },
     {
       "project": "I-17 Anthem",
       "fct_mhrs": 13867,
       "eqty": 325987,
       "uom": "LF",
-      "production_mhrs_per_ea": 0.043
+      "production_mhrs_per_ea": 0.043,
+      "applicable_job": true
     },
     {
       "project": "Ottawa LRT",
       "fct_mhrs": 72414,
       "eqty": 547047,
       "uom": "LF",
-      "production_mhrs_per_ea": 0.132
+      "production_mhrs_per_ea": 0.132,
+      "applicable_job": false
     },
     {
       "project": "US 97",
       "fct_mhrs": 7364,
       "eqty": 107830,
       "uom": "LF",
-      "production_mhrs_per_ea": 0.068
+      "production_mhrs_per_ea": 0.068,
+      "applicable_job": true
     },
     {
       "project": "264th Street Interchange",
       "fct_mhrs": 25407,
       "eqty": 51920,
       "uom": "LF",
-      "production_mhrs_per_ea": 0.489
+      "production_mhrs_per_ea": 0.489,
+      "applicable_job": false
     }
   ]
 }

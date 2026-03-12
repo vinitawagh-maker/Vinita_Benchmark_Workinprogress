@@ -21,14 +21,15 @@
 }
 
 .btn-primary {
-    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+    background: #000000;
     color: #ffffff;
-    border-color: var(--color-primary);
+    border-color: #000000;
 }
 
 .btn-primary:hover {
-    background: linear-gradient(135deg, #7986cb 0%, #5c6bc0 100%);
-    box-shadow: 0 2px 8px rgba(92, 107, 192, 0.3);
+    background: #193246;
+    border-color: #193246;
+    box-shadow: 0 2px 8px rgba(25, 50, 70, 0.3);
 }
 
 .btn-sm {

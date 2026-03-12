@@ -9,7 +9,8 @@
     width: 56px;
     height: 56px;
     border-radius: 50%;
-    background: var(--color-primary-gradient);
+    background: var(--kiewit-yellow);
+    color: var(--color-text-dark);
     border: none;
     cursor: pointer;
     box-shadow: var(--shadow-gold-lg);
@@ -28,7 +29,8 @@
 .chat-fab svg {
     width: 28px;
     height: 28px;
-    fill: var(--color-text-dark);
+    fill: none;
+    stroke: var(--color-text-dark);
 }
 
 .chat-fab.has-unread::after {
@@ -172,7 +174,7 @@
 }
 
 .chat-message.user {
-    background: var(--color-primary-gradient);
+    background: var(--kiewit-yellow);
     color: var(--color-text-dark);
     align-self: flex-end;
     border-bottom-right-radius: var(--radius-md);
@@ -270,7 +272,7 @@
 }
 
 .chat-send-btn {
-    background: var(--color-primary-gradient);
+    background: var(--kiewit-yellow);
     border: none;
     color: var(--color-text-dark);
     width: 42px;

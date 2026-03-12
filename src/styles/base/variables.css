@@ -28,18 +28,29 @@
     --color-pastel-yellow: #fffde7;
     --color-pastel-yellow-dark: #fff9c4;
 
-    /* Colors - Primary */
-    --color-primary: #5c6bc0;
-    --color-primary-dark: #3f51b5;
-    --color-primary-gradient: linear-gradient(135deg, #7986cb 0%, #5c6bc0 100%);
+    /* Colors - Primary (Kiewit Brand) */
+    --color-primary: #000000;
+    --color-primary-dark: #193246;
+    --color-primary-gradient: linear-gradient(135deg, #193246 0%, #000000 100%);
+
+    /* Kiewit Brand Colors */
+    --kiewit-yellow: #FFD200;
+    --kiewit-black: #000000;
+    --kiewit-midnight: #193246;
+    --kiewit-steel: #375D80;
+    --kiewit-cornflower: #5587B8;
+    --kiewit-glacier: #81A1B2;
+    --kiewit-cream: #FFF2D9;
+    --kiewit-butter: #FFDA67;
+    --kiewit-goldenrod: #FFC212;
 
     /* Colors - Text */
-    --color-text-primary: #3f51b5;
-    --color-text-white: #1a1a2e;
-    --color-text-light: #37474f;
-    --color-text-muted: #78909c;
-    --color-text-dimmed: #90a4ae;
-    --color-text-dark: #263238;
+    --color-text-primary: #000000;
+    --color-text-white: #000000;
+    --color-text-light: #193246;
+    --color-text-muted: #81A1B2;
+    --color-text-dimmed: #b3b3b3;
+    --color-text-dark: #000000;
 
     /* Colors - Border */
     --color-border: #e0e0e0;
