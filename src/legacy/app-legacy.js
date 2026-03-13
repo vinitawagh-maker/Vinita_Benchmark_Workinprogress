@@ -10237,9 +10237,15 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             if (discId !== 'esdc' && discId !== 'tscd') {
                 const subPctDisp = (state.subsPct || 0) / 100;
                 const subMHDisp = Math.round((state.mh || 0) * subPctDisp);
-                // Use per-discipline sub rate if provided, otherwise fall back to KIE weighted rate
-                const effectiveSubRate = (state.subRate != null && state.subRate > 0) ? state.subRate : weightedRate;
-                const subLaborDisp = subMHDisp * effectiveSubRate;
+                // Use per-discipline sub rate if manually provided; otherwise use per-role rates (L4+ × highRate + L1-3 × lowRate)
+                let subLaborDisp;
+                if (state.subRate != null && state.subRate > 0) {
+                    subLaborDisp = subMHDisp * state.subRate;
+                } else {
+                    const subL4Hours = Math.round(subMHDisp * highPct);
+                    const subL13Hours = subMHDisp - subL4Hours;
+                    subLaborDisp = (subL4Hours * effectiveResources.highRate) + (subL13Hours * effectiveResources.lowRate);
+                }
                 const subBurdenDisp = subLaborDisp * (burdenRate / 100);
                 const subGenExpenses = 0; // general sub expenses placeholder
                 const subLsExpenses = 0;  // LS sub expenses at section level, not per-discipline
@@ -10826,8 +10832,18 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
                 const subMH = Math.round(totalMH * subPct);
                 if (subMH > 0) {
                     subsMH += subMH;
-                    const effSubRate = (state.subRate != null && state.subRate > 0) ? state.subRate : (state.weightedRate || 0);
-                    subsRawLabor += subMH * effSubRate;
+                    if (state.subRate != null && state.subRate > 0) {
+                        subsRawLabor += subMH * state.subRate;
+                    } else {
+                        // Use per-role rates: L4+ × highRate + L1-3 × lowRate
+                        const config = DISCIPLINE_CONFIG[discId];
+                        const discName = config?.name || discId;
+                        const res = getDisciplineResources(discName);
+                        const l4p = (state.l4Percentage !== undefined && state.l4Percentage !== null) ? state.l4Percentage / 100 : 0.30;
+                        const subL4 = Math.round(subMH * l4p);
+                        const subL13 = subMH - subL4;
+                        subsRawLabor += (subL4 * res.highRate) + (subL13 * res.lowRate);
+                    }
                 }
             }
 
