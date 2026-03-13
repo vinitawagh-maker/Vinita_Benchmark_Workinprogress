@@ -1272,9 +1272,19 @@
 
 /* Discipline rows under DIRECTS - larger font */
 #unified-estimate-tbody tr td {
-    font-size: 12px;
-    padding: 2px 4px;
+    font-size: 11px;
+    padding: 1px 4px;
     line-height: 1;
+}
+
+/* In benchmark mode, hide sub-line breakdowns to halve row height */
+.benchmark-mode #unified-estimate-tbody tr td .complexity-breakdown {
+    display: none;
+}
+.benchmark-mode #unified-estimate-tbody tr td br,
+.benchmark-mode #unified-estimate-tbody tr td span[style*="font-size: 8px"],
+.benchmark-mode #unified-estimate-tbody tr td span[style*="font-size: 9px"] {
+    display: none;
 }
 
 #unified-estimate-tbody tr td.frozen-col {
