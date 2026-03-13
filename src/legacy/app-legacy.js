@@ -22899,7 +22899,13 @@ Chunks: ${JSON.stringify(complexFieldsOnly, null, 2)}`;
         window.showCalcInfo = showCalcInfo;
         window.syncContingencyFromInline = function(value) {
             const mgmtInput = document.getElementById('unified-contingency');
+            const mgmtToggle = document.getElementById('toggle-contingency');
             if (mgmtInput) {
+                // Enable the Management Override field if not already
+                if (mgmtToggle && !mgmtToggle.checked) {
+                    mgmtToggle.checked = true;
+                    toggleFieldEdit('unified-contingency', true);
+                }
                 mgmtInput.value = value;
             }
             recalculateAllUnifiedCosts();
