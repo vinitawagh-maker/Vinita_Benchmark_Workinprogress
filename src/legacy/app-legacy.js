@@ -1641,8 +1641,13 @@ let projectData = {
                 return ajNorm === spanNorm;
             });
 
+            // Also include any "other" (non-matching) projects the user manually selected in the benchmark modal
+            const manuallyAdded = (structureBenchmarkProjects || [])
+                .filter(p => p._sbIsOther && p._sbApplicable);
+            const combined = applicable.concat(manuallyAdded);
+
             // Build points: X = eQTY (SF), Y = FCT MHRs (use applicable projects only)
-            const points = applicable
+            const points = combined
                 .map(p => ({ x: p.quantity || 0, y: p.mh || 0 }))
                 .filter(p => p.x > 0 && p.y > 0);
 
@@ -1781,6 +1786,14 @@ let projectData = {
                 return true;
             });
 
+            // Also collect non-matching projects for "Add Other Projects" section
+            const otherProjects = allProjects.filter(p => {
+                if (filterType && p.structureType !== filterType) return true;
+                if (filterSpan && p.spanArrangement !== filterSpan) return true;
+                if (filterScope && p.structureScope !== filterScope) return true;
+                return false;
+            });
+
             // Store filtered projects — auto-select based on applicable_job matching span arrangement
             structureBenchmarkProjects = filtered.map((p, i) => {
                 let autoSelect = false;
@@ -1793,8 +1806,18 @@ let projectData = {
                     // No span filter: select any project with a non-null applicable_job
                     autoSelect = true;
                 }
-                return { ...p, _sbIndex: i, _sbApplicable: autoSelect };
+                return { ...p, _sbIndex: i, _sbApplicable: autoSelect, _sbIsOther: false };
             });
+
+            // Append other projects (unchecked by default) with offset indices
+            const otherStartIndex = structureBenchmarkProjects.length;
+            const otherMapped = otherProjects.map((p, i) => ({
+                ...p,
+                _sbIndex: otherStartIndex + i,
+                _sbApplicable: false,
+                _sbIsOther: true
+            }));
+            structureBenchmarkProjects = structureBenchmarkProjects.concat(otherMapped);
 
             // Build filter description
             const filterParts = [];
@@ -1805,24 +1828,27 @@ let projectData = {
 
             // Build left panel: project checkboxes
             let projectListHtml = '';
-            if (structureBenchmarkProjects.length === 0) {
+            const filteredOnly = structureBenchmarkProjects.filter(p => !p._sbIsOther);
+            if (filteredOnly.length === 0 && otherMapped.length === 0) {
                 projectListHtml = `<p style="color: #888; padding: 20px;">No benchmark projects match the selected criteria: ${filterDesc}</p>`;
             } else {
-                const selectedCount = structureBenchmarkProjects.filter(p => p._sbApplicable).length;
+                const selectedCount = filteredOnly.filter(p => p._sbApplicable).length;
                 projectListHtml = `
                     <div class="benchmark-discipline-section">
                         <div class="benchmark-discipline-header" style="cursor: default;">
                             <span>Structures — ${filterDesc}</span>
                             <span style="display:flex; align-items:center; gap:6px;">
-                                <span class="benchmark-count" id="str-benchmark-count">${selectedCount}/${structureBenchmarkProjects.length} selected</span>
+                                <span class="benchmark-count" id="str-benchmark-count">${selectedCount}/${filteredOnly.length} selected</span>
                                 <button onclick="checkAllStructureBenchmark()" style="background:#333;border:1px solid #555;color:#e0e0e0;padding:2px 8px;border-radius:3px;cursor:pointer;font-size:11px;">All</button>
                                 <button onclick="uncheckAllStructureBenchmark()" style="background:#333;border:1px solid #555;color:#e0e0e0;padding:2px 8px;border-radius:3px;cursor:pointer;font-size:11px;">None</button>
                             </span>
                         </div>
                         <div class="benchmark-projects" id="str-benchmark-projects">
                 `;
+                // Render filtered (matching) projects
                 for (let i = 0; i < structureBenchmarkProjects.length; i++) {
                     const p = structureBenchmarkProjects[i];
+                    if (p._sbIsOther) continue; // skip others in this section
                     const checked = p._sbApplicable ? 'checked' : '';
                     const displayName = p.structureName ? `${p.name} — ${p.structureName}` : p.name;
                     const ajLabel = p.applicableJob ? ` | Applicable: ${p.applicableJob}` : '';
@@ -1837,6 +1863,40 @@ let projectData = {
                         </label>
                     `;
                 }
+
+                // Render "Other Projects" collapsible section (non-matching benchmarks)
+                const otherCount = structureBenchmarkProjects.filter(p => p._sbIsOther).length;
+                if (otherCount > 0) {
+                    const otherSelectedCount = structureBenchmarkProjects.filter(p => p._sbIsOther && p._sbApplicable).length;
+                    projectListHtml += `
+                        </div>
+                    </div>
+                    <div class="benchmark-discipline-section" id="str-benchmark-other-section" style="margin-top: 8px; border-top: 1px solid #333;">
+                        <div class="benchmark-discipline-header" onclick="toggleStrBenchmarkOther()" style="cursor: pointer;">
+                            <span id="str-other-arrow">▶ Other Projects (${otherCount})</span>
+                            <span style="display:flex; align-items:center; gap:6px;">
+                                <span class="benchmark-count" id="str-other-count">${otherSelectedCount}/${otherCount} added</span>
+                            </span>
+                        </div>
+                        <div class="benchmark-projects hidden" id="str-benchmark-other-projects">
+                    `;
+                    for (let i = 0; i < structureBenchmarkProjects.length; i++) {
+                        const p = structureBenchmarkProjects[i];
+                        if (!p._sbIsOther) continue;
+                        const checked = p._sbApplicable ? 'checked' : '';
+                        const displayName = p.structureName ? `${p.name} — ${p.structureName}` : p.name;
+                        const typeLabel = [p.structureType, p.spanArrangement, p.structureScope].filter(Boolean).join(' | ');
+                        const stats = `${formatMH(p.mh || 0)} MH | ${(p.quantity || 0).toLocaleString()} SF | Rate: ${(p.rate || 0).toFixed(4)} MH/SF | ${typeLabel}`;
+                        projectListHtml += `
+                            <label class="benchmark-project-item">
+                                <input type="checkbox" ${checked} onchange="toggleStructureBenchmarkProject(${i})">
+                                <div class="benchmark-project-info">
+                                    <span class="project-name">${displayName}</span>
+                                    <span class="project-stats">${stats}</span>
+                                </div>
+                            </label>
+                        `;
+                    }
                 projectListHtml += `
                         </div>
                     </div>
@@ -1848,7 +1908,7 @@ let projectData = {
                 <div class="benchmark-modal-content">
                     <div class="benchmark-modal-header">
                         <h3>📊 Structure Benchmark — ${filterDesc}</h3>
-                        <p>Showing ${structureBenchmarkProjects.length} projects matching: ${filterDesc}</p>
+                        <p>Showing ${filteredOnly.length} matching projects | ${otherMapped.length} other projects available</p>
                     </div>
                     <div class="benchmark-modal-body">
                         <div class="benchmark-modal-left">
@@ -2043,28 +2103,50 @@ let projectData = {
         function toggleStructureBenchmarkProject(index) {
             if (index >= 0 && index < structureBenchmarkProjects.length) {
                 structureBenchmarkProjects[index]._sbApplicable = !structureBenchmarkProjects[index]._sbApplicable;
-                // Update count
-                const count = structureBenchmarkProjects.filter(p => p._sbApplicable).length;
+                // Update filtered count
+                const filteredProjects = structureBenchmarkProjects.filter(p => !p._sbIsOther);
+                const filteredSelected = filteredProjects.filter(p => p._sbApplicable).length;
                 const countEl = document.getElementById('str-benchmark-count');
-                if (countEl) countEl.textContent = `${count}/${structureBenchmarkProjects.length} selected`;
+                if (countEl) countEl.textContent = `${filteredSelected}/${filteredProjects.length} selected`;
+                // Update other count
+                const otherProjects = structureBenchmarkProjects.filter(p => p._sbIsOther);
+                const otherSelected = otherProjects.filter(p => p._sbApplicable).length;
+                const otherCountEl = document.getElementById('str-other-count');
+                if (otherCountEl) otherCountEl.textContent = `${otherSelected}/${otherProjects.length} added`;
                 // Update chart
                 updateStructureBenchmarkChart();
             }
         }
 
+        function toggleStrBenchmarkOther() {
+            const section = document.getElementById('str-benchmark-other-projects');
+            const arrow = document.getElementById('str-other-arrow');
+            if (!section) return;
+            const otherCount = structureBenchmarkProjects.filter(p => p._sbIsOther).length;
+            if (section.classList.contains('hidden')) {
+                section.classList.remove('hidden');
+                if (arrow) arrow.textContent = `▼ Other Projects (${otherCount})`;
+            } else {
+                section.classList.add('hidden');
+                if (arrow) arrow.textContent = `▶ Other Projects (${otherCount})`;
+            }
+        }
+
         function checkAllStructureBenchmark() {
-            structureBenchmarkProjects.forEach(p => p._sbApplicable = true);
+            structureBenchmarkProjects.filter(p => !p._sbIsOther).forEach(p => p._sbApplicable = true);
             document.querySelectorAll('#str-benchmark-projects input[type="checkbox"]').forEach(cb => cb.checked = true);
+            const filteredProjects = structureBenchmarkProjects.filter(p => !p._sbIsOther);
             const countEl = document.getElementById('str-benchmark-count');
-            if (countEl) countEl.textContent = `${structureBenchmarkProjects.length}/${structureBenchmarkProjects.length} selected`;
+            if (countEl) countEl.textContent = `${filteredProjects.length}/${filteredProjects.length} selected`;
             updateStructureBenchmarkChart();
         }
 
         function uncheckAllStructureBenchmark() {
-            structureBenchmarkProjects.forEach(p => p._sbApplicable = false);
+            structureBenchmarkProjects.filter(p => !p._sbIsOther).forEach(p => p._sbApplicable = false);
             document.querySelectorAll('#str-benchmark-projects input[type="checkbox"]').forEach(cb => cb.checked = false);
+            const filteredProjects = structureBenchmarkProjects.filter(p => !p._sbIsOther);
             const countEl = document.getElementById('str-benchmark-count');
-            if (countEl) countEl.textContent = `0/${structureBenchmarkProjects.length} selected`;
+            if (countEl) countEl.textContent = `0/${filteredProjects.length} selected`;
             updateStructureBenchmarkChart();
         }
 
@@ -22158,6 +22240,7 @@ Chunks: ${JSON.stringify(complexFieldsOnly, null, 2)}`;
         window.closeStructureBenchmarkModal = closeStructureBenchmarkModal;
         window.checkAllStructureBenchmark = checkAllStructureBenchmark;
         window.uncheckAllStructureBenchmark = uncheckAllStructureBenchmark;
+        window.toggleStrBenchmarkOther = toggleStrBenchmarkOther;
         window.setStructureCurveType = setStructureCurveType;
         window.updateStructureRowForecast = updateStructureRowForecast;
         window.recalculateEscalation = recalculateEscalation;
