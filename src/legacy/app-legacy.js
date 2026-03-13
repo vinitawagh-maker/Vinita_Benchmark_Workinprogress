@@ -1864,13 +1864,17 @@ let projectData = {
                     `;
                 }
 
+                // Close the filtered projects section
+                projectListHtml += `
+                        </div>
+                    </div>
+                `;
+
                 // Render "Other Projects" collapsible section (non-matching benchmarks)
                 const otherCount = structureBenchmarkProjects.filter(p => p._sbIsOther).length;
                 if (otherCount > 0) {
                     const otherSelectedCount = structureBenchmarkProjects.filter(p => p._sbIsOther && p._sbApplicable).length;
                     projectListHtml += `
-                        </div>
-                    </div>
                     <div class="benchmark-discipline-section" id="str-benchmark-other-section" style="margin-top: 8px; border-top: 1px solid #333;">
                         <div class="benchmark-discipline-header" onclick="toggleStrBenchmarkOther()" style="cursor: pointer;">
                             <span id="str-other-arrow">▶ Other Projects (${otherCount})</span>
@@ -1897,10 +1901,11 @@ let projectData = {
                             </label>
                         `;
                     }
-                projectListHtml += `
+                    projectListHtml += `
                         </div>
                     </div>
-                `;
+                    `;
+                }
             }
 
             // Build full modal HTML
