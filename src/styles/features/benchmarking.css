@@ -1226,8 +1226,8 @@
     z-index: 10;
     background: #ffffff;
     box-shadow: 2px 0 4px rgba(0,0,0,0.1);
-    min-width: 120px;
-    max-width: 120px;
+    min-width: 160px;
+    max-width: 160px;
     font-weight: 600;
     padding: 1px 4px;
     line-height: 1;
@@ -1983,12 +1983,14 @@ tbody.hidden {
     content: "▼";
 }
 
-/* In benchmark mode, revenue is always expanded — hide toggle arrows */
+/* In benchmark mode, revenue is always expanded — hide toggle arrows and green highlight */
 .benchmark-mode .clickable-revenue::after {
     display: none;
 }
 .benchmark-mode .clickable-revenue {
     padding-right: 4px !important;
+    background: none !important;
+    cursor: default;
 }
 
 /* Align non-clickable revenue cells with clickable ones */
