@@ -10173,8 +10173,8 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             state.totalRevenue = totalRevenue;
             state.weightedRate = weightedRate;
 
-            // Update display with weighted rate and L4 breakdown
-            const rateDisplay = `$${weightedRate.toFixed(2)}<br><span style="font-size: 8px; color: #666;">${Math.round(lowPct * 100)}% ${resources.lowCode} + ${Math.round(highPct * 100)}% ${resources.highCode}</span>`;
+            // Update display with weighted rate and L4 breakdown (show $/hr for each role)
+            const rateDisplay = `$${weightedRate.toFixed(2)}<br><span style="font-size: 8px; color: #666;">${Math.round(lowPct * 100)}% ${resources.lowCode} ($${effectiveResources.lowRate.toFixed(2)}) + ${Math.round(highPct * 100)}% ${resources.highCode} ($${effectiveResources.highRate.toFixed(2)})</span>`;
             const hourlyRateElem = document.getElementById(`unified-hourly-rate-${discId}`);
             if (hourlyRateElem) {
                 hourlyRateElem.innerHTML = rateDisplay;
