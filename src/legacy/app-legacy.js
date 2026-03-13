@@ -8054,7 +8054,7 @@ ${reasoning}`;
                 qtyCell = `<td class="mh-col numeric">
                     <input type="text" class="qty-input" id="unified-qty-${discId}"
                            value="${(state.quantity || 0).toLocaleString('en-US')}" inputmode="numeric"
-                           oninput="(function(d){ clearTimeout(window._uqD[d]); window._uqD=window._uqD||{}; window._uqD[d]=setTimeout(function(){ updateUnifiedQuantity(d); }, 350); })('${discId}')"
+                           oninput="(function(d){ window._uqD=window._uqD||{}; clearTimeout(window._uqD[d]); window._uqD[d]=setTimeout(function(){ updateUnifiedQuantity(d); }, 350); })('${discId}')"
                            onchange="updateUnifiedQuantity('${discId}')"
                            onblur="updateUnifiedQuantity('${discId}')">
                 </td>`;
