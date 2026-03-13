@@ -2503,6 +2503,22 @@ tbody.hidden {
 .complexity-popup .popup-actions button:hover {
     opacity: 0.85;
 }
+/* Pavement/Landscaping FTE Edit button — cream style */
+.fte-edit-btn {
+    display: inline-block;
+    background: #f5f0dc;
+    color: #8b6914;
+    border: 1px solid #c4a35a;
+    border-radius: 3px;
+    padding: 1px 8px;
+    font-size: 10px;
+    font-weight: 600;
+}
+.fte-edit-label:hover .fte-edit-btn {
+    background: #ebe4c8;
+    border-color: #aa8833;
+}
+
 .complexity-popup .popup-rates-table {
     background: #0d0d0d;
     border: 1px solid #333;

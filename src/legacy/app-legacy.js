@@ -1844,6 +1844,7 @@ let projectData = {
         // ============================================
         let structureBenchmarkChart = null;
         let structureBenchmarkProjects = [];
+        let structureBenchmarkRow = null; // Track which row opened the modal
 
         /**
          * Open a benchmark chart for a specific structure row, filtered by Type + Span Arrangement + Scope
@@ -1851,6 +1852,7 @@ let projectData = {
         function openStructureBenchmark(btn) {
             const row = btn.closest('tr');
             if (!row) return;
+            structureBenchmarkRow = row;
 
             const typeSelect = row.querySelector('.structure-type-select');
             const spanSelect = row.querySelector('.structure-span-select');
@@ -2051,8 +2053,17 @@ let projectData = {
                             </div>
                         </div>
                     </div>
+                    <div class="str-manual-override" style="margin:12px 16px;padding:10px 12px;background:#f9f7f0;border:1px solid #ddd;border-radius:6px;">
+                        <label style="font-size:11px;font-weight:600;color:#333;">Manual Override — Production Rate (%)</label>
+                        <div style="display:flex;align-items:center;gap:8px;margin-top:4px;">
+                            <input type="number" id="str-manual-override-rate" placeholder="e.g. 1.5" min="0" max="100" step="0.01"
+                                   style="width:80px;padding:4px 6px;font-size:12px;border:1px solid #ccc;border-radius:3px;">
+                            <span style="font-size:10px;color:#888;">% — overrides the benchmark curve rate for this structure</span>
+                        </div>
+                    </div>
                     <div class="benchmark-modal-actions">
                         <button class="btn btn-sm" onclick="closeStructureBenchmarkModal()">Close</button>
+                        <button class="btn btn-sm" style="background:#ffd700;color:#000;font-weight:600;border-color:#c4a35a;" onclick="applyStructureBenchmarkSelection()">Apply Changes</button>
                     </div>
                 </div>
             `;
@@ -2256,6 +2267,32 @@ let projectData = {
         /**
          * Close the structure benchmark modal
          */
+        function applyStructureBenchmarkSelection() {
+            // Apply manual override rate if entered
+            const overrideInput = document.getElementById('str-manual-override-rate');
+            const overrideRate = overrideInput ? parseFloat(overrideInput.value) : NaN;
+
+            if (structureBenchmarkRow) {
+                if (!isNaN(overrideRate) && overrideRate > 0) {
+                    // Manual override: set production rate directly
+                    const prodCell = structureBenchmarkRow.querySelector('.structure-production');
+                    const forecastCell = structureBenchmarkRow.querySelector('.structure-forecast');
+                    const eqtyInput = structureBenchmarkRow.querySelector('.structure-eqty-input');
+                    const qty = parseFloat(String(eqtyInput?.value || '0').replace(/[,\s]/g, '')) || 0;
+                    if (prodCell) prodCell.textContent = (overrideRate / 100).toFixed(4);
+                    if (forecastCell && qty > 0) {
+                        forecastCell.textContent = Math.round(qty * overrideRate / 100).toLocaleString();
+                    }
+                } else {
+                    // Recalculate from selected benchmark projects
+                    const eqtyInput = structureBenchmarkRow.querySelector('.structure-eqty-input');
+                    if (eqtyInput) updateStructureRowForecast(eqtyInput);
+                }
+            }
+
+            closeStructureBenchmarkModal();
+        }
+
         function closeStructureBenchmarkModal() {
             const modal = document.getElementById('str-benchmark-modal');
             if (modal) modal.classList.remove('open');
@@ -8167,9 +8204,9 @@ ${reasoning}`;
                    </td>`
                 : isFte
                 ? `<td class="mh-col">
-                    <label style="display:flex;align-items:center;gap:4px;font-size:10px;cursor:pointer;">
-                        <input type="checkbox" id="fte-toggle-${discId}" onchange="toggleFteInputs('${discId}',this.checked)" style="margin:0;">
-                        <span style="color:#555;">Edit</span>
+                    <label class="fte-edit-label" style="display:flex;align-items:center;gap:4px;font-size:10px;cursor:pointer;">
+                        <input type="checkbox" id="fte-toggle-${discId}" onchange="toggleFteInputs('${discId}',this.checked)" style="margin:0;accent-color:#c4a35a;">
+                        <span class="fte-edit-btn">Edit</span>
                     </label>
                     <div id="fte-inputs-${discId}" style="display:none;margin-top:4px;">
                         <input type="number" id="fte-count-${discId}" value="${state.fte ?? config.defaultFte}" min="0.1" max="20" step="0.5"
@@ -22760,6 +22797,7 @@ Chunks: ${JSON.stringify(complexFieldsOnly, null, 2)}`;
         window.openStructureBenchmark = openStructureBenchmark;
         window.toggleStructureBenchmarkProject = toggleStructureBenchmarkProject;
         window.closeStructureBenchmarkModal = closeStructureBenchmarkModal;
+        window.applyStructureBenchmarkSelection = applyStructureBenchmarkSelection;
         window.checkAllStructureBenchmark = checkAllStructureBenchmark;
         window.uncheckAllStructureBenchmark = uncheckAllStructureBenchmark;
         window.toggleStrBenchmarkOther = toggleStrBenchmarkOther;

@@ -11,7 +11,7 @@
       "eqty": 1169432,
       "uom": "SF",
       "production_mhrs_per_ea": 0.042,
-      "applicable_job": true
+      "applicable_job": false
     },
     {
       "project": "Federal Way Link Extension",
@@ -35,7 +35,7 @@
       "eqty": 95796,
       "uom": "SF",
       "production_mhrs_per_ea": 0.049,
-      "applicable_job": true
+      "applicable_job": false
     },
     {
       "project": "30 Crossing",
@@ -51,7 +51,7 @@
       "eqty": 30039,
       "uom": "SF",
       "production_mhrs_per_ea": 0.023,
-      "applicable_job": true
+      "applicable_job": false
     }
   ]
 }

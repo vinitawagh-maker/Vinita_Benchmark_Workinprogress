@@ -91,7 +91,7 @@
       "eqty": 51920,
       "uom": "LF",
       "production_mhrs_per_ea": 0.489,
-      "applicable_job": false
+      "applicable_job": true
     }
   ]
 }

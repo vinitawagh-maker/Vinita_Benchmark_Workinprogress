@@ -89,7 +89,7 @@
       "eqty": 33,
       "uom": "AC",
       "production_mhrs_per_ea": 235.97,
-      "applicable_job": false
+      "applicable_job": true
     },
     {
       "project": "264th Street Interchange",

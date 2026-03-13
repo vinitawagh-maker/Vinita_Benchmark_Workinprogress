@@ -43,7 +43,7 @@
       "eqty": 48206,
       "uom": "LF",
       "production_mhrs_per_ea": 0.573,
-      "applicable_job": false
+      "applicable_job": true
     },
     {
       "project": "I-17 Anthem",
