@@ -11135,7 +11135,7 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             const grandTotalGna = kieLaborGna + subsGna + contingencyGna + (esdcCalc?.gna || 0) + (tscdCalc?.gna || 0) + escalationGna;
             const grandTotalMargin = kieLaborMargin + subsMargin + contingencyMargin + (esdcCalc?.margin || 0) + (tscdCalc?.margin || 0) + escalationMarginValue;
             // KIE Expenses: no LS sub expenses (those are in LS Sub Expenses column)
-            const grandTotalExpenses = kieLaborExpenses + expensesSectionExpenses;
+            const grandTotalExpenses = kieLaborExpenses + ipcExpenses + odcsExpenses;
             // SUBS revenue = sub labor (rawLabor × subMultiplier) + sub markup + sub expenses
             const pursuitPct = parseFloat(document.getElementById('pursuit-pct-input')?.value) || 0.25;
             const ipv = parseFloat(String(document.getElementById('calc-est-construction-cost')?.value || '').replace(/[$,]/g, '')) || 0;
