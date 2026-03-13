@@ -2503,6 +2503,36 @@ tbody.hidden {
 .complexity-popup .popup-actions button:hover {
     opacity: 0.85;
 }
+.complexity-popup .popup-rates-table {
+    background: #0d0d0d;
+    border: 1px solid #333;
+    border-radius: 4px;
+    padding: 8px 12px;
+    margin-bottom: 12px;
+}
+.complexity-popup .popup-rate-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 2px 0;
+    font-size: 12px;
+}
+.complexity-popup .popup-rate-label {
+    color: #aaa;
+}
+.complexity-popup .popup-rate-value {
+    color: #fff;
+    font-weight: 600;
+}
+.complexity-popup .popup-formula {
+    background: #0d0d0d;
+    border: 1px solid #333;
+    border-radius: 4px;
+    padding: 8px 12px;
+    margin-top: 8px;
+    font-size: 11px;
+    color: #00ff00;
+    line-height: 1.6;
+}
 
 /* Calc info button (ℹ) */
 .calc-info-btn {

@@ -10105,12 +10105,25 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             overlay.className = 'complexity-popup-overlay';
             overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
 
+            const juniorPct = 100 - currentPct;
+            const currentRate = calcRate(currentPct);
+            const juniorContrib = resources.lowRate * (juniorPct / 100);
+            const seniorContrib = resources.highRate * (currentPct / 100);
+
             overlay.innerHTML = `
                 <div class="complexity-popup">
                     <h3>${discName} — Complexity</h3>
+                    <div class="popup-rates-table">
+                        <div class="popup-rate-row"><span class="popup-rate-label">Junior (${resources.lowCode || 'L1-L3'}):</span> <span class="popup-rate-value">$${resources.lowRate.toFixed(2)}/hr</span></div>
+                        <div class="popup-rate-row"><span class="popup-rate-label">Senior (${resources.highCode || 'L4-L6'}):</span> <span class="popup-rate-value">$${resources.highRate.toFixed(2)}/hr</span></div>
+                    </div>
                     <label>Senior Engineer % (L4-L6)</label>
                     <input type="number" id="complexity-popup-input" value="${currentPct}" min="0" max="100" step="5">
-                    <div class="popup-rate-display">Weighted Rate: <span id="complexity-popup-rate">$${calcRate(currentPct).toFixed(2)}</span>/hr</div>
+                    <div class="popup-formula" id="complexity-popup-formula">
+                        <span style="color:#888;">Weighted Rate =</span> $${resources.lowRate.toFixed(2)} × <span id="popup-junior-pct">${juniorPct}</span>% + $${resources.highRate.toFixed(2)} × <span id="popup-senior-pct">${currentPct}</span>%<br>
+                        <span style="color:#888;">= </span>$<span id="popup-junior-contrib">${juniorContrib.toFixed(2)}</span> + $<span id="popup-senior-contrib">${seniorContrib.toFixed(2)}</span>
+                    </div>
+                    <div class="popup-rate-display">Weighted Rate: <span id="complexity-popup-rate">$${currentRate.toFixed(2)}</span>/hr</div>
                     <div class="popup-actions">
                         <button onclick="this.closest('.complexity-popup-overlay').remove()">Cancel</button>
                         <button class="popup-apply" onclick="applyComplexityPopup('${discId}')">Apply</button>
@@ -10122,9 +10135,18 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             // Live preview of rate as user changes %
             const input = document.getElementById('complexity-popup-input');
             const rateDisplay = document.getElementById('complexity-popup-rate');
+            const juniorPctEl = document.getElementById('popup-junior-pct');
+            const seniorPctEl = document.getElementById('popup-senior-pct');
+            const juniorContribEl = document.getElementById('popup-junior-contrib');
+            const seniorContribEl = document.getElementById('popup-senior-contrib');
             input.addEventListener('input', () => {
                 const pct = Math.max(0, Math.min(100, parseFloat(input.value) || 0));
+                const jPct = 100 - pct;
                 rateDisplay.textContent = '$' + calcRate(pct).toFixed(2);
+                juniorPctEl.textContent = jPct;
+                seniorPctEl.textContent = pct;
+                juniorContribEl.textContent = (resources.lowRate * (jPct / 100)).toFixed(2);
+                seniorContribEl.textContent = (resources.highRate * (pct / 100)).toFixed(2);
             });
             input.focus();
             input.select();
