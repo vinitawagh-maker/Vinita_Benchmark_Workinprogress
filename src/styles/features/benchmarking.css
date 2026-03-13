@@ -1983,6 +1983,14 @@ tbody.hidden {
     content: "▼";
 }
 
+/* In benchmark mode, revenue is always expanded — hide toggle arrows */
+.benchmark-mode .clickable-revenue::after {
+    display: none;
+}
+.benchmark-mode .clickable-revenue {
+    padding-right: 4px !important;
+}
+
 /* Align non-clickable revenue cells with clickable ones */
 .unified-estimate-table td.cost-col.numeric:not(.clickable-revenue):not(.revenue-detail-col) {
     padding-right: 18px;
