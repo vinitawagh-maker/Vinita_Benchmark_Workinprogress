@@ -2595,10 +2595,10 @@ let projectData = {
             if (numMonths <= 1) return [1];
 
             // Logistic sigmoid S-curve with k=0.9
-            // Cumulative curve is a standard S-curve: ~20% ramp-up, ~60% peak, ~20% ramp-down
+            // Cumulative curve is a standard S-curve with visible ramp-up and ramp-down
             // Monthly distribution is the derivative (incremental spend per month)
             // Normalized so S_norm(0)=0 and S_norm(N)=1 exactly
-            const k = 0.9 / numMonths;
+            const k = 0.9;
             const tMid = numMonths / 2;
 
             // Raw logistic
@@ -2624,19 +2624,21 @@ let projectData = {
         function calculateBellCurveDistribution(years) {
             if (years === 1) return [1];
 
-            const k = 6 / years;
-            const tMid = years / 2;
-            const S = (t) => 1 / (1 + Math.exp(-k * (t - tMid)));
+            // Scale k=0.9 from monthly to yearly (multiply by 12)
+            const k = 0.9 * 12;
+            const numMonths = years * 12;
+            const tMid = numMonths / 2;
+            const S = (t) => 1 / (1 + Math.exp(-k / numMonths * (t - tMid)));
+            const S0 = S(0);
+            const SN = S(numMonths);
+            const Snorm = (t) => (S(t) - S0) / (SN - S0);
 
             const distribution = [];
-            let total = 0;
             for (let i = 0; i < years; i++) {
-                const value = S(i + 1) - S(i);
-                distribution.push(value);
-                total += value;
+                distribution.push(Snorm((i + 1) * 12) - Snorm(i * 12));
             }
 
-            return distribution.map(v => v / total);
+            return distribution;
         }
 
         /**
