@@ -291,9 +291,8 @@
                                         <th class="cost-col numeric revenue-detail-col">KIE Margin<span class="header-help" data-tooltip="KIE Margin = KIE Labor × Margin %">?</span></th>
                                         <th class="cost-col numeric revenue-detail-col">KIE Revenue<span class="header-help" data-tooltip="KIE Revenue = KIE Labor × KIE Multiplier">?</span></th>
                                         <th class="cost-col numeric revenue-detail-col sub-cost-col">Sub Labor<span class="header-help" data-tooltip="Sub Labor = Sub MH × Weighted Rate">?</span></th>
-                                        <th class="cost-col numeric revenue-detail-col sub-cost-col">Sub Burden<span class="header-help" data-tooltip="Sub Burden = Sub Labor × Burden Rate %">?</span></th>
                                         <th class="cost-col numeric revenue-detail-col sub-cost-col">Sub Expenses<span class="header-help" data-tooltip="General subcontractor expenses">?</span></th>
-                                        <th class="cost-col numeric revenue-detail-col sub-cost-col">Sub Total Cost<span class="header-help" data-tooltip="Sub Labor + Sub Burden + Sub Expenses + LS Sub Expenses">?</span></th>
+                                        <th class="cost-col numeric revenue-detail-col sub-cost-col">Sub Total Cost<span class="header-help" data-tooltip="Sub Labor + Sub Expenses + LS Sub Expenses">?</span></th>
                                         <th class="cost-col numeric revenue-detail-col sub-cost-col">Sub Cost to KIE<span class="header-help" data-tooltip="Sub Labor × Sub Multiplier (default 3x)">?</span></th>
                                         <th class="cost-col numeric revenue-detail-col sub-cost-col">Sub Markup<span class="header-help" data-tooltip="Sub Cost to KIE × (1 + Sub Markup %, default 5%)">?</span></th>
                                         <th class="cost-col numeric revenue-detail-col ls-sub-expenses-col">LS Sub Expenses<span class="header-help" data-tooltip="LS Consultant subcontractor expenses (% of assumed construction cost)">?</span></th>
@@ -320,7 +319,6 @@
                                         <td class="cost-col section-header numeric revenue-detail-col" id="kie-labor-total-margin">$0</td>
                                         <td class="cost-col section-header numeric revenue-detail-col" id="kie-labor-kie-revenue">$0</td>
                                         <td class="cost-col section-header numeric revenue-detail-col sub-cost-col" id="kie-labor-sub-labor">$0</td>
-                                        <td class="cost-col section-header numeric revenue-detail-col sub-cost-col" id="kie-labor-sub-burden">$0</td>
                                         <td class="cost-col section-header numeric revenue-detail-col sub-cost-col" id="kie-labor-sub-gen-expenses">$0</td>
                                         <td class="cost-col section-header numeric revenue-detail-col sub-cost-col" id="kie-labor-sub-total-cost">$0</td>
                                         <td class="cost-col section-header numeric revenue-detail-col sub-cost-col" id="kie-labor-sub-revenue">$0</td>
@@ -347,7 +345,6 @@
                                         <td class="cost-col numeric revenue-detail-col" id="unified-total-margin">$0</td>
                                         <td class="cost-col numeric revenue-detail-col" id="unified-kie-revenue">$0</td>
                                         <td class="cost-col numeric revenue-detail-col sub-cost-col" id="directs-sub-labor">$0</td>
-                                        <td class="cost-col numeric revenue-detail-col sub-cost-col" id="directs-sub-burden">$0</td>
                                         <td class="cost-col numeric revenue-detail-col sub-cost-col" id="directs-sub-gen-expenses">$0</td>
                                         <td class="cost-col numeric revenue-detail-col sub-cost-col" id="directs-sub-total-cost">$0</td>
                                         <td class="cost-col numeric revenue-detail-col sub-cost-col" id="directs-sub-revenue">$0</td>
@@ -392,7 +389,6 @@
                                         <td class="cost-col numeric revenue-detail-col" id="unified-indirect-total-margin">$0</td>
                                         <td class="cost-col numeric revenue-detail-col" id="unified-indirect-kie-revenue">$0</td>
                                         <td class="cost-col numeric revenue-detail-col sub-cost-col" id="indirect-sub-labor">—</td>
-                                        <td class="cost-col numeric revenue-detail-col sub-cost-col" id="indirect-sub-burden">—</td>
                                         <td class="cost-col numeric revenue-detail-col sub-cost-col" id="indirect-sub-gen-expenses">—</td>
                                         <td class="cost-col numeric revenue-detail-col sub-cost-col" id="indirect-sub-total-cost">—</td>
                                         <td class="cost-col numeric revenue-detail-col sub-cost-col" id="indirect-sub-revenue">—</td>
@@ -425,7 +421,6 @@
                                         <td class="cost-col section-header numeric revenue-detail-col" id="subs-section-total-margin">$0</td>
                                         <td class="cost-col section-header numeric revenue-detail-col" id="subs-section-kie-revenue">$0</td>
                                         <td class="cost-col section-header numeric revenue-detail-col sub-cost-col" id="subs-section-sub-labor">$0</td>
-                                        <td class="cost-col section-header numeric revenue-detail-col sub-cost-col" id="subs-section-sub-burden">$0</td>
                                         <td class="cost-col section-header numeric revenue-detail-col sub-cost-col" id="subs-section-sub-gen-expenses">$0</td>
                                         <td class="cost-col section-header numeric revenue-detail-col sub-cost-col" id="subs-section-sub-total-cost">$0</td>
                                         <td class="cost-col section-header numeric revenue-detail-col sub-cost-col" id="subs-section-sub-revenue">$0</td>
@@ -458,7 +453,6 @@
                                         <td class="cost-col numeric revenue-detail-col" id="ls-subs-total-margin">$0</td>
                                         <td class="cost-col numeric revenue-detail-col" id="ls-subs-kie-revenue">$0</td>
                                         <td class="cost-col numeric revenue-detail-col sub-cost-col" id="ls-subs-sub-labor">—</td>
-                                        <td class="cost-col numeric revenue-detail-col sub-cost-col" id="ls-subs-sub-burden">—</td>
                                         <td class="cost-col numeric revenue-detail-col sub-cost-col" id="ls-subs-sub-gen-expenses">—</td>
                                         <td class="cost-col numeric revenue-detail-col sub-cost-col" id="ls-subs-sub-total-cost">—</td>
                                         <td class="cost-col numeric revenue-detail-col sub-cost-col" id="ls-subs-sub-revenue">—</td>
@@ -494,7 +488,6 @@
                                         <td class="cost-col numeric revenue-detail-col" id="survey-total-margin">$0</td>
                                         <td class="cost-col numeric revenue-detail-col" id="survey-kie-revenue">$0</td>
                                         <td class="cost-col numeric revenue-detail-col sub-cost-col" id="survey-sub-labor">—</td>
-                                        <td class="cost-col numeric revenue-detail-col sub-cost-col" id="survey-sub-burden">—</td>
                                         <td class="cost-col numeric revenue-detail-col sub-cost-col" id="survey-sub-gen-expenses">—</td>
                                         <td class="cost-col numeric revenue-detail-col sub-cost-col" id="survey-sub-total-cost">—</td>
                                         <td class="cost-col numeric revenue-detail-col sub-cost-col" id="survey-sub-revenue">—</td>
@@ -530,7 +523,6 @@
                                         <td class="cost-col numeric revenue-detail-col" id="subsurface-utility-total-margin">$0</td>
                                         <td class="cost-col numeric revenue-detail-col" id="subsurface-utility-kie-revenue">$0</td>
                                         <td class="cost-col numeric revenue-detail-col sub-cost-col" id="subsurface-utility-sub-labor">—</td>
-                                        <td class="cost-col numeric revenue-detail-col sub-cost-col" id="subsurface-utility-sub-burden">—</td>
                                         <td class="cost-col numeric revenue-detail-col sub-cost-col" id="subsurface-utility-sub-gen-expenses">—</td>
                                         <td class="cost-col numeric revenue-detail-col sub-cost-col" id="subsurface-utility-sub-total-cost">—</td>
                                         <td class="cost-col numeric revenue-detail-col sub-cost-col" id="subsurface-utility-sub-revenue">—</td>
@@ -809,7 +801,6 @@
                                         <td class="cost-col numeric revenue-detail-col" id="grand-total-margin">$0</td>
                                         <td class="cost-col numeric revenue-detail-col" id="grand-total-kie-revenue">$0</td>
                                         <td class="cost-col numeric revenue-detail-col sub-cost-col" id="grand-total-sub-labor">$0</td>
-                                        <td class="cost-col numeric revenue-detail-col sub-cost-col" id="grand-total-sub-burden">$0</td>
                                         <td class="cost-col numeric revenue-detail-col sub-cost-col" id="grand-total-sub-gen-expenses">$0</td>
                                         <td class="cost-col numeric revenue-detail-col sub-cost-col" id="grand-total-sub-total-cost">$0</td>
                                         <td class="cost-col numeric revenue-detail-col sub-cost-col" id="grand-total-sub-revenue">$0</td>

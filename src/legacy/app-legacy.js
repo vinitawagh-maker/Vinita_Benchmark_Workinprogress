@@ -8176,9 +8176,6 @@ ${reasoning}`;
                     <span id="unified-sub-labor-${discId}">$0</span>
                 </td>
                 <td class="cost-col numeric revenue-detail-col sub-cost-col">
-                    <span id="unified-sub-burden-${discId}">$0</span>
-                </td>
-                <td class="cost-col numeric revenue-detail-col sub-cost-col">
                     <span id="unified-sub-gen-expenses-${discId}">$0</span>
                 </td>
                 <td class="cost-col numeric revenue-detail-col sub-cost-col">
@@ -10246,18 +10243,16 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
                     const subL13Hours = subMHDisp - subL4Hours;
                     subLaborDisp = (subL4Hours * effectiveResources.highRate) + (subL13Hours * effectiveResources.lowRate);
                 }
-                const subBurdenDisp = subLaborDisp * (burdenRate / 100);
                 const subGenExpenses = 0; // general sub expenses placeholder
                 const subLsExpenses = 0;  // LS sub expenses at section level, not per-discipline
-                const subTotalCostDisp = subLaborDisp + subBurdenDisp + subGenExpenses + subLsExpenses;
+                const subTotalCostDisp = subLaborDisp + subGenExpenses + subLsExpenses;
                 // Sub Revenue = Sub Labor × Sub Multiplier
                 const discSubMultiplier = parseFloat(document.getElementById('calc-sub-multiplier')?.value) || 3.0;
                 const discSubMarkupPct = parseFloat(document.getElementById('calc-sub-markup')?.value) || 5;
                 const subRevenueDisp = subLaborDisp * discSubMultiplier;
-                const subMarkupDisp = subRevenueDisp * (1 + discSubMarkupPct / 100);
+                const subMarkupDisp = subRevenueDisp * (discSubMarkupPct / 100);
 
                 state.subLabor = subLaborDisp;
-                state.subBurden = subBurdenDisp;
                 state.subGenExpenses = subGenExpenses;
                 state.subTotalCost = subTotalCostDisp;
                 state.subRevenue = subRevenueDisp;
@@ -10265,8 +10260,6 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
 
                 const subLaborElem = document.getElementById(`unified-sub-labor-${discId}`);
                 if (subLaborElem) subLaborElem.textContent = '$' + Math.round(subLaborDisp).toLocaleString('en-US');
-                const subBurdenElem = document.getElementById(`unified-sub-burden-${discId}`);
-                if (subBurdenElem) subBurdenElem.textContent = '$' + Math.round(subBurdenDisp).toLocaleString('en-US');
                 const subGenExpElem = document.getElementById(`unified-sub-gen-expenses-${discId}`);
                 if (subGenExpElem) subGenExpElem.textContent = '$' + Math.round(subGenExpenses).toLocaleString('en-US');
                 const subExpensesElem = document.getElementById(`unified-sub-expenses-${discId}`);
@@ -10558,7 +10551,6 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             let directsExpenses = 0;
             // Sub cost accumulators for directs
             let directsSubLabor = 0;
-            let directsSubBurden = 0;
             let directsSubGenExpenses = 0;
             let directsSubRevenue = 0;
             let directsSubMarkup = 0;
@@ -10578,7 +10570,6 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
                     directsBurden += state.burdenCost || 0;
                     // Accumulate per-discipline sub costs
                     directsSubLabor += state.subLabor || 0;
-                    directsSubBurden += state.subBurden || 0;
                     directsSubGenExpenses += state.subGenExpenses || 0;
                     directsSubRevenue += state.subRevenue || 0;
                     directsSubMarkup += state.subMarkup || 0;
@@ -10635,11 +10626,9 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             if (dkrEl) dkrEl.textContent = '$' + Math.round(directsKieRevenue).toLocaleString('en-US');
             // Directs sub cost columns
             const directsSubLsExpenses = 0; // LS sub expenses not at directs level
-            const directsSubTotalCost = directsSubLabor + directsSubBurden + directsSubGenExpenses + directsSubLsExpenses;
+            const directsSubTotalCost = directsSubLabor + directsSubGenExpenses + directsSubLsExpenses;
             const dslEl = document.getElementById('directs-sub-labor');
             if (dslEl) dslEl.textContent = '$' + Math.round(directsSubLabor).toLocaleString('en-US');
-            const dsbEl = document.getElementById('directs-sub-burden');
-            if (dsbEl) dsbEl.textContent = '$' + Math.round(directsSubBurden).toLocaleString('en-US');
             const dsgeEl = document.getElementById('directs-sub-gen-expenses');
             if (dsgeEl) dsgeEl.textContent = '$' + Math.round(directsSubGenExpenses).toLocaleString('en-US');
             const dseEl = document.getElementById('directs-sub-expenses');
@@ -10740,8 +10729,6 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             // KIE Labor sub cost columns (same as directs since indirects have no subs)
             const klslEl = document.getElementById('kie-labor-sub-labor');
             if (klslEl) klslEl.textContent = '$' + Math.round(directsSubLabor).toLocaleString('en-US');
-            const klsbEl = document.getElementById('kie-labor-sub-burden');
-            if (klsbEl) klsbEl.textContent = '$' + Math.round(directsSubBurden).toLocaleString('en-US');
             const klsgeEl = document.getElementById('kie-labor-sub-gen-expenses');
             if (klsgeEl) klsgeEl.textContent = '$' + Math.round(directsSubGenExpenses).toLocaleString('en-US');
             const klseEl = document.getElementById('kie-labor-sub-expenses');
@@ -10889,11 +10876,9 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             if (sukrEl) sukrEl.textContent = '$0';
             // SUBS section sub cost columns
             const subsGenExpenses = 0; // placeholder for general sub expenses
-            const subsSubTotalCost = subsRawLabor + subsBurden + subsGenExpenses + subsExpenses;
+            const subsSubTotalCost = subsRawLabor + subsGenExpenses + subsExpenses;
             const ssslEl = document.getElementById('subs-section-sub-labor');
             if (ssslEl) ssslEl.textContent = '$' + Math.round(subsRawLabor).toLocaleString('en-US');
-            const sssbEl = document.getElementById('subs-section-sub-burden');
-            if (sssbEl) sssbEl.textContent = '$' + Math.round(subsBurden).toLocaleString('en-US');
             const sssgeEl = document.getElementById('subs-section-sub-gen-expenses');
             if (sssgeEl) sssgeEl.textContent = '$' + Math.round(subsGenExpenses).toLocaleString('en-US');
             const ssseEl = document.getElementById('subs-section-sub-expenses');
@@ -10904,8 +10889,8 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             const subsSubRevenue = subsRawLabor * subMultiplier;
             const sssrEl = document.getElementById('subs-section-sub-revenue');
             if (sssrEl) sssrEl.textContent = '$' + Math.round(subsSubRevenue).toLocaleString('en-US');
-            // Sub Markup = Sub Revenue × (1 + Sub Markup %)
-            const subsSubMarkupVal = subsSubRevenue * (1 + subMarkupPct / 100);
+            // Sub Markup = Sub Revenue × Sub Markup %
+            const subsSubMarkupVal = subsSubRevenue * (subMarkupPct / 100);
             const sssmEl = document.getElementById('subs-section-sub-markup');
             if (sssmEl) sssmEl.textContent = '$' + Math.round(subsSubMarkupVal).toLocaleString('en-US');
 
@@ -11188,16 +11173,13 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             if (gtkrEl) gtkrEl.textContent = '$' + Math.round(grandKieRevenue).toLocaleString('en-US');
             // Grand total sub cost columns
             const grandSubLabor = directsSubLabor;
-            const grandSubBurden = directsSubBurden;
             const grandSubGenExpenses = directsSubGenExpenses;
             const grandSubLsExpenses = subsExpenses; // LS Subs + Survey + Geotech expenses
-            const grandSubTotalCost = grandSubLabor + grandSubBurden + grandSubGenExpenses + grandSubLsExpenses;
+            const grandSubTotalCost = grandSubLabor + grandSubGenExpenses + grandSubLsExpenses;
             const grandSubRevenue = directsSubRevenue;
             const grandSubMarkupVal = directsSubMarkup;
             const gtslEl = document.getElementById('grand-total-sub-labor');
             if (gtslEl) gtslEl.textContent = '$' + Math.round(grandSubLabor).toLocaleString('en-US');
-            const gtsbEl = document.getElementById('grand-total-sub-burden');
-            if (gtsbEl) gtsbEl.textContent = '$' + Math.round(grandSubBurden).toLocaleString('en-US');
             const gtsgeEl = document.getElementById('grand-total-sub-gen-expenses');
             if (gtsgeEl) gtsgeEl.textContent = '$' + Math.round(grandSubGenExpenses).toLocaleString('en-US');
             const gtseEl = document.getElementById('grand-total-sub-expenses');
