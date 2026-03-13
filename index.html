@@ -252,8 +252,11 @@
                             <button class="estimate-tab active" id="tab-benchmark" onclick="switchEstimateMode('benchmark')">
                                 Step 1: Benchmark Estimate
                             </button>
+                            <button class="estimate-tab" id="tab-subs-detail" onclick="switchEstimateMode('subs-detail')" style="display:none;">
+                                Step 2: Detailed Estimate with Subs
+                            </button>
                             <button class="estimate-tab" id="tab-detailed" onclick="switchEstimateMode('detailed')">
-                                Step 2: Detailed Estimate
+                                Step 3: Detailed Estimate
                             </button>
                         </div>
 
@@ -846,6 +849,21 @@
                             <button class="btn" onclick="openSensitivityModal()" title="Sensitivity Analysis">Sensitivity</button>
                             <button class="btn" onclick="generateNarrative()" title="Generate design fee estimate narrative">Narrative</button>
                             <button class="btn-mh" onclick="applyUnifiedEstimate()">Apply to Budget</button>
+                            <button class="btn-detail-subs" onclick="openSubsDetailEstimate()" style="background:#e07c3a; color:#fff; border:2px solid #c4632e; padding:8px 20px; font-weight:700; font-size:12px; border-radius:5px; cursor:pointer; margin-left:auto;">Detail</button>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Detailed Estimate with Subs (hidden until Detail button clicked) -->
+                    <div id="subs-detail-wrapper" style="display:none;">
+                        <div class="unified-table-wrapper">
+                            <div class="unified-table-header">
+                                <div>
+                                    <h3 style="margin: 0; font-size: 13px; color: #333;">📊 DETAILED ESTIMATE WITH SUBS</h3>
+                                </div>
+                            </div>
+                            <div id="subs-detail-table-container">
+                                <!-- Cloned table will be inserted here by JS -->
+                            </div>
                         </div>
                     </div>
 

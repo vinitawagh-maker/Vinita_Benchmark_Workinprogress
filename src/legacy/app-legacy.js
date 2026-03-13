@@ -721,10 +721,28 @@ let projectData = {
             currentEstimateMode = mode;
             const table = document.getElementById('unified-estimate-table');
             const wrapper = document.querySelector('.unified-benchmarking-layout');
+            const mainTableWrapper = document.querySelector('.unified-table-wrapper');
+            const subsWrapper = document.getElementById('subs-detail-wrapper');
 
             // Update tab styling
             document.getElementById('tab-benchmark').classList.toggle('active', mode === 'benchmark');
+            const subsTab = document.getElementById('tab-subs-detail');
+            if (subsTab) subsTab.classList.toggle('active', mode === 'subs-detail');
             document.getElementById('tab-detailed').classList.toggle('active', mode === 'detailed');
+
+            // Show/hide appropriate content
+            if (mode === 'subs-detail') {
+                // Show subs-detail, hide main table
+                if (mainTableWrapper) mainTableWrapper.style.display = 'none';
+                if (subsWrapper) subsWrapper.style.display = '';
+                document.querySelector('.unified-actions').style.display = 'none';
+                return;
+            } else {
+                // Show main table, hide subs-detail
+                if (mainTableWrapper) mainTableWrapper.style.display = '';
+                if (subsWrapper) subsWrapper.style.display = 'none';
+                document.querySelector('.unified-actions').style.display = '';
+            }
 
             // Ensure kie-detail-col classes are applied
             applyKieDetailColClasses();
@@ -761,6 +779,33 @@ let projectData = {
 
             // Recalculate with current mode
             recalculateAllUnifiedCosts();
+        }
+
+        /**
+         * Opens Step 2: Detailed Estimate with Subs
+         * Clones the Step 1 unified table and switches to the subs-detail tab
+         */
+        function openSubsDetailEstimate() {
+            // Show the Step 2 tab
+            const subsTab = document.getElementById('tab-subs-detail');
+            if (subsTab) subsTab.style.display = '';
+
+            // Clone the current unified table into the subs-detail container
+            const sourceTable = document.getElementById('unified-estimate-table');
+            const container = document.getElementById('subs-detail-table-container');
+            if (sourceTable && container) {
+                const clone = sourceTable.cloneNode(true);
+                clone.id = 'subs-detail-table';
+                // Remove duplicate IDs to avoid conflicts — prefix with 'subs-'
+                clone.querySelectorAll('[id]').forEach(el => {
+                    el.id = 'subs-' + el.id;
+                });
+                container.innerHTML = '';
+                container.appendChild(clone);
+            }
+
+            // Switch to the subs-detail tab
+            switchEstimateMode('subs-detail');
         }
 
         /**
@@ -22894,6 +22939,7 @@ Chunks: ${JSON.stringify(complexFieldsOnly, null, 2)}`;
         window.toggleRevenueDetails = toggleRevenueDetails;
         window.toggleMHDetails = toggleMHDetails;
         window.switchEstimateMode = switchEstimateMode;
+        window.openSubsDetailEstimate = openSubsDetailEstimate;
         window.openComplexityPopup = openComplexityPopup;
         window.applyComplexityPopup = applyComplexityPopup;
         window.showCalcInfo = showCalcInfo;
