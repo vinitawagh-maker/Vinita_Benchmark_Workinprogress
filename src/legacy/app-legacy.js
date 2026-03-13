@@ -10201,9 +10201,9 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
                 ipc: {
                     title: 'IPC — How Revenue is Calculated',
                     body: `<p>Inter-Project Charge covers internal overhead allocation.</p>
-                        <div class="formula">IPC Expenses = Total KIE Labor MH × IPC Rate ($/MH)<br>
+                        <div class="formula">IPC Expenses = Total Labor MH × IPC Rate ($/MH)<br>
                         (Default: $6/MH)</div>
-                        <p>IPC is an expense-only line item — it adds to Expenses and Total Revenue but has no labor hours. Can be toggled ON/OFF.</p>`
+                        <p>Total Labor MH includes Directs + Indirects + ESDC + TSCD man-hours. IPC is an expense-only line item — it adds to Expenses and Total Revenue but has no labor hours of its own. Can be toggled ON/OFF.</p>`
                 },
                 odcs: {
                     title: 'EXPENSES/ODC\'s — How Revenue is Calculated',
