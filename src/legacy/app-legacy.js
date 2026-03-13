@@ -727,6 +727,8 @@ let projectData = {
 
             if (mode === 'benchmark') {
                 table.classList.add('benchmark-mode');
+                // Force revenue detail columns visible (Raw Labor, Burden, etc.)
+                table.classList.add('revenue-details-visible');
                 if (wrapper) wrapper.classList.add('benchmark-mode-active');
 
                 // Rename headers for benchmark mode
