@@ -8303,6 +8303,16 @@ ${reasoning}`;
                 mhElem.textContent = formatMH(result.mh);
             }
 
+            // Update KIE MH / Sub MH display directly
+            const subPctForMH = (state.subsPct || 0) / 100;
+            const totalMHForSplit = result.mh || 0;
+            const subMHForSplit = Math.round(totalMHForSplit * subPctForMH);
+            const kieMHForSplit = totalMHForSplit - subMHForSplit;
+            const kieMhEl = document.getElementById(`unified-kie-mh-${discId}`);
+            const subMhEl = document.getElementById(`unified-sub-mh-${discId}`);
+            if (kieMhEl) kieMhEl.textContent = kieMHForSplit > 0 ? formatMH(kieMHForSplit) : '0';
+            if (subMhEl) subMhEl.textContent = subMHForSplit > 0 ? formatMH(subMHForSplit) : '0';
+
             const rateElem = document.getElementById(`unified-rate-${discId}`);
             if (rateElem) {
                 rateElem.textContent = formatRate(result.rate, unit);
@@ -9934,6 +9944,8 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             if (!state) return;
             const pct = parseFloat(value);
             state.subsPct = isNaN(pct) ? null : Math.max(0, Math.min(100, pct));
+            // Recalculate costs since KIE Labor depends on KIE MH (not total MH)
+            recalculateUnifiedCosts(discId);
             updateUnifiedSummary();
             saveToLocalStorage();
         }
@@ -9943,6 +9955,7 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             if (!state) return;
             const rate = parseFloat(value);
             state.subRate = isNaN(rate) ? null : Math.max(0, rate);
+            recalculateUnifiedCosts(discId);
             updateUnifiedSummary();
             saveToLocalStorage();
         }
@@ -11188,6 +11201,13 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
                 const totalMH = state.mh || 0;
                 const subMH = Math.round(totalMH * ((state.subsPct || 0) / 100));
                 const kieMH = totalMH - subMH;
+                if (totalMH > 0) {
+                    const kieMhElDebug = document.getElementById(`unified-kie-mh-${discId}`);
+                    const subMhElDebug = document.getElementById(`unified-sub-mh-${discId}`);
+                    console.log(`[KIE/Sub MH] ${discId}: totalMH=${totalMH}, subsPct=${state.subsPct}, subMH=${subMH}, kieMH=${kieMH}`);
+                    console.log(`  kieMhEl found: ${!!kieMhElDebug}, subMhEl found: ${!!subMhElDebug}`);
+                    if (kieMhElDebug) console.log(`  kieMhEl current text: "${kieMhElDebug.textContent}", will set to: "${kieMH > 0 ? formatMH(kieMH) : '0'}"`);
+                }
                 const l4Pct = (state.l4Percentage !== undefined && state.l4Percentage !== null) ? state.l4Percentage : 60;
 
                 // Sub MH cell
