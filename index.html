@@ -274,7 +274,7 @@
                                     <tr>
                                         <th class="frozen-col">Category<span class="header-help" data-tooltip="Standard KIE category list">?</span></th>
                                         <!-- MH Columns (Blue) -->
-                                        <th class="mh-col">Account Code<span class="header-help" data-tooltip="Standard KIE account codes">?</span></th>
+                                        <th class="mh-col account-code-col">Account Code<span class="header-help" data-tooltip="Standard KIE account codes">?</span></th>
                                         <th class="mh-col numeric">Quantity<span class="header-help" data-tooltip="Auto-populated from RFP, verify with Discipline Lead">?</span></th>
                                         <th class="mh-col">Unit<span class="header-help" data-tooltip="Unit of measure based on account code">?</span></th>
                                         <th class="mh-col">Benchmark<span class="header-help" data-tooltip="Click to select historical projects for rate calculation">?</span></th>
@@ -283,7 +283,7 @@
                                         <th class="mh-col numeric col-selected-rate">Selected Rate<span class="header-help" data-tooltip="Production rate using SELECTED benchmark projects only">?</span></th>
                                         <th class="mh-col numeric">Wide Open MHs<span class="header-help" data-tooltip="All Rate × Quantity (for directs)">?</span></th>
                                         <th class="mh-col numeric">Custom MH's<span class="header-help" data-tooltip="Quantity × Selected Rate">?</span></th>
-                                        <th class="mh-col numeric">Complexity<span class="header-help" data-tooltip="Resource complexity: % of senior engineers (L4-L6) vs junior (L1-L3)">?</span><br><span style="font-size: 8px; font-weight: 400;">(% & Hours)</span></th>
+                                        <th class="mh-col numeric complexity-col">Complexity<span class="header-help" data-tooltip="Resource complexity: % of senior engineers (L4-L6) vs junior (L1-L3)">?</span><br><span style="font-size: 8px; font-weight: 400;">(% & Hours)</span></th>
                                         <th class="mh-col mh-col-keep numeric">Total MH's<span class="header-help" data-tooltip="Total estimated man-hours = Quantity × Selected Rate">?</span></th>
                                         <th class="mh-col mh-col-keep numeric mh-detail-col">KIE MH's<span class="header-help" data-tooltip="KIE in-house MH's = Total MH's − Sub MH's">?</span></th>
                                         <th class="mh-col mh-col-keep numeric mh-detail-col">Sub MH's<span class="header-help" data-tooltip="Subcontracted MH's = Total MH's × Subs %">?</span></th>
@@ -316,7 +316,7 @@
                                         <td class="frozen-col section-header">
                                             <span id="kie-labor-toggle-icon">▼</span> LABOR
                                         </td>
-                                        <td colspan="9" class="mh-col section-header"></td>
+                                        <td class="mh-col section-header account-code-col"></td><td class="mh-col section-header"></td><td class="mh-col section-header"></td><td class="mh-col section-header"></td><td class="mh-col section-header subs-pct-col"></td><td class="mh-col section-header col-all-rate"></td><td class="mh-col section-header col-selected-rate"></td><td class="mh-col section-header"></td><td class="mh-col section-header"></td><td class="mh-col section-header complexity-col"></td>
                                         <td class="mh-col mh-col-keep section-header numeric clickable-mh" id="kie-labor-total-mh" onclick="event.stopPropagation(); toggleMHDetails()">0</td>
                                         <td class="mh-col mh-col-keep section-header numeric mh-detail-col" id="kie-labor-kie-mh">0</td>
                                         <td class="mh-col mh-col-keep section-header numeric mh-detail-col" id="kie-labor-sub-mh">0</td>
@@ -342,7 +342,7 @@
                                         <td class="frozen-col indent-1">
                                             <span id="directs-toggle-icon">▼</span> DIRECTS
                                         </td>
-                                        <td colspan="9" class="mh-col"></td>
+                                        <td class="mh-col account-code-col"></td><td class="mh-col"></td><td class="mh-col"></td><td class="mh-col"></td><td class="mh-col subs-pct-col"></td><td class="mh-col col-all-rate"></td><td class="mh-col col-selected-rate"></td><td class="mh-col"></td><td class="mh-col"></td><td class="mh-col complexity-col"></td>
                                         <td class="mh-col mh-col-keep numeric clickable-mh" id="unified-total-mh" onclick="event.stopPropagation(); toggleMHDetails()">0</td>
                                         <td class="mh-col mh-col-keep numeric mh-detail-col" id="directs-kie-mh">0</td>
                                         <td class="mh-col mh-col-keep numeric mh-detail-col" id="directs-sub-mh">0</td>
@@ -372,6 +372,7 @@
                                     <tr class="summary-row indent-level-1 clickable-row" onclick="toggleIndirectsRows()">
                                         <td class="frozen-col indent-1">
                                             <span id="indirects-toggle-icon">▼</span> INDIRECTS
+                                            <span class="calc-info-btn" onclick="event.stopPropagation(); showCalcInfo('indirects')" title="How is this calculated?">i</span>
                                             <label class="indirects-toggle-switch" title="Toggle Indirects on/off">
                                                 <input type="checkbox" id="indirects-enabled-toggle" checked onclick="event.stopPropagation(); toggleIndirectsEnabled();">
                                                 <span class="indirects-toggle-slider"></span>
@@ -384,9 +385,7 @@
                                                 <span class="fte-label">FTEs</span>
                                             </span>
                                         </td>
-                                        <td colspan="9" class="mh-col" style="font-size:10px; color:#aaa; padding-left:8px;">
-                                            <span id="indirects-ratio-display">—</span>
-                                        </td>
+                                        <td class="mh-col account-code-col"></td><td class="mh-col" style="font-size:10px; color:#aaa; padding-left:8px;"><span id="indirects-ratio-display">—</span></td><td class="mh-col"></td><td class="mh-col"></td><td class="mh-col subs-pct-col"></td><td class="mh-col col-all-rate"></td><td class="mh-col col-selected-rate"></td><td class="mh-col"></td><td class="mh-col"></td><td class="mh-col complexity-col"></td>
                                         <td class="mh-col mh-col-keep numeric" id="unified-indirect-total-mh">0</td>
                                         <td class="mh-col mh-col-keep numeric mh-detail-col">—</td>
                                         <td class="mh-col mh-col-keep numeric mh-detail-col">—</td>
@@ -418,7 +417,7 @@
                                         <td class="frozen-col section-header">
                                             <span id="subs-section-toggle-icon">▼</span> LS CONSULTANTS <span style="font-size:9px;font-weight:400;color:#aaa;">(% of assumed const. cost)</span>
                                         </td>
-                                        <td colspan="9" class="mh-col section-header"></td>
+                                        <td class="mh-col section-header account-code-col"></td><td class="mh-col section-header"></td><td class="mh-col section-header"></td><td class="mh-col section-header"></td><td class="mh-col section-header subs-pct-col"></td><td class="mh-col section-header col-all-rate"></td><td class="mh-col section-header col-selected-rate"></td><td class="mh-col section-header"></td><td class="mh-col section-header"></td><td class="mh-col section-header complexity-col"></td>
                                         <td class="mh-col mh-col-keep section-header numeric" id="subs-section-total-mh">0</td>
                                         <td class="mh-col mh-col-keep section-header numeric mh-detail-col">—</td>
                                         <td class="mh-col mh-col-keep section-header numeric mh-detail-col">—</td>
@@ -446,11 +445,12 @@
                                         <td class="frozen-col indent-1">
                                             <span id="ls-subs-toggle-icon">▼</span> Survey Subs
                                             <span class="acc-pct-wrapper" onclick="event.stopPropagation();">
-                                                <input type="number" id="survey-subs-pct" value="0.25" min="0" max="10" step="0.01" 
+                                                <input type="number" id="survey-subs-pct" value="0.25" min="0" max="10" step="0.01"
                                                        class="acc-pct-input" title="% of Assumed Construction Cost">%
                                             </span>
+                                            <span class="calc-info-btn" onclick="event.stopPropagation(); showCalcInfo('surveySubs')" title="How is this calculated?">i</span>
                                         </td>
-                                        <td colspan="9" class="mh-col"></td>
+                                        <td class="mh-col account-code-col"></td><td class="mh-col"></td><td class="mh-col"></td><td class="mh-col"></td><td class="mh-col subs-pct-col"></td><td class="mh-col col-all-rate"></td><td class="mh-col col-selected-rate"></td><td class="mh-col"></td><td class="mh-col"></td><td class="mh-col complexity-col"></td>
                                         <td class="mh-col mh-col-keep numeric" id="ls-subs-total-mh">0</td>
                                         <td class="mh-col mh-col-keep numeric mh-detail-col">—</td>
                                         <td class="mh-col mh-col-keep numeric mh-detail-col">—</td>
@@ -481,11 +481,12 @@
                                         <td class="frozen-col indent-1">
                                             <span id="survey-toggle-icon">▼</span> Subsurface Utility Subs
                                             <span class="acc-pct-wrapper" onclick="event.stopPropagation();">
-                                                <input type="number" id="subsurface-utility-subs-pct" value="0.25" min="0" max="10" step="0.01" 
+                                                <input type="number" id="subsurface-utility-subs-pct" value="0.25" min="0" max="10" step="0.01"
                                                        class="acc-pct-input" title="% of Assumed Construction Cost">%
                                             </span>
+                                            <span class="calc-info-btn" onclick="event.stopPropagation(); showCalcInfo('subsurfaceUtility')" title="How is this calculated?">i</span>
                                         </td>
-                                        <td colspan="9" class="mh-col"></td>
+                                        <td class="mh-col account-code-col"></td><td class="mh-col"></td><td class="mh-col"></td><td class="mh-col"></td><td class="mh-col subs-pct-col"></td><td class="mh-col col-all-rate"></td><td class="mh-col col-selected-rate"></td><td class="mh-col"></td><td class="mh-col"></td><td class="mh-col complexity-col"></td>
                                         <td class="mh-col mh-col-keep numeric" id="survey-total-mh">0</td>
                                         <td class="mh-col mh-col-keep numeric mh-detail-col">—</td>
                                         <td class="mh-col mh-col-keep numeric mh-detail-col">—</td>
@@ -516,11 +517,12 @@
                                         <td class="frozen-col indent-1">
                                             <span id="subsurface-utility-toggle-icon">▼</span> Geotech Drilling Subs
                                             <span class="acc-pct-wrapper" onclick="event.stopPropagation();">
-                                                <input type="number" id="geotech-subs-pct" value="0.5" min="0" max="10" step="0.01" 
+                                                <input type="number" id="geotech-subs-pct" value="0.5" min="0" max="10" step="0.01"
                                                        class="acc-pct-input" title="% of Assumed Construction Cost">%
                                             </span>
+                                            <span class="calc-info-btn" onclick="event.stopPropagation(); showCalcInfo('geotechSubs')" title="How is this calculated?">i</span>
                                         </td>
-                                        <td colspan="9" class="mh-col"></td>
+                                        <td class="mh-col account-code-col"></td><td class="mh-col"></td><td class="mh-col"></td><td class="mh-col"></td><td class="mh-col subs-pct-col"></td><td class="mh-col col-all-rate"></td><td class="mh-col col-selected-rate"></td><td class="mh-col"></td><td class="mh-col"></td><td class="mh-col complexity-col"></td>
                                         <td class="mh-col mh-col-keep numeric" id="subsurface-utility-total-mh">0</td>
                                         <td class="mh-col mh-col-keep numeric mh-detail-col">—</td>
                                         <td class="mh-col mh-col-keep numeric mh-detail-col">—</td>
@@ -557,8 +559,9 @@
                                                 <span class="ipc-toggle-slider"></span>
                                             </label>
                                             <span id="ipc-on-label" style="font-size:8px; color:#FFD200; font-weight:700; margin-left:2px; vertical-align:middle;">ON</span>
+                                            <span class="calc-info-btn" onclick="event.stopPropagation(); showCalcInfo('ipc')" title="How is this calculated?">i</span>
                                         </td>
-                                        <td colspan="9" class="mh-col section-header"></td>
+                                        <td class="mh-col section-header account-code-col"></td><td class="mh-col section-header"></td><td class="mh-col section-header"></td><td class="mh-col section-header"></td><td class="mh-col section-header subs-pct-col"></td><td class="mh-col section-header col-all-rate"></td><td class="mh-col section-header col-selected-rate"></td><td class="mh-col section-header"></td><td class="mh-col section-header"></td><td class="mh-col section-header complexity-col"></td>
                                         <td class="mh-col mh-col-keep section-header numeric" id="ipc-total-mh">0</td>
                                         <td class="mh-col mh-col-keep section-header numeric mh-detail-col">—</td>
                                         <td class="mh-col mh-col-keep section-header numeric mh-detail-col">—</td>
@@ -567,9 +570,9 @@
                                         <td class="cost-col section-header numeric revenue-detail-col" id="ipc-total-raw-labor">$0</td>
                                         <td class="cost-col section-header numeric revenue-detail-col" id="ipc-total-burden">$0</td>
                                         <td class="cost-col section-header numeric revenue-detail-col" id="ipc-total-expenses">$0</td>
-                                        <td class="cost-col section-header numeric revenue-detail-col" id="ipc-total-cost">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col kie-detail-col" id="ipc-total-cost">$0</td>
                                         <td class="cost-col section-header numeric revenue-detail-col" id="ipc-total-margin">$0</td>
-                                        <td class="cost-col section-header numeric revenue-detail-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col kie-detail-col">—</td>
                                         <td class="cost-col section-header numeric revenue-detail-col sub-cost-col">—</td>
                                         <td class="cost-col section-header numeric revenue-detail-col sub-cost-col">—</td>
                                         <td class="cost-col section-header numeric revenue-detail-col sub-cost-col">—</td>
@@ -587,13 +590,14 @@
                                     <!-- EXPENSES/ODC'S -->
                                     <tr class="section-header-row clickable-row" onclick="toggleSubsRow('odcs')">
                                         <td class="frozen-col section-header">
-                                            <span id="odcs-toggle-icon">▼</span> EXPENSES/ODC's <span style="font-size:9px;font-weight:400;color:#aaa;">(% of assumed const. cost)</span>
-                                            <span class="acc-pct-wrapper" onclick="event.stopPropagation();">
+                                            <span id="odcs-toggle-icon">▶</span> EXPENSES/ODC's <span style="font-size:9px;font-weight:400;color:#aaa;">(% of assumed const. cost)</span>
+                                            <span class="acc-pct-wrapper" style="display:none;" onclick="event.stopPropagation();">
                                                 <input type="number" id="odcs-pct" value="0.25" min="0" max="10" step="0.01" 
                                                        class="acc-pct-input" title="% of Assumed Construction Cost">%
                                             </span>
+                                            <span class="calc-info-btn" onclick="event.stopPropagation(); showCalcInfo('odcs')" title="How is this calculated?">i</span>
                                         </td>
-                                        <td colspan="9" class="mh-col section-header"></td>
+                                        <td class="mh-col section-header account-code-col"></td><td class="mh-col section-header"></td><td class="mh-col section-header"></td><td class="mh-col section-header"></td><td class="mh-col section-header subs-pct-col"></td><td class="mh-col section-header col-all-rate"></td><td class="mh-col section-header col-selected-rate"></td><td class="mh-col section-header"></td><td class="mh-col section-header"></td><td class="mh-col section-header complexity-col"></td>
                                         <td class="mh-col mh-col-keep section-header numeric" id="odcs-total-mh">0</td>
                                         <td class="mh-col mh-col-keep section-header numeric mh-detail-col">—</td>
                                         <td class="mh-col mh-col-keep section-header numeric mh-detail-col">—</td>
@@ -602,9 +606,9 @@
                                         <td class="cost-col section-header numeric revenue-detail-col" id="odcs-total-raw-labor">$0</td>
                                         <td class="cost-col section-header numeric revenue-detail-col" id="odcs-total-burden">$0</td>
                                         <td class="cost-col section-header numeric revenue-detail-col" id="odcs-total-expenses">$0</td>
-                                        <td class="cost-col section-header numeric revenue-detail-col" id="odcs-total-cost">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col kie-detail-col" id="odcs-total-cost">$0</td>
                                         <td class="cost-col section-header numeric revenue-detail-col" id="odcs-total-margin">$0</td>
-                                        <td class="cost-col section-header numeric revenue-detail-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col kie-detail-col">—</td>
                                         <td class="cost-col section-header numeric revenue-detail-col sub-cost-col">—</td>
                                         <td class="cost-col section-header numeric revenue-detail-col sub-cost-col">—</td>
                                         <td class="cost-col section-header numeric revenue-detail-col sub-cost-col">—</td>
@@ -629,11 +633,12 @@
                                             </label>
                                             <span id="esdc-pct-label" style="font-size:8px; color:#FFD200; font-weight:700; margin-left:2px; vertical-align:middle;">use %</span>
                                             <button class="escalation-details-btn" onclick="showDisciplineBenchmark('esdc')" title="Select benchmark projects">📊</button>
+                                            <span class="calc-info-btn" onclick="event.stopPropagation(); showCalcInfo('esdc')" title="How is this calculated?">i</span>
                                         </td>
-                                        <td colspan="8" class="mh-col section-header"></td>
-                                        <td class="mh-col section-header numeric">
+                                        <td class="mh-col section-header account-code-col"></td><td class="mh-col section-header"></td><td class="mh-col section-header"></td><td class="mh-col section-header"></td><td class="mh-col section-header subs-pct-col"></td><td class="mh-col section-header col-all-rate"></td><td class="mh-col section-header col-selected-rate"></td><td class="mh-col section-header"></td><td class="mh-col section-header"></td>
+                                        <td class="mh-col section-header numeric complexity-col">
                                             <input type="number" class="l4-input" id="unified-l4-esdc"
-                                                   value="60" min="0" max="100" step="5"
+                                                   value="30" min="0" max="100" step="5"
                                                    onchange="updateUnifiedL4('esdc')"
                                                    title="Complexity: % of senior engineers (L4-L6) in team"
                                                    onclick="event.stopPropagation()">
@@ -642,7 +647,7 @@
                                         <td class="mh-col mh-col-keep section-header numeric mh-detail-col">—</td>
                                         <td class="mh-col mh-col-keep section-header numeric mh-detail-col">—</td>
                                         <td class="mh-col mh-toggle-cell section-header"></td>
-                                        <td class="cost-col section-header numeric" id="esdc-avg-rate">0%</td>
+                                        <td class="cost-col section-header numeric" id="esdc-avg-rate" style="position:relative;"><span id="esdc-rate-value">$64.90</span><button class="complexity-plus-btn" onclick="event.stopPropagation(); openComplexityPopup('esdc')" title="Adjust complexity %">+</button></td>
                                         <td class="cost-col section-header numeric revenue-detail-col" id="esdc-total-raw-labor">$0</td>
                                         <td class="cost-col section-header numeric revenue-detail-col" id="esdc-total-burden">$0</td>
                                         <td class="cost-col section-header numeric revenue-detail-col" id="esdc-total-expenses">$0</td>
@@ -672,11 +677,12 @@
                                             </label>
                                             <span id="tscd-pct-label" style="font-size:8px; color:#FFD200; font-weight:700; margin-left:2px; vertical-align:middle;">use %</span>
                                             <button class="escalation-details-btn" onclick="showDisciplineBenchmark('tscd')" title="Select benchmark projects">📊</button>
+                                            <span class="calc-info-btn" onclick="event.stopPropagation(); showCalcInfo('tscd')" title="How is this calculated?">i</span>
                                         </td>
-                                        <td colspan="8" class="mh-col section-header"></td>
-                                        <td class="mh-col section-header numeric">
+                                        <td class="mh-col section-header account-code-col"></td><td class="mh-col section-header"></td><td class="mh-col section-header"></td><td class="mh-col section-header"></td><td class="mh-col section-header subs-pct-col"></td><td class="mh-col section-header col-all-rate"></td><td class="mh-col section-header col-selected-rate"></td><td class="mh-col section-header"></td><td class="mh-col section-header"></td>
+                                        <td class="mh-col section-header numeric complexity-col">
                                             <input type="number" class="l4-input" id="unified-l4-tscd"
-                                                   value="60" min="0" max="100" step="5"
+                                                   value="30" min="0" max="100" step="5"
                                                    onchange="updateUnifiedL4('tscd')"
                                                    title="Complexity: % of senior engineers (L4-L6) in team"
                                                    onclick="event.stopPropagation()">
@@ -685,7 +691,7 @@
                                         <td class="mh-col mh-col-keep section-header numeric mh-detail-col">—</td>
                                         <td class="mh-col mh-col-keep section-header numeric mh-detail-col">—</td>
                                         <td class="mh-col mh-toggle-cell section-header"></td>
-                                        <td class="cost-col section-header numeric" id="tscd-avg-rate">0%</td>
+                                        <td class="cost-col section-header numeric" id="tscd-avg-rate" style="position:relative;"><span id="tscd-rate-value">$64.90</span><button class="complexity-plus-btn" onclick="event.stopPropagation(); openComplexityPopup('tscd')" title="Adjust complexity %">+</button></td>
                                         <td class="cost-col section-header numeric revenue-detail-col" id="tscd-total-raw-labor">$0</td>
                                         <td class="cost-col section-header numeric revenue-detail-col" id="tscd-total-burden">$0</td>
                                         <td class="cost-col section-header numeric revenue-detail-col" id="tscd-total-expenses">$0</td>
@@ -705,15 +711,17 @@
                                 </tbody>
 
                                 <!-- PURSUIT COSTS & SUCCESS FEE -->
-                                <tbody>
-                                    <tr class="section-header-row">
-                                        <td class="frozen-col section-header">PURSUIT &amp; SUCCESS FEE
-                                            <span class="acc-pct-wrapper" onclick="event.stopPropagation();">
+                                <tbody id="pursuit-section">
+                                    <tr class="section-header-row clickable-row" onclick="toggleSubsRow('pursuit')">
+                                        <td class="frozen-col section-header">
+                                            <span id="pursuit-toggle-icon">▶</span> PURSUIT &amp; SUCCESS FEE <span style="font-size:9px;font-weight:400;color:#aaa;">(% of IPV)</span>
+                                            <span class="acc-pct-wrapper" style="display:none;" onclick="event.stopPropagation();">
                                                 <input type="number" id="pursuit-pct-input" value="0.25" min="0" max="10" step="0.05"
                                                        class="acc-pct-input" title="% of Initial Project Value" onchange="updatePursuitRevenue()">%
                                             </span>
+                                            <span class="calc-info-btn" onclick="event.stopPropagation(); showCalcInfo('pursuit')" title="How is this calculated?">i</span>
                                         </td>
-                                        <td colspan="9" class="mh-col section-header"></td>
+                                        <td class="mh-col section-header account-code-col"></td><td class="mh-col section-header"></td><td class="mh-col section-header"></td><td class="mh-col section-header"></td><td class="mh-col section-header subs-pct-col"></td><td class="mh-col section-header col-all-rate"></td><td class="mh-col section-header col-selected-rate"></td><td class="mh-col section-header"></td><td class="mh-col section-header"></td><td class="mh-col section-header complexity-col"></td>
                                         <td class="mh-col mh-col-keep section-header numeric" id="pursuit-total-mh">0</td>
                                         <td class="mh-col mh-col-keep section-header numeric mh-detail-col">—</td>
                                         <td class="mh-col mh-col-keep section-header numeric mh-detail-col">—</td>
@@ -722,9 +730,9 @@
                                         <td class="cost-col section-header numeric revenue-detail-col" id="pursuit-total-raw-labor">$0</td>
                                         <td class="cost-col section-header numeric revenue-detail-col" id="pursuit-total-burden">$0</td>
                                         <td class="cost-col section-header numeric revenue-detail-col" id="pursuit-total-expenses">$0</td>
-                                        <td class="cost-col section-header numeric revenue-detail-col" id="pursuit-total-cost">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col kie-detail-col" id="pursuit-total-cost">$0</td>
                                         <td class="cost-col section-header numeric revenue-detail-col" id="pursuit-total-margin">$0</td>
-                                        <td class="cost-col section-header numeric revenue-detail-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col kie-detail-col">—</td>
                                         <td class="cost-col section-header numeric revenue-detail-col sub-cost-col">—</td>
                                         <td class="cost-col section-header numeric revenue-detail-col sub-cost-col">—</td>
                                         <td class="cost-col section-header numeric revenue-detail-col sub-cost-col">—</td>
@@ -736,6 +744,7 @@
                                         <td class="cost-col section-header numeric" id="pursuit-total-revenue">$0</td>
                                     </tr>
                                 </tbody>
+                                <tbody id="pursuit-tbody" class="indent-level-2 hidden"></tbody>
 
                                 <!-- ESCALATION -->
                                 <tbody>
@@ -743,8 +752,9 @@
                                         <td class="frozen-col section-header">
                                             ESCALATION
                                             <button class="escalation-details-btn" onclick="openEscalationModal()" title="View Escalation Breakdown">📊</button>
+                                            <span class="calc-info-btn" onclick="event.stopPropagation(); showCalcInfo('escalation')" title="How is this calculated?">i</span>
                                         </td>
-                                        <td colspan="9" class="mh-col section-header"></td>
+                                        <td class="mh-col section-header account-code-col"></td><td class="mh-col section-header"></td><td class="mh-col section-header"></td><td class="mh-col section-header"></td><td class="mh-col section-header subs-pct-col"></td><td class="mh-col section-header col-all-rate"></td><td class="mh-col section-header col-selected-rate"></td><td class="mh-col section-header"></td><td class="mh-col section-header"></td><td class="mh-col section-header complexity-col"></td>
                                         <td class="mh-col mh-col-keep section-header numeric" id="escalation-total-mh">0</td>
                                         <td class="mh-col mh-col-keep section-header numeric mh-detail-col">—</td>
                                         <td class="mh-col mh-col-keep section-header numeric mh-detail-col">—</td>
@@ -753,9 +763,9 @@
                                         <td class="cost-col section-header numeric revenue-detail-col" id="escalation-total-raw-labor">$0</td>
                                         <td class="cost-col section-header numeric revenue-detail-col" id="escalation-total-burden">$0</td>
                                         <td class="cost-col section-header numeric revenue-detail-col" id="escalation-total-expenses">$0</td>
-                                        <td class="cost-col section-header numeric revenue-detail-col" id="escalation-total-cost">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col kie-detail-col" id="escalation-total-cost">$0</td>
                                         <td class="cost-col section-header numeric revenue-detail-col" id="escalation-total-margin">$0</td>
-                                        <td class="cost-col section-header numeric revenue-detail-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col kie-detail-col">—</td>
                                         <td class="cost-col section-header numeric revenue-detail-col sub-cost-col">—</td>
                                         <td class="cost-col section-header numeric revenue-detail-col sub-cost-col">—</td>
                                         <td class="cost-col section-header numeric revenue-detail-col sub-cost-col">—</td>
@@ -771,8 +781,10 @@
                                 <!-- CONTINGENCY -->
                                 <tbody>
                                     <tr class="section-header-row">
-                                        <td class="frozen-col section-header">CONTINGENCY</td>
-                                        <td colspan="9" class="mh-col section-header"></td>
+                                        <td class="frozen-col section-header">CONTINGENCY
+                                            <span class="calc-info-btn" onclick="event.stopPropagation(); showCalcInfo('contingency')" title="How is this calculated?">i</span>
+                                        </td>
+                                        <td class="mh-col section-header account-code-col"></td><td class="mh-col section-header"></td><td class="mh-col section-header"></td><td class="mh-col section-header"></td><td class="mh-col section-header subs-pct-col"></td><td class="mh-col section-header col-all-rate"></td><td class="mh-col section-header col-selected-rate"></td><td class="mh-col section-header"></td><td class="mh-col section-header"></td><td class="mh-col section-header complexity-col"></td>
                                         <td class="mh-col mh-col-keep section-header numeric" id="contingency-total-mh">0</td>
                                         <td class="mh-col mh-col-keep section-header numeric mh-detail-col">—</td>
                                         <td class="mh-col mh-col-keep section-header numeric mh-detail-col">—</td>
@@ -781,9 +793,9 @@
                                         <td class="cost-col section-header numeric revenue-detail-col" id="contingency-total-raw-labor">$0</td>
                                         <td class="cost-col section-header numeric revenue-detail-col" id="contingency-total-burden">$0</td>
                                         <td class="cost-col section-header numeric revenue-detail-col" id="contingency-total-expenses">$0</td>
-                                        <td class="cost-col section-header numeric revenue-detail-col" id="contingency-total-cost">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col kie-detail-col" id="contingency-total-cost">$0</td>
                                         <td class="cost-col section-header numeric revenue-detail-col" id="contingency-total-margin">$0</td>
-                                        <td class="cost-col section-header numeric revenue-detail-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col kie-detail-col">—</td>
                                         <td class="cost-col section-header numeric revenue-detail-col sub-cost-col">—</td>
                                         <td class="cost-col section-header numeric revenue-detail-col sub-cost-col">—</td>
                                         <td class="cost-col section-header numeric revenue-detail-col sub-cost-col">—</td>
@@ -798,7 +810,7 @@
                                 <tfoot id="unified-totals-footer">
                                     <tr class="totals-row">
                                         <td class="frozen-col totals-label"><strong>GRAND TOTAL</strong></td>
-                                        <td colspan="9" class="mh-col"></td>
+                                        <td class="mh-col account-code-col"></td><td class="mh-col"></td><td class="mh-col"></td><td class="mh-col"></td><td class="mh-col subs-pct-col"></td><td class="mh-col col-all-rate"></td><td class="mh-col col-selected-rate"></td><td class="mh-col"></td><td class="mh-col"></td><td class="mh-col complexity-col"></td>
                                         <td class="mh-col mh-col-keep numeric" id="grand-total-mh">0</td>
                                         <td class="mh-col mh-col-keep numeric mh-detail-col" id="grand-total-kie-mh">0</td>
                                         <td class="mh-col mh-col-keep numeric mh-detail-col" id="grand-total-sub-mh">0</td>

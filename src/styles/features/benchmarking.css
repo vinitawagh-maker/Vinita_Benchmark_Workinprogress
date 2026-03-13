@@ -1983,14 +1983,23 @@ tbody.hidden {
     content: "▼";
 }
 
-/* In benchmark mode, revenue is always expanded — hide toggle arrows and green highlight */
+/* In benchmark mode, show expand arrow on Total Revenue/Bill */
 .benchmark-mode .clickable-revenue::after {
-    display: none;
+    content: "▶";
+    font-size: 8px;
+    position: absolute;
+    right: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #888;
+}
+.benchmark-mode.revenue-details-visible .clickable-revenue::after {
+    content: "▼";
 }
 .benchmark-mode .clickable-revenue {
-    padding-right: 4px !important;
-    background: none !important;
-    cursor: default;
+    position: relative;
+    padding-right: 16px !important;
+    cursor: pointer;
 }
 
 /* Align non-clickable revenue cells with clickable ones */
@@ -2374,11 +2383,212 @@ tbody.hidden {
 .benchmark-mode .mh-detail-col,
 .benchmark-mode .sub-cost-col,
 .benchmark-mode .ls-sub-expenses-col,
-.benchmark-mode .kie-detail-col {
+.benchmark-mode .kie-detail-col,
+.benchmark-mode .account-code-col,
+.benchmark-mode .complexity-col {
     display: none !important;
 }
 
 /* Also hide sub-related override inputs in benchmark mode */
 .benchmark-mode-active .override-sub-field {
     display: none !important;
+}
+
+/* Complexity "+" button — only visible in benchmark mode */
+.complexity-plus-btn {
+    display: none;
+    position: absolute;
+    left: 2px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 14px;
+    height: 14px;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 12px;
+    text-align: center;
+    padding: 0;
+    border: 1px solid #c4a35a;
+    border-radius: 3px;
+    background: #f5f0dc;
+    color: #cc3333;
+    cursor: pointer;
+    z-index: 2;
+}
+.complexity-plus-btn:hover {
+    background: #ebe4c8;
+    border-color: #aa8833;
+}
+.benchmark-mode .complexity-plus-btn {
+    display: block;
+}
+
+/* Complexity popup */
+.complexity-popup-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.complexity-popup {
+    background: #1a1a1a;
+    border: 1px solid #ffd700;
+    border-radius: 8px;
+    padding: 20px 28px;
+    min-width: 260px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+    color: #eee;
+    font-family: 'JetBrains Mono', monospace;
+}
+.complexity-popup h3 {
+    margin: 0 0 12px 0;
+    font-size: 14px;
+    color: #ffd700;
+}
+.complexity-popup label {
+    display: block;
+    font-size: 11px;
+    color: #aaa;
+    margin-bottom: 4px;
+}
+.complexity-popup input[type="number"] {
+    width: 80px;
+    padding: 6px 8px;
+    background: #0d0d0d;
+    border: 1px solid #555;
+    border-radius: 4px;
+    color: #fff;
+    font-size: 14px;
+    font-family: 'JetBrains Mono', monospace;
+    text-align: center;
+}
+.complexity-popup input[type="number"]:focus {
+    border-color: #ffd700;
+    outline: none;
+}
+.complexity-popup .popup-rate-display {
+    margin-top: 10px;
+    font-size: 12px;
+    color: #aaa;
+}
+.complexity-popup .popup-rate-display span {
+    color: #00ff00;
+    font-weight: 600;
+}
+.complexity-popup .popup-actions {
+    margin-top: 16px;
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+.complexity-popup .popup-actions button {
+    padding: 6px 16px;
+    border-radius: 4px;
+    border: 1px solid #555;
+    background: #222;
+    color: #eee;
+    font-size: 12px;
+    cursor: pointer;
+    font-family: 'JetBrains Mono', monospace;
+}
+.complexity-popup .popup-actions button.popup-apply {
+    background: #ffd700;
+    color: #000;
+    border-color: #ffd700;
+    font-weight: 600;
+}
+.complexity-popup .popup-actions button:hover {
+    opacity: 0.85;
+}
+
+/* Calc info button (ℹ) */
+.calc-info-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 13px;
+    height: 13px;
+    font-size: 9px;
+    font-weight: 700;
+    font-style: italic;
+    font-family: Georgia, serif;
+    line-height: 1;
+    color: #fff;
+    background: #5a7da8;
+    border: 1px solid #7a9dc8;
+    border-radius: 50%;
+    cursor: pointer;
+    margin-left: 4px;
+    vertical-align: middle;
+    opacity: 0.7;
+    transition: opacity 0.15s;
+}
+.calc-info-btn:hover {
+    opacity: 1;
+    background: #4a8fd4;
+    border-color: #6ab0f0;
+}
+
+/* Calc info popup */
+.calc-info-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.calc-info-popup {
+    background: #1a1a1a;
+    border: 1px solid #444;
+    border-radius: 8px;
+    padding: 20px 24px;
+    max-width: 520px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    color: #ddd;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    line-height: 1.6;
+}
+.calc-info-popup h3 {
+    color: #ffd700;
+    font-size: 14px;
+    margin: 0 0 12px 0;
+    border-bottom: 1px solid #333;
+    padding-bottom: 8px;
+}
+.calc-info-popup .formula {
+    background: #0d0d0d;
+    border: 1px solid #333;
+    border-radius: 4px;
+    padding: 8px 12px;
+    margin: 8px 0;
+    font-size: 11px;
+    color: #00ff00;
+}
+.calc-info-popup .note {
+    color: #888;
+    font-size: 10px;
+    margin-top: 10px;
+    font-style: italic;
+}
+.calc-info-popup .close-btn {
+    display: block;
+    margin: 14px 0 0 auto;
+    padding: 5px 16px;
+    background: #333;
+    color: #fff;
+    border: 1px solid #555;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 11px;
+}
+.calc-info-popup .close-btn:hover {
+    background: #444;
 }

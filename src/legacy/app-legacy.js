@@ -655,6 +655,10 @@ let projectData = {
 
             // Auto-set indirect FTEs based on project value tier
             updateIndirectsFTEFromProjectValue();
+
+            // Recalculate all costs that depend on assumed construction cost
+            // (ESDC, TSCD, ODCs, Subs, Pursuit)
+            recalculateAllUnifiedCosts();
         }
 
         /**
@@ -727,8 +731,8 @@ let projectData = {
 
             if (mode === 'benchmark') {
                 table.classList.add('benchmark-mode');
-                // Force revenue detail columns visible (Raw Labor, Burden, etc.)
-                table.classList.add('revenue-details-visible');
+                // Revenue detail columns start collapsed — user clicks Total Revenue arrow to expand
+                table.classList.remove('revenue-details-visible');
                 if (wrapper) wrapper.classList.add('benchmark-mode-active');
 
                 // Rename headers for benchmark mode
@@ -4334,7 +4338,7 @@ let projectData = {
         function getEsdcTscdWeightedRate(discId) {
             const resources = getDisciplineResources('roadway');
             const state = mhEstimateState?.disciplines?.[discId];
-            const l4Pct = (state?.l4Percentage !== undefined && state?.l4Percentage !== null) ? state.l4Percentage : 60;
+            const l4Pct = (state?.l4Percentage !== undefined && state?.l4Percentage !== null) ? state.l4Percentage : getGlobalComplexityPct();
             return (resources.lowRate * ((100 - l4Pct) / 100)) + (resources.highRate * (l4Pct / 100));
         }
 
@@ -6048,7 +6052,7 @@ ${reasoning}`;
             const roadwayResources = getDisciplineResources('roadway');
             const roadwayState = mhEstimateState?.disciplines?.roadway;
             const roadwayL4Pct = (roadwayState?.l4Percentage !== undefined && roadwayState?.l4Percentage !== null)
-                ? roadwayState.l4Percentage : 30;
+                ? roadwayState.l4Percentage : getGlobalComplexityPct();
             const lowPct = (100 - roadwayL4Pct) / 100;
             const highPct = roadwayL4Pct / 100;
             const hourlyRate = (roadwayResources.lowRate * lowPct) + (roadwayResources.highRate * highPct);
@@ -6547,7 +6551,7 @@ ${reasoning}`;
                     quantity: 0,
                     rate: defaultRate,
                     mh: 0,
-                    l4Percentage: 30,  // Default 30% of MH above L4 Engg
+                    l4Percentage: getGlobalComplexityPct(),  // Default 30% of MH above L4 Engg
                     ...(discId === 'structures' ? { structureEntries: [] } : {}),
                     ...(config.calculationType === 'fte' ? {
                         fte: config.defaultFte,
@@ -6651,7 +6655,7 @@ ${reasoning}`;
                         mh: 0,
                         revenue: 0,
                         totalRevenue: 0,
-                        l4Percentage: 60
+                        l4Percentage: getGlobalComplexityPct()
                     };
                 }
             }
@@ -6728,7 +6732,7 @@ ${reasoning}`;
                 
                 // ESDC - Revenue-based calculation
                 if (!mhEstimateState.disciplines.esdc) {
-                    mhEstimateState.disciplines.esdc = { active: false, quantity: 0, rate: 0, mh: 0, revenue: 0, totalRevenue: 0, l4Percentage: 60 };
+                    mhEstimateState.disciplines.esdc = { active: false, quantity: 0, rate: 0, mh: 0, revenue: 0, totalRevenue: 0, l4Percentage: getGlobalComplexityPct() };
                 }
                 const esdcState = mhEstimateState.disciplines.esdc;
                 const esdcBenchmarks = getBenchmarkDataSync('esdc');
@@ -6749,7 +6753,7 @@ ${reasoning}`;
                 
                 // TSCD - Revenue-based calculation
                 if (!mhEstimateState.disciplines.tscd) {
-                    mhEstimateState.disciplines.tscd = { active: false, quantity: 0, rate: 0, mh: 0, revenue: 0, totalRevenue: 0, l4Percentage: 60 };
+                    mhEstimateState.disciplines.tscd = { active: false, quantity: 0, rate: 0, mh: 0, revenue: 0, totalRevenue: 0, l4Percentage: getGlobalComplexityPct() };
                 }
                 const tscdState = mhEstimateState.disciplines.tscd;
                 const tscdBenchmarks = getBenchmarkDataSync('tscd');
@@ -6901,7 +6905,7 @@ ${reasoning}`;
             // - Low Estimate: (100 - L4%) of MH × Low Rate (junior portion)
             // - High Estimate: L4% of MH × High Rate (senior portion)
             const resources = getDisciplineResources(config.name);
-            const l4Pct = state.l4Percentage !== undefined ? state.l4Percentage : 30;
+            const l4Pct = state.l4Percentage !== undefined ? state.l4Percentage : getGlobalComplexityPct();
             const lowPct = (100 - l4Pct) / 100;  // Percentage at low (junior) rate
             const highPct = l4Pct / 100;         // Percentage at high (senior) rate
             
@@ -7988,7 +7992,7 @@ ${reasoning}`;
                         quantity: 0,
                         rate: calculatedRate,
                         mh: 0,
-                        l4Percentage: 60,
+                        l4Percentage: getGlobalComplexityPct(),
                         laborCost: 0,
                         burdenCost: 0,
                         gnaCost: 0,
@@ -8015,7 +8019,7 @@ ${reasoning}`;
                         mh: 0,
                         revenue: 0,
                         totalRevenue: 0,
-                        l4Percentage: 60,
+                        l4Percentage: getGlobalComplexityPct(),
                         laborCost: 0,
                         burdenCost: 0,
                         gnaCost: 0,
@@ -8123,21 +8127,22 @@ ${reasoning}`;
             const isMiscStructures = (discId === 'miscStructures');
             const isFte = (config.calculationType === 'fte');
             let descCell, qtyCell;
+            const calcInfoBtn = `<span class="calc-info-btn" onclick="event.stopPropagation(); showCalcInfo('${discId}')" title="How is this calculated?">i</span>`;
             if (isEsdcTscd) {
                 descCell = `<td class="frozen-col">${disciplineName} <button class="btn-benchmark-select" onclick="showDisciplineBenchmark('${discId}')" title="Select benchmark projects">📊 Select</button></td>`;
                 qtyCell = `<td class="mh-col numeric" title="Uses Assumed Construction Cost from Cost Parameters">—</td>`;
             } else if (isStructures) {
                 const totalSF = (state.structureEntries || []).reduce((sum, e) => sum + (e.eqty || 0), 0);
-                descCell = `<td class="frozen-col">${disciplineName} <button class="btn-structures-entry" onclick="openStructuresModal()" title="Enter structure details">📋 Enter</button></td>`;
+                descCell = `<td class="frozen-col">${disciplineName} <button class="btn-structures-entry" onclick="openStructuresModal()" title="Enter structure details">📋 Enter</button> ${calcInfoBtn}</td>`;
                 qtyCell = `<td class="mh-col numeric"><span id="unified-qty-structures" style="font-weight: bold;">${totalSF > 0 ? totalSF.toLocaleString('en-US') : '0'}</span></td>`;
             } else if (isMiscStructures) {
-                descCell = `<td class="frozen-col">${disciplineName}</td>`;
+                descCell = `<td class="frozen-col">${disciplineName} ${calcInfoBtn}</td>`;
                 qtyCell = `<td class="mh-col numeric" title="Auto-calculated from Roadway + Drainage + Traffic MH"><span id="unified-qty-miscStructures" style="font-weight: bold;">${(state.quantity || 0).toLocaleString('en-US')}</span></td>`;
             } else if (isFte) {
-                descCell = `<td class="frozen-col">${disciplineName} <span class="header-help" data-tooltip="${config.tooltip || ''}">?</span></td>`;
+                descCell = `<td class="frozen-col">${disciplineName} <span class="header-help" data-tooltip="${config.tooltip || ''}">?</span> ${calcInfoBtn}</td>`;
                 qtyCell = `<td class="mh-col numeric" title="Lump Sum">1</td>`;
             } else {
-                descCell = `<td class="frozen-col">${disciplineName}</td>`;
+                descCell = `<td class="frozen-col">${disciplineName} ${calcInfoBtn}</td>`;
                 qtyCell = `<td class="mh-col numeric">
                     <input type="text" class="qty-input" id="unified-qty-${discId}"
                            value="${(state.quantity || 0).toLocaleString('en-US')}" inputmode="numeric"
@@ -8183,7 +8188,7 @@ ${reasoning}`;
 
             row.innerHTML = `
                 ${descCell}
-                <td class="mh-col">${accountCode}</td>
+                <td class="mh-col account-code-col">${accountCode}</td>
                 ${qtyCell}
                 <td class="mh-col">${unit}</td>
                 ${benchmarkCell}
@@ -8210,9 +8215,9 @@ ${reasoning}`;
                 <td class="mh-col numeric">
                     <span id="unified-custom-mh-${discId}">${isFte ? '—' : formatMH(state.mh || Math.round((state.quantity || 0) * (selectedRate || 0)))}</span>
                 </td>
-                <td class="mh-col numeric">
+                <td class="mh-col numeric complexity-col">
                     <input type="number" class="l4-input" id="unified-l4-${discId}"
-                           value="${state.l4Percentage || 60}" min="0" max="100" step="5"
+                           value="${state.l4Percentage ?? getGlobalComplexityPct()}" min="0" max="100" step="5"
                            onchange="updateUnifiedL4('${discId}')"
                            title="Complexity: % of senior engineers (L4-L6) in team">
                 </td>
@@ -8238,8 +8243,9 @@ ${reasoning}`;
                     </div>
                 </td>
                 <td class="mh-col mh-toggle-cell"></td>
-                <td class="cost-col numeric">
+                <td class="cost-col numeric" style="position:relative;">
                     <span id="unified-hourly-rate-${discId}">$0</span>
+                    <button class="complexity-plus-btn" onclick="event.stopPropagation(); openComplexityPopup('${discId}')" title="Adjust complexity %">+</button>
                 </td>
                 <td class="cost-col numeric revenue-detail-col">
                     <span id="unified-raw-labor-${discId}">$0</span>
@@ -9020,7 +9026,7 @@ ${reasoning}`;
                     // Project cost K$ from Summary MH sheet quantities, or from assumed construction cost input
                     for (const revDiscId of ['esdc', 'tscd']) {
                         if (!mhEstimateState.disciplines[revDiscId]) {
-                            mhEstimateState.disciplines[revDiscId] = { active: false, quantity: 0, rate: 0, mh: 0, revenue: 0, totalRevenue: 0, l4Percentage: 60 };
+                            mhEstimateState.disciplines[revDiscId] = { active: false, quantity: 0, rate: 0, mh: 0, revenue: 0, totalRevenue: 0, l4Percentage: getGlobalComplexityPct() };
                         }
                         const revState = mhEstimateState.disciplines[revDiscId];
 
@@ -9449,7 +9455,7 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
                                 body: JSON.stringify({
-                                    model: 'gpt-4o',
+                                    model: 'gpt-4.1',
                                     max_tokens: 2000,
                                     messages: [{
                                         role: 'user',
@@ -10050,7 +10056,7 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
 
             const value = parseFloat(l4Input.value);
             // Allow 0 - only use default if NaN/empty
-            const l4Pct = isNaN(value) ? 60 : Math.max(0, Math.min(100, value));
+            const l4Pct = isNaN(value) ? getGlobalComplexityPct() : Math.max(0, Math.min(100, value));
 
             const state = mhEstimateState.disciplines[discId];
             if (!state) return;
@@ -10071,6 +10077,306 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
         }
 
         /**
+         * Open a popup to adjust complexity % for a discipline (used in benchmark mode)
+         */
+        function openComplexityPopup(discId) {
+            const state = mhEstimateState.disciplines[discId];
+            // Default to 30% if no value set
+            const currentPct = (state?.l4Percentage !== undefined && state?.l4Percentage !== null) ? state.l4Percentage : getGlobalComplexityPct();
+
+            // Get discipline display name
+            const nameMap = {
+                'roadway': 'Roadway', 'drainage': 'Drainage', 'mot': 'MOT', 'traffic': 'Traffic',
+                'utilities': 'Utilities', 'retainingWalls': 'Retaining Walls', 'noiseWalls': 'Noise Walls',
+                'structures': 'Structures', 'miscStructures': 'Misc Structures', 'geotechnical': 'Geotechnical',
+                'pavement': 'Pavement', 'landscaping': 'Landscaping', 'systems': 'Systems', 'track': 'Track',
+                'environmental': 'Environmental', 'digitalDelivery': 'Digital Delivery',
+                'esdc': 'ESDC', 'tscd': 'TSCD'
+            };
+            const discName = nameMap[discId] || discId;
+
+            // Get resource rates for live preview
+            const isEsdcTscd = (discId === 'esdc' || discId === 'tscd');
+            const resources = isEsdcTscd ? getDisciplineResources('roadway') : getDisciplineResources(discId);
+            const calcRate = (pct) => (resources.lowRate * ((100 - pct) / 100)) + (resources.highRate * (pct / 100));
+
+            // Build popup
+            const overlay = document.createElement('div');
+            overlay.className = 'complexity-popup-overlay';
+            overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+
+            overlay.innerHTML = `
+                <div class="complexity-popup">
+                    <h3>${discName} — Complexity</h3>
+                    <label>Senior Engineer % (L4-L6)</label>
+                    <input type="number" id="complexity-popup-input" value="${currentPct}" min="0" max="100" step="5">
+                    <div class="popup-rate-display">Weighted Rate: <span id="complexity-popup-rate">$${calcRate(currentPct).toFixed(2)}</span>/hr</div>
+                    <div class="popup-actions">
+                        <button onclick="this.closest('.complexity-popup-overlay').remove()">Cancel</button>
+                        <button class="popup-apply" onclick="applyComplexityPopup('${discId}')">Apply</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+
+            // Live preview of rate as user changes %
+            const input = document.getElementById('complexity-popup-input');
+            const rateDisplay = document.getElementById('complexity-popup-rate');
+            input.addEventListener('input', () => {
+                const pct = Math.max(0, Math.min(100, parseFloat(input.value) || 0));
+                rateDisplay.textContent = '$' + calcRate(pct).toFixed(2);
+            });
+            input.focus();
+            input.select();
+        }
+
+        /**
+         * Apply complexity % from popup and close it
+         */
+        function applyComplexityPopup(discId) {
+            const input = document.getElementById('complexity-popup-input');
+            if (!input) return;
+            const pct = Math.max(0, Math.min(100, parseFloat(input.value) || 30));
+
+            // Update the hidden l4 input so existing logic works
+            const l4Input = document.getElementById(`unified-l4-${discId}`);
+            if (l4Input) l4Input.value = pct;
+
+            // Trigger the existing update logic
+            const state = mhEstimateState.disciplines[discId];
+            if (state) state.l4Percentage = pct;
+            updateComplexityBreakdown(discId);
+
+            if (discId === 'esdc' || discId === 'tscd') {
+                recalculateAllUnifiedCosts();
+            } else {
+                recalculateUnifiedCosts(discId);
+                updateUnifiedSummary();
+            }
+            saveToLocalStorage();
+
+            // Close popup
+            document.querySelector('.complexity-popup-overlay')?.remove();
+        }
+
+        // ============================================
+        // Calculation Info Popups
+        // ============================================
+        function showCalcInfo(sectionId) {
+            const info = {
+                labor: {
+                    title: 'LABOR — How Revenue is Calculated',
+                    body: `<p>LABOR = DIRECTS + INDIRECTS</p>
+                        <div class="formula">Total Revenue = Sum of all Direct discipline revenues + Indirect revenues</div>
+                        <p>Each discipline's revenue is built up from MH × Weighted Rate, then applying Burden, G&A, and Margin markups via the KIE Multiplier.</p>`
+                },
+                directs: {
+                    title: 'DIRECTS — How Revenue is Calculated',
+                    body: `<p>Each direct discipline (Roadway, Drainage, MOT, etc.) calculates revenue as:</p>
+                        <div class="formula">Raw Labor = MH × Weighted Rate<br>
+                        Burden = Raw Labor × Burden %<br>
+                        Expenses = $0 (labor only)<br>
+                        G&A = Raw Labor × G&A %<br>
+                        Margin = Raw Labor × Margin %<br>
+                        Total Revenue = Raw Labor + Burden + Expenses + G&A + Margin</div>
+                        <p><strong>MH Source:</strong> Benchmark power curve (production rate at assumed construction cost) or manual entry. Weighted Rate is blended from junior (L1-L3) and senior (L4-L6) resource rates based on complexity %.</p>`
+                },
+                indirects: {
+                    title: 'INDIRECTS — How Revenue is Calculated',
+                    body: `<p>Indirects represent project management and oversight labor.</p>
+                        <div class="formula">MH = FTE × Design Duration (months) × 173.33 hrs/month<br>
+                        Raw Labor = MH × $95.00/hr (PM rate)<br>
+                        Revenue = Raw Labor + Burden + G&A + Margin</div>
+                        <p><strong>FTE</strong> is auto-set based on Initial Project Value tier, or can be manually overridden. Design Duration must be entered for MH to calculate.</p>`
+                },
+                lsSubs: {
+                    title: 'LS CONSULTANTS — How Revenue is Calculated',
+                    body: `<p>Lump Sum Subconsultant expenses are calculated as a % of Assumed Construction Cost.</p>
+                        <div class="formula">Assumed Const. Cost = Initial Project Value / (1 + Construction Margin %)<br><br>
+                        Survey Subs Expense = Assumed Cost × Survey %<br>
+                        Subsurface Utility Expense = Assumed Cost × Subsurface %<br>
+                        Geotech Expense = Assumed Cost × Geotech %</div>
+                        <p>These flow through as expenses (no labor). Revenue includes Sub Markup applied via Sub Multiplier.</p>`
+                },
+                ipc: {
+                    title: 'IPC — How Revenue is Calculated',
+                    body: `<p>Inter-Project Charge covers internal overhead allocation.</p>
+                        <div class="formula">IPC Expenses = Total KIE Labor MH × IPC Rate ($/MH)<br>
+                        (Default: $6/MH)</div>
+                        <p>IPC is an expense-only line item — it adds to Expenses and Total Revenue but has no labor hours. Can be toggled ON/OFF.</p>`
+                },
+                odcs: {
+                    title: 'EXPENSES/ODC\'s — How Revenue is Calculated',
+                    body: `<p>Other Direct Costs are calculated as a % of Assumed Construction Cost.</p>
+                        <div class="formula">Assumed Const. Cost = Initial Project Value / (1 + Construction Margin %)<br><br>
+                        ODC Expenses = Assumed Cost × ODC % (default 0.25%)</div>
+                        <p>ODCs are expense-only — no labor or MH. They cover project-specific costs like travel, printing, software licenses, etc.</p>`
+                },
+                esdc: {
+                    title: 'ESDC — How Revenue is Calculated',
+                    body: `<p>Engineering Services During Construction. Two methods:</p>
+                        <p><strong>Method 1 — % Override (default):</strong></p>
+                        <div class="formula">Revenue = Assumed Construction Cost × ESDC % (default 1.5%)<br>
+                        Raw Labor = Revenue / KIE Multiplier<br>
+                        MH = Raw Labor / Weighted Rate</div>
+                        <p><strong>Method 2 — Benchmark Curve:</strong></p>
+                        <div class="formula">Production % = Power curve f(Assumed Cost in K$)<br>
+                        Revenue = Assumed Cost × (Production % / 100)<br>
+                        MH = Raw Labor / Weighted Rate</div>
+                        <p>Weighted Rate uses Roadway resource rates at the set complexity %.</p>`
+                },
+                tscd: {
+                    title: 'TSCD — How Revenue is Calculated',
+                    body: `<p>Technical Services & Contract Documentation. Two methods:</p>
+                        <p><strong>Method 1 — % Override (default):</strong></p>
+                        <div class="formula">Revenue = Assumed Construction Cost × TSCD % (default 0.6%)<br>
+                        Raw Labor = Revenue / KIE Multiplier<br>
+                        MH = Raw Labor / Weighted Rate</div>
+                        <p><strong>Method 2 — Benchmark Curve:</strong></p>
+                        <div class="formula">Production % = Power curve f(Assumed Cost in K$)<br>
+                        Revenue = Assumed Cost × (Production % / 100)<br>
+                        MH = Raw Labor / Weighted Rate</div>
+                        <p>Weighted Rate uses Roadway resource rates at the set complexity %.</p>`
+                },
+                pursuit: {
+                    title: 'PURSUIT & SUCCESS FEE — How Revenue is Calculated',
+                    body: `<p>Covers business development and proposal costs.</p>
+                        <div class="formula">Pursuit Revenue = Initial Project Value × Pursuit % (default 0.25%)</div>
+                        <p><strong>Note:</strong> Unlike most other sections, Pursuit is based on <strong>Initial Project Value (IPV)</strong>, not Assumed Construction Cost. It is an expense/fee line — no labor MH.</p>`
+                },
+                escalation: {
+                    title: 'ESCALATION — How Revenue is Calculated',
+                    body: `<p>Cost escalation accounts for inflation over the project duration.</p>
+                        <div class="formula">Escalation applies a bell-curve spending distribution across the design duration, with annual escalation rates applied to each period's spend.<br><br>
+                        Base = Grand Total Revenue (before escalation)<br>
+                        Escalation Revenue = Weighted sum of period escalation factors × Base</div>
+                        <p>Click the 📊 button to view the detailed escalation breakdown modal with period-by-period calculations. NTP date and duration drive the timeline.</p>`
+                },
+                contingency: {
+                    title: 'CONTINGENCY — How Revenue is Calculated',
+                    body: `<p>Contingency covers risk and unforeseen scope growth.</p>
+                        <div class="formula">Base MH = Directs MH + Indirects MH + ESDC MH<br>
+                        Contingency MH = Base MH × Contingency % (default 5%)<br><br>
+                        Avg Rate = (Directs + Indirects + ESDC Raw Labor) / Base MH<br>
+                        Raw Labor = Contingency MH × Avg Rate<br>
+                        Revenue = Raw Labor + Burden + G&A + Margin</div>
+                        <p>Uses a true weighted average rate across Directs, Indirects, and ESDC. No expenses.</p>`
+                },
+                // Individual direct disciplines — generic formula
+                _directDisc: {
+                    title: '{name} — How Revenue is Calculated',
+                    body: `<p>Revenue is calculated from benchmark man-hours:</p>
+                        <div class="formula">1. Quantity × Benchmark Production Rate → Estimated MH<br>
+                        2. Weighted Rate = (Junior Rate × (100-Complexity%)) + (Senior Rate × Complexity%)<br>
+                        3. Raw Labor = MH × Weighted Rate<br>
+                        4. Burden = Raw Labor × Burden %<br>
+                        5. G&A = Raw Labor × G&A %<br>
+                        6. Margin = Raw Labor × Margin %<br>
+                        7. Total Revenue = Raw Labor + Burden + G&A + Margin</div>
+                        <p>Quantity comes from project scope (lane-miles, square feet, etc.). Benchmark rate is derived from a power curve fit to selected historical projects. Complexity % controls the junior/senior labor mix.</p>`
+                },
+                digitalDelivery: {
+                    title: 'Digital Delivery — How Revenue is Calculated',
+                    body: `<p>Digital Delivery MH is calculated from a complexity matrix:</p>
+                        <div class="formula">1. Look up project size tier from Assumed Construction Cost ($M)<br>
+                        2. Apply complexity group (Low/Med/High) scoring matrix<br>
+                        3. MH = Base MH × complexity score × (Design Duration / 12)<br>
+                        4. Revenue = MH × Weighted Rate (uses Roadway rates) + markups</div>
+                        <p>Requires both Initial Project Value and Design Duration to be entered. Shows "N/A" if duration is 0.</p>`
+                },
+                pavement: {
+                    title: 'Pavement — How Revenue is Calculated',
+                    body: `<p>Pavement is an FTE-based discipline:</p>
+                        <div class="formula">MH = FTE × (Months / 12) × 2,080 hrs/year<br>
+                        Weighted Rate = Roadway's blended rate at current complexity %<br>
+                        Raw Labor = MH × Weighted Rate<br>
+                        Revenue = Raw Labor + Burden + G&A + Margin</div>
+                        <p>Check "Edit" to enable and enter FTE count and duration. Defaults to 0 MH until Edit is checked.</p>`
+                },
+                landscaping: {
+                    title: 'Landscaping — How Revenue is Calculated',
+                    body: `<p>Landscaping is an FTE-based discipline:</p>
+                        <div class="formula">MH = FTE × (Months / 12) × 2,080 hrs/year<br>
+                        Weighted Rate = Roadway's blended rate at current complexity %<br>
+                        Raw Labor = MH × Weighted Rate<br>
+                        Revenue = Raw Labor + Burden + G&A + Margin</div>
+                        <p>Check "Edit" to enable and enter FTE count and duration. Defaults to 0 MH until Edit is checked.</p>`
+                },
+                structures: {
+                    title: 'Structures — How Revenue is Calculated',
+                    body: `<p>Structures uses total square footage from entered structure details:</p>
+                        <div class="formula">Quantity = Sum of all structure square footages<br>
+                        Benchmark Rate = Power curve production rate at project cost<br>
+                        MH = Quantity × Benchmark Rate<br>
+                        Revenue = MH × Weighted Rate + markups</div>
+                        <p>Click "📋 Enter" to input individual structure dimensions and types.</p>`
+                },
+                miscStructures: {
+                    title: 'Misc Structures — How Revenue is Calculated',
+                    body: `<p>Misc Structures MH is auto-calculated:</p>
+                        <div class="formula">Quantity = Roadway MH + Drainage MH + Traffic MH<br>
+                        MH = Quantity × Benchmark Production Rate<br>
+                        Revenue = MH × Weighted Rate + markups</div>
+                        <p>No manual quantity input — it derives from other discipline MH totals.</p>`
+                },
+                surveySubs: {
+                    title: 'Survey Subs — How Revenue is Calculated',
+                    body: `<p>Survey subconsultant expense based on Assumed Construction Cost:</p>
+                        <div class="formula">Expense = Assumed Construction Cost × Survey % (default 0.25%)<br>
+                        Revenue = Expense × Sub Multiplier</div>
+                        <p>This is an expense-only line — no KIE labor. The expense flows into the LS Consultants and Grand Total.</p>`
+                },
+                subsurfaceUtility: {
+                    title: 'Subsurface Utility Subs — How Revenue is Calculated',
+                    body: `<p>Subsurface utility subconsultant expense based on Assumed Construction Cost:</p>
+                        <div class="formula">Expense = Assumed Construction Cost × Subsurface Utility % (default 0.25%)<br>
+                        Revenue = Expense × Sub Multiplier</div>
+                        <p>This is an expense-only line — no KIE labor. The expense flows into the LS Consultants and Grand Total.</p>`
+                },
+                geotechSubs: {
+                    title: 'Geotech Drilling Subs — How Revenue is Calculated',
+                    body: `<p>Geotech drilling subconsultant expense based on Assumed Construction Cost:</p>
+                        <div class="formula">Expense = Assumed Construction Cost × Geotech % (default 0.50%)<br>
+                        Revenue = Expense × Sub Multiplier</div>
+                        <p>This is an expense-only line — no KIE labor. The expense flows into the LS Consultants and Grand Total.</p>`
+                }
+            };
+
+            // For direct disciplines not explicitly listed, use the generic template
+            const directDiscIds = ['roadway', 'drainage', 'mot', 'traffic', 'utilities',
+                'retainingWalls', 'noiseWalls', 'geotechnical', 'environmental', 'systems', 'track'];
+            const nameMap = {
+                'roadway': 'Roadway', 'drainage': 'Drainage', 'mot': 'MOT', 'traffic': 'Traffic',
+                'utilities': 'Utilities', 'retainingWalls': 'Retaining Walls', 'noiseWalls': 'Noise Walls',
+                'geotechnical': 'Geotechnical', 'environmental': 'Environmental',
+                'systems': 'Systems', 'track': 'Track'
+            };
+            for (const did of directDiscIds) {
+                if (!info[did]) {
+                    info[did] = {
+                        title: info._directDisc.title.replace('{name}', nameMap[did] || did),
+                        body: info._directDisc.body
+                    };
+                }
+            }
+
+            const section = info[sectionId];
+            if (!section) return;
+
+            const overlay = document.createElement('div');
+            overlay.className = 'calc-info-overlay';
+            overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+            overlay.innerHTML = `
+                <div class="calc-info-popup">
+                    <h3>${section.title}</h3>
+                    ${section.body}
+                    <button class="close-btn" onclick="this.closest('.calc-info-overlay').remove()">Close</button>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+        }
+
+        /**
          * Update the complexity breakdown display (L4+ hours vs L1-3 hours)
          */
         function updateComplexityBreakdown(discId) {
@@ -10080,7 +10386,7 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             if (!breakdownElem || !state) return;
 
             const totalMH = state.mh || 0;
-            const l4Pct = (state.l4Percentage !== undefined && state.l4Percentage !== null) ? state.l4Percentage : 60;
+            const l4Pct = (state.l4Percentage !== undefined && state.l4Percentage !== null) ? state.l4Percentage : getGlobalComplexityPct();
 
             // Calculate hours breakdown
             const l4Hours = Math.round(totalMH * (l4Pct / 100));
@@ -10097,6 +10403,18 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
          * Apply global complexity setting to all disciplines
          * Low = 30%, Medium = 60%, High = 90%
          */
+        /** Read the current global complexity % from the Management Override dropdown */
+        function getGlobalComplexityPct() {
+            const sel = document.getElementById('unified-complexity');
+            if (!sel) return 30;
+            const v = sel.value;
+            if (v === 'Custom') {
+                const c = parseFloat(document.getElementById('custom-complexity-pct')?.value);
+                return isNaN(c) ? 30 : Math.min(100, Math.max(0, c));
+            }
+            return { 'Low': 30, 'Med': 60, 'High': 90 }[v] || 30;
+        }
+
         function applyGlobalComplexity() {
             const complexitySelect = document.getElementById('unified-complexity');
             if (!complexitySelect) return;
@@ -10191,7 +10509,7 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             // ESDC/TSCD use roadway rates at their own l4Percentage
             const isEsdcTscd = (discId === 'esdc' || discId === 'tscd');
             const effectiveResources = isEsdcTscd ? getDisciplineResources('roadway') : resources;
-            const l4Pct = (state.l4Percentage !== undefined && state.l4Percentage !== null) ? state.l4Percentage : 30;
+            const l4Pct = (state.l4Percentage !== undefined && state.l4Percentage !== null) ? state.l4Percentage : getGlobalComplexityPct();
             const lowPct = (100 - l4Pct) / 100;  // Junior percentage
             const highPct = l4Pct / 100;         // Senior percentage
             const weightedRate = (effectiveResources.lowRate * lowPct) + (effectiveResources.highRate * highPct);
@@ -10390,6 +10708,22 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
         function toggleFteInputs(discId, enabled) {
             const inputs = document.getElementById(`fte-inputs-${discId}`);
             if (inputs) inputs.style.display = enabled ? 'block' : 'none';
+            if (enabled) {
+                // Recalculate MH when Edit is checked (uses default FTE/months values)
+                recalculateFteDiscipline(discId);
+            } else {
+                // Reset MH to 0 when Edit is unchecked
+                const state = mhEstimateState.disciplines[discId];
+                if (state) {
+                    state.mh = 0;
+                    state.active = false;
+                }
+                const mhEl = document.getElementById(`unified-mh-${discId}`);
+                if (mhEl) mhEl.textContent = '0';
+                recalculateUnifiedCosts(discId);
+                updateUnifiedSummary();
+                saveToLocalStorage();
+            }
         }
 
         /**
@@ -10400,6 +10734,16 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             const state = mhEstimateState.disciplines[discId];
             const config = DISCIPLINE_CONFIG[discId];
             if (!state || !config) return;
+
+            // Only calculate MH if Edit checkbox is checked
+            const editToggle = document.getElementById(`fte-toggle-${discId}`);
+            if (editToggle && !editToggle.checked) {
+                state.mh = 0;
+                state.active = false;
+                const mhEl = document.getElementById(`unified-mh-${discId}`);
+                if (mhEl) mhEl.textContent = '0';
+                return;
+            }
 
             const fteInput = document.getElementById(`fte-count-${discId}`);
             const monthsInput = document.getElementById(`fte-months-${discId}`);
@@ -10417,7 +10761,7 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             // Use Roadway's weighted rate (same logic as Digital Delivery)
             const rwRes = getDisciplineResources('roadway');
             const rwState = mhEstimateState?.disciplines?.roadway;
-            const rwL4 = (rwState?.l4Percentage != null) ? rwState.l4Percentage : 30;
+            const rwL4 = (rwState?.l4Percentage != null) ? rwState.l4Percentage : getGlobalComplexityPct();
             const weightedRate = (rwRes.lowRate * ((100 - rwL4) / 100)) + (rwRes.highRate * (rwL4 / 100));
             state.rate = weightedRate;
             state.weightedRate = weightedRate;
@@ -10448,10 +10792,35 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             const initialProjectValue = parseFloat(initialValueStr) || 0;
             const projectValueM = initialProjectValue / 1000000; // Convert $ to millions for matrix lookup
             
-            // Get Design Duration (months)
+            // Get Design Duration (months) — do NOT default; if empty, DD is N/A
             const durationInput = document.getElementById('calc-design-duration');
-            const durationMonths = parseInt(durationInput?.value) || 12;
-            
+            const durationRaw = durationInput?.value?.trim();
+            const durationMonths = (durationRaw !== '' && durationRaw !== undefined) ? parseInt(durationRaw) : 0;
+            const hasDuration = durationMonths > 0;
+
+            // If no duration entered or no project value, show N/A
+            if (!hasDuration || projectValueM <= 0) {
+                state.active = false;
+                state.mh = 0;
+                state.rawLabor = 0;
+                state.burden = 0;
+                state.gna = 0;
+                state.margin = 0;
+                state.revenue = 0;
+                state.totalCost = 0;
+                const mhEl = document.getElementById('unified-mh-digitalDelivery');
+                if (mhEl) mhEl.textContent = 'N/A';
+                const els = ['unified-raw-labor-digitalDelivery', 'unified-burden-digitalDelivery',
+                    'unified-gna-digitalDelivery', 'unified-margin-digitalDelivery',
+                    'unified-revenue-digitalDelivery', 'unified-cost-digitalDelivery'];
+                els.forEach(id => { const el = document.getElementById(id); if (el) el.textContent = '$0'; });
+                const rateEl = document.getElementById('unified-rate-digitalDelivery');
+                if (rateEl) rateEl.textContent = '$0';
+                const totalRevEl = document.getElementById('unified-total-revenue-digitalDelivery');
+                if (totalRevEl) totalRevEl.textContent = '$0';
+                return;
+            }
+
             // Calculate Digital Delivery MH using 3-step process
             const result = calculateDigitalDeliveryMH(projectValueM, durationMonths, 'Med');
 
@@ -10462,7 +10831,7 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             // Mirror Roadway's weighted rate (same complexity %)
             const _rwRes = getDisciplineResources('roadway');
             const _rwState = mhEstimateState?.disciplines?.roadway;
-            const _rwL4 = (_rwState?.l4Percentage !== undefined && _rwState?.l4Percentage !== null) ? _rwState.l4Percentage : 30;
+            const _rwL4 = (_rwState?.l4Percentage !== undefined && _rwState?.l4Percentage !== null) ? _rwState.l4Percentage : getGlobalComplexityPct();
             const _rwWeightedRate = (_rwRes.lowRate * ((100 - _rwL4) / 100)) + (_rwRes.highRate * (_rwL4 / 100));
             state.rate = _rwWeightedRate;
             state.rawLabor = result.rawLabor;
@@ -10833,16 +11202,17 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             const surveySubsPctForLsSubs = parseFloat(document.getElementById('survey-subs-pct')?.value) || DEFAULT_SURVEY_SUBS_PCT;
             const lsSubsExpenses = assumedConstructionCost * (surveySubsPctForLsSubs / 100);
 
-            // Update LS SUBS row — expenses go in LS Sub Expenses column, not KIE columns
+            // Update LS SUBS row — in benchmark mode show under Expenses; in detailed mode use LS Sub Expenses column
             document.getElementById('ls-subs-total-mh').textContent = '0';
             document.getElementById('ls-subs-avg-rate').textContent = '$0.00';
             document.getElementById('ls-subs-total-raw-labor').textContent = '$0';
             document.getElementById('ls-subs-total-burden').textContent = '$0';
             document.getElementById('ls-subs-total-gna').textContent = '$0';
             document.getElementById('ls-subs-total-margin').textContent = '$0';
+            document.getElementById('ls-subs-total-expenses').textContent =
+                '$' + Math.round(lsSubsExpenses).toLocaleString('en-US');
             document.getElementById('ls-subs-total-revenue').textContent =
                 '$' + Math.round(lsSubsExpenses).toLocaleString('en-US');
-            document.getElementById('ls-subs-total-expenses').textContent = '$0';
             document.getElementById('ls-subs-total-cost').textContent = '$0';
             // LS Sub Expenses column
             const lsSubsSeEl = document.getElementById('ls-subs-sub-expenses');
@@ -10854,16 +11224,17 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             const subsurfaceUtilitySubsPct = parseFloat(document.getElementById('subsurface-utility-subs-pct')?.value) || DEFAULT_SUBSURFACE_UTILITY_SUBS_PCT;
             const surveyExpenses = assumedConstructionCost * (subsurfaceUtilitySubsPct / 100);
 
-            // Update SURVEY row — expenses go in LS Sub Expenses column
+            // Update SURVEY row — show under Expenses column
             document.getElementById('survey-total-mh').textContent = '0';
             document.getElementById('survey-avg-rate').textContent = '$0.00';
             document.getElementById('survey-total-raw-labor').textContent = '$0';
             document.getElementById('survey-total-burden').textContent = '$0';
             document.getElementById('survey-total-gna').textContent = '$0';
             document.getElementById('survey-total-margin').textContent = '$0';
+            document.getElementById('survey-total-expenses').textContent =
+                '$' + Math.round(surveyExpenses).toLocaleString('en-US');
             document.getElementById('survey-total-revenue').textContent =
                 '$' + Math.round(surveyExpenses).toLocaleString('en-US');
-            document.getElementById('survey-total-expenses').textContent = '$0';
             document.getElementById('survey-total-cost').textContent = '$0';
             // LS Sub Expenses column
             const surveySeEl = document.getElementById('survey-sub-expenses');
@@ -10875,16 +11246,17 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             const geotechSubsPct = parseFloat(document.getElementById('geotech-subs-pct')?.value) || DEFAULT_GEOTECH_SUBS_PCT;
             const subsurfaceUtilityExpenses = assumedConstructionCost * (geotechSubsPct / 100);
 
-            // Update SUBSURFACE UTILITY SUBS row — expenses go in LS Sub Expenses column
+            // Update SUBSURFACE UTILITY SUBS row — show under Expenses column
             document.getElementById('subsurface-utility-total-mh').textContent = '0';
             document.getElementById('subsurface-utility-avg-rate').textContent = '$0.00';
             document.getElementById('subsurface-utility-total-raw-labor').textContent = '$0';
             document.getElementById('subsurface-utility-total-burden').textContent = '$0';
             document.getElementById('subsurface-utility-total-gna').textContent = '$0';
             document.getElementById('subsurface-utility-total-margin').textContent = '$0';
+            document.getElementById('subsurface-utility-total-expenses').textContent =
+                '$' + Math.round(subsurfaceUtilityExpenses).toLocaleString('en-US');
             document.getElementById('subsurface-utility-total-revenue').textContent =
                 '$' + Math.round(subsurfaceUtilityExpenses).toLocaleString('en-US');
-            document.getElementById('subsurface-utility-total-expenses').textContent = '$0';
             document.getElementById('subsurface-utility-total-cost').textContent = '$0';
             // LS Sub Expenses column
             const suSeEl = document.getElementById('subsurface-utility-sub-expenses');
@@ -10949,7 +11321,8 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             const subsRevenue = subsTotalLabor + subsMarkupAmount + subsExpenses;
             document.getElementById('subs-section-total-revenue').textContent =
                 '$' + Math.round(subsRevenue).toLocaleString('en-US');
-            document.getElementById('subs-section-total-expenses').textContent = '$0';
+            document.getElementById('subs-section-total-expenses').textContent =
+                '$' + Math.round(subsExpenses).toLocaleString('en-US');
             document.getElementById('subs-section-total-cost').textContent =
                 '$' + Math.round(subsRawLabor + subsBurden).toLocaleString('en-US');
             // SUBS section KIE Revenue = $0 (subs have no KIE labor)
@@ -11174,7 +11547,8 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             const esdcRevenueEl = document.getElementById('esdc-total-revenue');
             
             if (esdcMhEl) esdcMhEl.textContent = formatMH(esdcCalc.mh);
-            if (esdcRateEl) esdcRateEl.textContent = '$' + getEsdcTscdWeightedRate('esdc').toFixed(2);
+            const esdcRateSpan = document.getElementById('esdc-rate-value');
+            if (esdcRateSpan) esdcRateSpan.textContent = '$' + getEsdcTscdWeightedRate('esdc').toFixed(2);
             if (esdcRawLaborEl) esdcRawLaborEl.textContent = '$' + Math.round(esdcCalc.rawLabor).toLocaleString('en-US');
             if (esdcBurdenEl) esdcBurdenEl.textContent = '$' + Math.round(esdcCalc.burden).toLocaleString('en-US');
             if (esdcGnaEl) esdcGnaEl.textContent = '$' + Math.round(esdcCalc.gna).toLocaleString('en-US');
@@ -11200,7 +11574,8 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             const tscdRevenueEl = document.getElementById('tscd-total-revenue');
             
             if (tscdMhEl) tscdMhEl.textContent = formatMH(tscdCalc.mh);
-            if (tscdRateEl) tscdRateEl.textContent = '$' + getEsdcTscdWeightedRate('tscd').toFixed(2);
+            const tscdRateSpan = document.getElementById('tscd-rate-value');
+            if (tscdRateSpan) tscdRateSpan.textContent = '$' + getEsdcTscdWeightedRate('tscd').toFixed(2);
             if (tscdRawLaborEl) tscdRawLaborEl.textContent = '$' + Math.round(tscdCalc.rawLabor).toLocaleString('en-US');
             if (tscdBurdenEl) tscdBurdenEl.textContent = '$' + Math.round(tscdCalc.burden).toLocaleString('en-US');
             if (tscdGnaEl) tscdGnaEl.textContent = '$' + Math.round(tscdCalc.gna).toLocaleString('en-US');
@@ -11222,8 +11597,8 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             const grandTotalBurden = kieLaborBurden + subsBurden + contingencyBurden + (esdcCalc?.burden || 0) + (tscdCalc?.burden || 0) + escalationBurden;
             const grandTotalGna = kieLaborGna + subsGna + contingencyGna + (esdcCalc?.gna || 0) + (tscdCalc?.gna || 0) + escalationGna;
             const grandTotalMargin = kieLaborMargin + subsMargin + contingencyMargin + (esdcCalc?.margin || 0) + (tscdCalc?.margin || 0) + escalationMarginValue;
-            // KIE Expenses: no LS sub expenses (those are in LS Sub Expenses column)
-            const grandTotalExpenses = kieLaborExpenses + ipcExpenses + odcsExpenses;
+            // Expenses: KIE labor expenses + IPC + ODCs + LS sub expenses (survey/subsurface/geotech)
+            const grandTotalExpenses = kieLaborExpenses + ipcExpenses + odcsExpenses + subsExpenses;
             // SUBS revenue = sub labor (rawLabor × subMultiplier) + sub markup + sub expenses
             const pursuitPct = parseFloat(document.getElementById('pursuit-pct-input')?.value) || 0.25;
             const ipv = parseFloat(String(document.getElementById('calc-est-construction-cost')?.value || '').replace(/[$,]/g, '')) || 0;
@@ -11293,7 +11668,7 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
                     console.log(`  kieMhEl found: ${!!kieMhElDebug}, subMhEl found: ${!!subMhElDebug}`);
                     if (kieMhElDebug) console.log(`  kieMhEl current text: "${kieMhElDebug.textContent}", will set to: "${kieMH > 0 ? formatMH(kieMH) : '0'}"`);
                 }
-                const l4Pct = (state.l4Percentage !== undefined && state.l4Percentage !== null) ? state.l4Percentage : 60;
+                const l4Pct = (state.l4Percentage !== undefined && state.l4Percentage !== null) ? state.l4Percentage : getGlobalComplexityPct();
 
                 // Sub MH cell
                 const subMhEl = document.getElementById(`unified-sub-mh-${discId}`);
@@ -11742,6 +12117,13 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
                     // Collapse
                     tbody.classList.add('hidden');
                     icon.textContent = '▶';
+                }
+
+                // Hide/show the % input wrapper when collapsing/expanding
+                const headerRow = icon.closest('tr');
+                const pctWrapper = headerRow?.querySelector('.acc-pct-wrapper');
+                if (pctWrapper) {
+                    pctWrapper.style.display = tbody.classList.contains('hidden') ? 'none' : '';
                 }
             }
         }
@@ -17896,7 +18278,7 @@ Return ONLY the JSON array, no markdown.`;
                         'Authorization': `Bearer ${apiKey}`
                     },
                     body: JSON.stringify({
-                        model: 'gpt-5.2',
+                        model: 'gpt-4.1',
                         messages: [{ role: 'user', content: prompt }],
                         max_completion_tokens: 1500,
                         temperature: 0.7
@@ -18031,7 +18413,7 @@ Return ONLY the JSON, no markdown formatting.`;
                         'Authorization': `Bearer ${apiKey}`
                     },
                     body: JSON.stringify({
-                        model: 'gpt-5.2',
+                        model: 'gpt-4.1',
                         messages: [
                             { role: 'user', content: contextPrompt }
                         ],
@@ -18156,7 +18538,7 @@ Return ONLY the JSON, no markdown formatting.`;
                         'Authorization': `Bearer ${apiKey}`
                     },
                     body: JSON.stringify({
-                        model: 'gpt-5.2-thinking',
+                        model: 'gpt-4.1',
                         messages: apiMessages,
                         max_completion_tokens: 1000,
                         tools: useTools ? chatTools : undefined,
@@ -18232,7 +18614,7 @@ Return ONLY the JSON, no markdown formatting.`;
                             'Authorization': `Bearer ${apiKey}`
                         },
                         body: JSON.stringify({
-                            model: 'gpt-5.2-thinking',
+                            model: 'gpt-4.1',
                             messages: followUpMessages,
                             max_completion_tokens: 1000
                         })
@@ -18758,7 +19140,7 @@ IMPORTANT:
                             'Authorization': `Bearer ${apiKey}`
                         },
                         body: JSON.stringify({
-                            model: 'gpt-5.2-thinking',
+                            model: 'gpt-4.1',
                             messages: [
                                 { role: 'system', content: systemPrompt },
                                 { role: 'user', content: `Analyze this RFP document (chunk ${chunkIndex + 1} of ${totalChunks}). Extract WBS information AND estimate all quantities and project costs based on the scope described. Even if quantities aren't explicitly stated, use your engineering expertise to provide reasonable estimates for man-hour estimation purposes:\n\n${chunkText}` }
@@ -18843,7 +19225,7 @@ IMPORTANT:
             return {
                 data: parsedData,
                 usage: usage,
-                model: data.model || 'gpt-5.2-thinking'
+                model: data.model || 'gpt-4.1'
             };
         }
 
@@ -19118,7 +19500,7 @@ Chunks: ${JSON.stringify(complexFieldsOnly, null, 2)}`;
                             'Authorization': `Bearer ${apiKey}`
                         },
                         body: JSON.stringify({
-                            model: 'gpt-5.2-thinking',
+                            model: 'gpt-4.1',
                             messages: [
                                 { role: 'user', content: mergePrompt }
                             ],
@@ -19221,7 +19603,7 @@ Chunks: ${JSON.stringify(complexFieldsOnly, null, 2)}`;
                     commercialTermsConfidence: aiMerged.commercialTermsConfidence || {}
                 },
                 usage: usage,
-                model: data.model || 'gpt-5.2-thinking'
+                model: data.model || 'gpt-4.1'
             };
         }
 
@@ -19376,7 +19758,7 @@ Chunks: ${JSON.stringify(complexFieldsOnly, null, 2)}`;
                     totalTokens: 0,
                     apiCalls: 0,
                     estimatedCost: 0,
-                    model: 'gpt-5.2-thinking',
+                    model: 'gpt-4.1',
                     startTime: Date.now(),
                     endTime: null
                 };
@@ -19611,7 +19993,7 @@ Chunks: ${JSON.stringify(complexFieldsOnly, null, 2)}`;
             if (stats && stats.totalTokens > 0) {
                 document.getElementById('rfp-usage-stats').style.display = 'block';
                 document.getElementById('rfp-stats-calls').textContent = stats.apiCalls;
-                document.getElementById('rfp-stats-model').textContent = stats.model || 'gpt-5.2';
+                document.getElementById('rfp-stats-model').textContent = stats.model || 'gpt-4.1';
                 document.getElementById('rfp-stats-prompt').textContent = formatNumber(stats.totalPromptTokens);
                 document.getElementById('rfp-stats-completion').textContent = formatNumber(stats.totalCompletionTokens);
                 document.getElementById('rfp-stats-tokens').textContent = formatNumber(stats.totalTokens);
@@ -22335,7 +22717,10 @@ Chunks: ${JSON.stringify(complexFieldsOnly, null, 2)}`;
         window.toggleRevenueDetails = toggleRevenueDetails;
         window.toggleMHDetails = toggleMHDetails;
         window.switchEstimateMode = switchEstimateMode;
-        
+        window.openComplexityPopup = openComplexityPopup;
+        window.applyComplexityPopup = applyComplexityPopup;
+        window.showCalcInfo = showCalcInfo;
+
         // Sensitivity analysis modal
         window.openSensitivityModal = openSensitivityModal;
         window.closeSensitivityModal = closeSensitivityModal;
