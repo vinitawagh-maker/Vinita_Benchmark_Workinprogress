@@ -2372,7 +2372,7 @@ let projectData = {
             }
             
             // ============================================
-            // CALCULATE MONTHLY BELL CURVE DISTRIBUTION
+            // CALCULATE MONTHLY S-CURVE DISTRIBUTION
             // ============================================
             const monthlyDistribution = calculateMonthlyBellCurve(durationMonths);
             
@@ -2493,45 +2493,63 @@ let projectData = {
         /**
          * Calculate monthly bell curve distribution
          */
+        /**
+         * Calculates monthly cost distribution derived from a standard S-curve (logistic).
+         * The CUMULATIVE curve is an S-curve with:
+         *   - ~20% ramp-up phase (first ~20% of duration)
+         *   - ~60% steady-state peak phase (middle ~60%)
+         *   - ~20% ramp-down phase (last ~20% of duration)
+         * The monthly values are the derivative (incremental spend per month).
+         *
+         * Uses logistic function: S(t) = 1 / (1 + e^(-k*(t - t_mid)))
+         * k controls steepness; t_mid is the midpoint.
+         * Monthly spend = S(t+1) - S(t), then normalized to sum to 1.
+         */
         function calculateMonthlyBellCurve(numMonths) {
             if (numMonths <= 1) return [1];
-            
+
+            // Logistic sigmoid S-curve with k=0.9
+            // Cumulative curve is a standard S-curve: ~20% ramp-up, ~60% peak, ~20% ramp-down
+            // Monthly distribution is the derivative (incremental spend per month)
+            // Normalized so S_norm(0)=0 and S_norm(N)=1 exactly
+            const k = 0.9 / numMonths;
+            const tMid = numMonths / 2;
+
+            // Raw logistic
+            const S = (t) => 1 / (1 + Math.exp(-k * (t - tMid)));
+            // Normalize to [0,1] over the range [0, numMonths]
+            const S0 = S(0);
+            const SN = S(numMonths);
+            const Snorm = (t) => (S(t) - S0) / (SN - S0);
+
+            // Monthly increments = Snorm(t+1) - Snorm(t)
             const distribution = [];
-            const midpoint = (numMonths - 1) / 2;
-            const stdDev = numMonths / 4;
-            
-            let total = 0;
             for (let i = 0; i < numMonths; i++) {
-                const x = i - midpoint;
-                const value = Math.exp(-(x * x) / (2 * stdDev * stdDev));
-                distribution.push(value);
-                total += value;
+                distribution.push(Snorm(i + 1) - Snorm(i));
             }
-            
-            // Normalize to sum to 1.0
-            return distribution.map(v => v / total);
+
+            return distribution;
         }
 
         /**
-         * Calculates bell curve distribution for hours across years
+         * Calculates S-curve distribution for costs across years.
+         * Uses the same logistic S-curve as the monthly version.
          */
         function calculateBellCurveDistribution(years) {
             if (years === 1) return [1];
-            
+
+            const k = 6 / years;
+            const tMid = years / 2;
+            const S = (t) => 1 / (1 + Math.exp(-k * (t - tMid)));
+
             const distribution = [];
-            const mean = (years - 1) / 2;
-            const stdDev = years / 4;
-            
             let total = 0;
             for (let i = 0; i < years; i++) {
-                // Normal distribution formula
-                const x = i;
-                const value = Math.exp(-Math.pow(x - mean, 2) / (2 * Math.pow(stdDev, 2)));
+                const value = S(i + 1) - S(i);
                 distribution.push(value);
                 total += value;
             }
-            
-            // Normalize to sum to 1
+
             return distribution.map(v => v / total);
         }
 
@@ -2710,33 +2728,36 @@ let projectData = {
             // Recalculate yearly breakdown with new distribution
             escalationData.yearlyBreakdown = [];
             let totalEscalation = 0;
-            
+            const totalHours = escalationData.totalHours || 0;
+
             for (let i = 0; i < years; i++) {
                 const year = i + 1;
                 const yearHours = totalHours * distribution[i];
-                const hourPercent = distribution[i] * 100;
-                const yearBaseCost = baseCost * distribution[i];
-                
+                const costPercent = distribution[i] * 100;
+                const rawLaborCost = baseCost * distribution[i];
+
                 // Determine if this year has escalation
                 const effectiveYears = year === 1 ? 0 : year - 1;
                 const compoundedFactor = effectiveYears > 0 ? Math.pow(1 + (baseRate / 100), effectiveYears) - 1 : 0;
-                
+
                 // Check for manual override
                 const manualOverride = escalationData.manualOverrides?.[year];
                 let escalationAmount;
-                
+
                 if (manualOverride !== undefined && manualOverride !== null && manualOverride !== '') {
                     escalationAmount = parseFloat(manualOverride) || 0;
                 } else {
-                    escalationAmount = yearBaseCost * compoundedFactor;
+                    escalationAmount = rawLaborCost * compoundedFactor;
                 }
-                
+
                 totalEscalation += escalationAmount;
-                
+
                 escalationData.yearlyBreakdown.push({
                     year: year,
                     hours: yearHours,
-                    hourPercent: hourPercent,
+                    hourPercent: costPercent,
+                    rawLaborCost: rawLaborCost,
+                    costPercent: costPercent,
                     rate: baseRate,
                     effectiveYears: effectiveYears,
                     compoundedFactor: compoundedFactor,
@@ -2746,10 +2767,13 @@ let projectData = {
             }
             
             escalationData.totalCost = totalEscalation;
-            
+
             // Re-render table and chart
             renderEscalationTable();
             renderEscalationChart();
+
+            // Update main estimate table escalation row
+            updateUnifiedSummary();
         }
 
         /**
@@ -3521,7 +3545,7 @@ let projectData = {
                 pattern: 'ascending'
             },
             bellCurve: {
-                name: 'Bell Curve',
+                name: 'S-Curve',
                 description: 'Peak in middle',
                 baseline: [10, 20, 40, 20, 10],
                 pattern: 'bell'
@@ -10306,7 +10330,7 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
                 escalation: {
                     title: 'ESCALATION — How Revenue is Calculated',
                     body: `<p>Cost escalation accounts for inflation over the project duration.</p>
-                        <div class="formula">Escalation applies a bell-curve spending distribution across the design duration, with annual escalation rates applied to each period's spend.<br><br>
+                        <div class="formula">Escalation applies a standard S-curve cost distribution (20% ramp-up, 60% peak, 20% ramp-down) across the design duration, with annual escalation rates applied to each period's spend.<br><br>
                         Base = Grand Total Revenue (before escalation)<br>
                         Escalation Revenue = Weighted sum of period escalation factors × Base</div>
                         <p>Click the 📊 button to view the detailed escalation breakdown modal with period-by-period calculations. NTP date and duration drive the timeline.</p>`
@@ -11498,6 +11522,12 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             // Calculate CONTINGENCY: contingency% of (Directs + Indirects + ESDC MH) × True Weighted Average Rate
             const contingencyPercentInput = document.getElementById('unified-contingency');
             const contingencyPercent = contingencyPercentInput ? parseFloat(contingencyPercentInput.value) || 5 : 5;
+
+            // Sync inline contingency % display
+            const inlinePct = document.getElementById('contingency-inline-pct');
+            if (inlinePct && parseFloat(inlinePct.value) !== contingencyPercent) {
+                inlinePct.value = contingencyPercent;
+            }
 
             // Early ESDC calc for contingency base (calculateServiceRevenue is hoisted)
             const esdcForContingency = calculateServiceRevenue('esdc');
@@ -22779,6 +22809,13 @@ Chunks: ${JSON.stringify(complexFieldsOnly, null, 2)}`;
         window.openComplexityPopup = openComplexityPopup;
         window.applyComplexityPopup = applyComplexityPopup;
         window.showCalcInfo = showCalcInfo;
+        window.syncContingencyFromInline = function(value) {
+            const mgmtInput = document.getElementById('unified-contingency');
+            if (mgmtInput) {
+                mgmtInput.value = value;
+            }
+            recalculateAllUnifiedCosts();
+        };
 
         // Sensitivity analysis modal
         window.openSensitivityModal = openSensitivityModal;

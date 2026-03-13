@@ -783,6 +783,7 @@
                                 <tbody>
                                     <tr class="section-header-row">
                                         <td class="frozen-col section-header">CONTINGENCY
+                                            <span style="font-size:9px; color:#aaa; font-weight:400; margin-left:4px; vertical-align:middle;">(</span><input type="number" id="contingency-inline-pct" value="5" min="0" max="100" step="1" style="width:32px; font-size:9px; color:#ffd700; background:transparent; border:1px solid #555; border-radius:3px; text-align:center; padding:1px 2px; vertical-align:middle;" onchange="syncContingencyFromInline(this.value)" oninput="syncContingencyFromInline(this.value)"><span style="font-size:9px; color:#aaa; font-weight:400; vertical-align:middle;">%)</span>
                                             <span class="calc-info-btn" onclick="event.stopPropagation(); showCalcInfo('contingency')" title="How is this calculated?">i</span>
                                         </td>
                                         <td class="mh-col section-header account-code-col"></td><td class="mh-col section-header"></td><td class="mh-col section-header"></td><td class="mh-col section-header"></td><td class="mh-col section-header subs-pct-col"></td><td class="mh-col section-header col-all-rate"></td><td class="mh-col section-header col-selected-rate"></td><td class="mh-col section-header"></td><td class="mh-col section-header"></td><td class="mh-col section-header complexity-col"></td>
@@ -1919,9 +1920,9 @@
                     </div>
                 </div>
 
-                <!-- Bell Curve Chart -->
+                <!-- S-Curve Chart -->
                 <div class="escalation-chart-section">
-                    <h4>KIE Labor Cost Distribution (Bell Curve)</h4>
+                    <h4>KIE Labor Cost Distribution (S-Curve)</h4>
                     <div style="position: relative; height: 200px; width: 100%;">
                         <canvas id="escalation-bell-curve-chart"></canvas>
                     </div>
@@ -1935,7 +1936,7 @@
                             <tr>
                                 <th>Year</th>
                                 <th>KIE Labor Cost</th>
-                                <th title="Click to edit and override the bell curve distribution">Cost Distribution (%) <span style="font-size: 9px; color: #ffc107;">✎</span></th>
+                                <th title="Click to edit and override the S-curve distribution">Cost Distribution (%) <span style="font-size: 9px; color: #ffc107;">✎</span></th>
                                 <th>Effective Escalation</th>
                                 <th>Rate (%/yr)</th>
                                 <th>Compounded Factor</th>
@@ -1966,7 +1967,7 @@
                 <!-- Actions -->
                 <div class="escalation-modal-actions">
                     <button class="btn" onclick="resetEscalationToDefault()">Reset to Default</button>
-                    <button class="btn btn-secondary" onclick="resetHourDistribution()" title="Reset hour distribution to bell curve">Reset Distribution</button>
+                    <button class="btn btn-secondary" onclick="resetHourDistribution()" title="Reset cost distribution to S-curve">Reset Distribution</button>
                     <button class="btn btn-primary" onclick="applyEscalationChanges()">Apply Changes</button>
                 </div>
                 </div>
