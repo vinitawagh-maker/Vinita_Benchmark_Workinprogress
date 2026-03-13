@@ -1746,15 +1746,18 @@ let projectData = {
                 return;
             }
 
-            // Linear regression: MH = m * eQTY + b
-            const reg = LinearRegression.calculate(points);
-            if (!reg.valid) {
-                prodCell.textContent = '—';
-                forecastCell.textContent = '—';
-                return;
+            // Use Power or Linear regression based on curve type setting
+            const usePower = getCurveType('structures') === 'power';
+            let predictedMH;
+            if (usePower) {
+                const reg = PowerRegression.calculate(points);
+                if (!reg.valid) { prodCell.textContent = '—'; forecastCell.textContent = '—'; return; }
+                predictedMH = reg.a * Math.pow(qty, reg.b);
+            } else {
+                const reg = LinearRegression.calculate(points);
+                if (!reg.valid) { prodCell.textContent = '—'; forecastCell.textContent = '—'; return; }
+                predictedMH = reg.m * qty + reg.b;
             }
-
-            const predictedMH = reg.m * qty + reg.b;
             const production = qty > 0 ? predictedMH / qty : 0;
 
             prodCell.textContent = production > 0 ? production.toFixed(4) : '—';
@@ -1885,29 +1888,43 @@ let projectData = {
                 return false;
             });
 
-            // Store filtered projects — auto-select based on applicable_job matching span arrangement
+            // Check if row has previously saved selections
+            let savedSelections = null;
+            try {
+                const saved = row.dataset.selectedBenchmarks;
+                if (saved) savedSelections = new Set(JSON.parse(saved));
+            } catch (e) { /* ignore */ }
+
+            // Store filtered projects — use saved selections if available, otherwise auto-select
             structureBenchmarkProjects = filtered.map((p, i) => {
-                let autoSelect = false;
-                if (p.applicableJob && filterSpan) {
-                    // Normalize: "Single Span" vs "Single-Span" → compare without hyphens/spaces
-                    const ajNorm = p.applicableJob.toString().toLowerCase().replace(/[-\s]+/g, '');
-                    const spanNorm = filterSpan.toLowerCase().replace(/[-\s]+/g, '');
-                    autoSelect = ajNorm === spanNorm;
-                } else if (p.applicableJob && !filterSpan) {
-                    // No span filter: select any project with a non-null applicable_job
-                    autoSelect = true;
+                const pKey = p.structureName ? `${p.name}—${p.structureName}` : p.name;
+                let selected;
+                if (savedSelections) {
+                    selected = savedSelections.has(pKey);
+                } else {
+                    selected = false;
+                    if (p.applicableJob && filterSpan) {
+                        const ajNorm = p.applicableJob.toString().toLowerCase().replace(/[-\s]+/g, '');
+                        const spanNorm = filterSpan.toLowerCase().replace(/[-\s]+/g, '');
+                        selected = ajNorm === spanNorm;
+                    } else if (p.applicableJob && !filterSpan) {
+                        selected = true;
+                    }
                 }
-                return { ...p, _sbIndex: i, _sbApplicable: autoSelect, _sbIsOther: false };
+                return { ...p, _sbIndex: i, _sbApplicable: selected, _sbIsOther: false };
             });
 
-            // Append other projects (unchecked by default) with offset indices
+            // Append other projects — restore saved selections if available
             const otherStartIndex = structureBenchmarkProjects.length;
-            const otherMapped = otherProjects.map((p, i) => ({
-                ...p,
-                _sbIndex: otherStartIndex + i,
-                _sbApplicable: false,
-                _sbIsOther: true
-            }));
+            const otherMapped = otherProjects.map((p, i) => {
+                const pKey = p.structureName ? `${p.name}—${p.structureName}` : p.name;
+                return {
+                    ...p,
+                    _sbIndex: otherStartIndex + i,
+                    _sbApplicable: savedSelections ? savedSelections.has(pKey) : false,
+                    _sbIsOther: true
+                };
+            });
             structureBenchmarkProjects = structureBenchmarkProjects.concat(otherMapped);
 
             // Build filter description
@@ -2147,6 +2164,35 @@ let projectData = {
             if (allR2El) allR2El.textContent = allRegression.valid ? `R² = ${allRegression.r2.toFixed(4)}` : '';
             if (selR2El) selR2El.textContent = selectedRegression.valid ? `R² = ${selectedRegression.r2.toFixed(4)}` : '';
 
+            // Yellow indicator dot: show where the user's eQTY falls on the selected curve
+            let indicatorDataset = null;
+            if (structureBenchmarkRow && selectedRegression.valid) {
+                const eqtyInput = structureBenchmarkRow.querySelector('.structure-eqty-input');
+                const userQty = parseFloat(String(eqtyInput?.value || '0').replace(/[,\s]/g, '')) || 0;
+                if (userQty > 0) {
+                    let predictedY;
+                    if (useStrPower) {
+                        predictedY = selectedRegression.a * Math.pow(userQty, selectedRegression.b);
+                    } else {
+                        predictedY = selectedRegression.m * userQty + selectedRegression.b;
+                    }
+                    if (predictedY > 0) {
+                        indicatorDataset = {
+                            label: 'Your Estimate',
+                            data: [{ x: userQty, y: predictedY, name: `Your eQTY: ${userQty.toLocaleString()} SF → ${Math.round(predictedY).toLocaleString()} MH` }],
+                            backgroundColor: '#ffd700',
+                            borderColor: '#ffd700',
+                            borderWidth: 3,
+                            pointRadius: 10,
+                            pointHoverRadius: 13,
+                            pointStyle: 'circle',
+                            showLine: false,
+                            order: 0
+                        };
+                    }
+                }
+            }
+
             // Datasets
             const datasets = [
                 { label: 'All Matching', data: allPoints, backgroundColor: 'rgba(74, 144, 217, 0.5)', borderColor: 'rgba(74, 144, 217, 0.9)', borderWidth: 2, pointRadius: 6, pointHoverRadius: 8, showLine: false, order: 2 },
@@ -2154,6 +2200,7 @@ let projectData = {
                 { label: 'Selected', data: selectedPoints, backgroundColor: 'rgba(224, 124, 58, 0.5)', borderColor: 'rgba(224, 124, 58, 0.9)', borderWidth: 2, pointRadius: 7, pointHoverRadius: 9, showLine: false, order: 1 },
                 { label: 'Selected Trend', data: selectedCurvePoints, borderColor: 'rgba(224, 124, 58, 0.7)', borderWidth: 2, borderDash: [3, 3], pointRadius: 0, showLine: true, fill: false, order: 3 }
             ];
+            if (indicatorDataset) datasets.push(indicatorDataset);
 
             // Y-axis max
             const yValues = [...allPoints.map(p => p.y), ...allCurvePoints.map(p => p.y)];
@@ -2265,7 +2312,7 @@ let projectData = {
         }
 
         /**
-         * Close the structure benchmark modal
+         * Apply the structure benchmark selection to the row
          */
         function applyStructureBenchmarkSelection() {
             // Apply manual override rate if entered
@@ -2273,21 +2320,60 @@ let projectData = {
             const overrideRate = overrideInput ? parseFloat(overrideInput.value) : NaN;
 
             if (structureBenchmarkRow) {
+                const prodCell = structureBenchmarkRow.querySelector('.structure-production-cell');
+                const forecastCell = structureBenchmarkRow.querySelector('.structure-forecast-mh-cell');
+                const eqtyInput = structureBenchmarkRow.querySelector('.structure-eqty-input');
+                const qty = parseFloat(String(eqtyInput?.value || '0').replace(/[,\s]/g, '')) || 0;
+
                 if (!isNaN(overrideRate) && overrideRate > 0) {
                     // Manual override: set production rate directly
-                    const prodCell = structureBenchmarkRow.querySelector('.structure-production');
-                    const forecastCell = structureBenchmarkRow.querySelector('.structure-forecast');
-                    const eqtyInput = structureBenchmarkRow.querySelector('.structure-eqty-input');
-                    const qty = parseFloat(String(eqtyInput?.value || '0').replace(/[,\s]/g, '')) || 0;
                     if (prodCell) prodCell.textContent = (overrideRate / 100).toFixed(4);
                     if (forecastCell && qty > 0) {
                         forecastCell.textContent = Math.round(qty * overrideRate / 100).toLocaleString();
                     }
                 } else {
-                    // Recalculate from selected benchmark projects
-                    const eqtyInput = structureBenchmarkRow.querySelector('.structure-eqty-input');
-                    if (eqtyInput) updateStructureRowForecast(eqtyInput);
+                    // Use all selected projects (filtered + other) from the modal
+                    const selected = structureBenchmarkProjects.filter(p => p._sbApplicable);
+                    const points = selected
+                        .map(p => ({ x: p.quantity || 0, y: p.mh || 0 }))
+                        .filter(p => p.x > 0 && p.y > 0);
+
+                    if (points.length >= 2 && qty > 0) {
+                        const usePower = getCurveType('structures') === 'power';
+                        let predictedMH;
+                        if (usePower) {
+                            const reg = PowerRegression.calculate(points);
+                            if (reg.valid) {
+                                predictedMH = reg.a * Math.pow(qty, reg.b);
+                            }
+                        } else {
+                            const reg = LinearRegression.calculate(points);
+                            if (reg.valid) {
+                                predictedMH = reg.m * qty + reg.b;
+                            }
+                        }
+                        if (predictedMH && predictedMH > 0) {
+                            const production = predictedMH / qty;
+                            if (prodCell) prodCell.textContent = production.toFixed(4);
+                            if (forecastCell) forecastCell.textContent = Math.round(predictedMH).toLocaleString();
+                        } else {
+                            if (prodCell) prodCell.textContent = '—';
+                            if (forecastCell) forecastCell.textContent = '—';
+                        }
+                    } else if (prodCell && forecastCell) {
+                        prodCell.textContent = '—';
+                        forecastCell.textContent = '—';
+                    }
                 }
+            }
+
+            // Store selected project indices on the row so selections persist on re-open
+            if (structureBenchmarkRow) {
+                const selectedNames = structureBenchmarkProjects
+                    .filter(p => p._sbApplicable)
+                    .map(p => p.structureName ? `${p.name}—${p.structureName}` : p.name);
+                structureBenchmarkRow.dataset.selectedBenchmarks = JSON.stringify(selectedNames);
+                structureBenchmarkRow.dataset.benchmarkCurveType = getCurveType('structures');
             }
 
             closeStructureBenchmarkModal();
@@ -8200,7 +8286,7 @@ ${reasoning}`;
                 descCell = `<td class="frozen-col">${disciplineName} ${calcInfoBtn}</td>`;
                 qtyCell = `<td class="mh-col numeric" title="Auto-calculated from Roadway + Drainage + Traffic MH"><span id="unified-qty-miscStructures" style="font-weight: bold;">${(state.quantity || 0).toLocaleString('en-US')}</span></td>`;
             } else if (isFte) {
-                descCell = `<td class="frozen-col">${disciplineName} <span class="header-help" data-tooltip="${config.tooltip || ''}">?</span> ${calcInfoBtn}</td>`;
+                descCell = `<td class="frozen-col">${disciplineName} ${calcInfoBtn}</td>`;
                 qtyCell = `<td class="mh-col numeric" title="Lump Sum">1</td>`;
             } else {
                 descCell = `<td class="frozen-col">${disciplineName} ${calcInfoBtn}</td>`;
