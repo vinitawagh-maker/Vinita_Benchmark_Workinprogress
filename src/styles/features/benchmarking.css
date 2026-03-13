@@ -2305,3 +2305,60 @@ tbody.hidden {
         grid-template-columns: repeat(2, 1fr);
     }
 }
+
+/* ============================================================
+   Estimate Mode Tabs (Benchmark / Detailed)
+   ============================================================ */
+.estimate-mode-tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 8px;
+    border-bottom: 2px solid #ddd;
+}
+
+.estimate-tab {
+    padding: 8px 20px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #666;
+    background: #f5f5f5;
+    border: 1px solid #ddd;
+    border-bottom: none;
+    border-radius: 6px 6px 0 0;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+    top: 2px;
+}
+
+.estimate-tab:hover {
+    background: #e8e8e8;
+    color: #333;
+}
+
+.estimate-tab.active {
+    background: #fff;
+    color: #1565c0;
+    border-color: #ddd;
+    border-bottom: 2px solid #fff;
+    font-weight: 700;
+}
+
+.estimate-tab.locked {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Benchmark mode: hide sub-related and KIE-detail columns */
+.benchmark-mode .subs-pct-col,
+.benchmark-mode .mh-detail-col,
+.benchmark-mode .sub-cost-col,
+.benchmark-mode .ls-sub-expenses-col,
+.benchmark-mode .kie-detail-col {
+    display: none !important;
+}
+
+/* Also hide sub-related override inputs in benchmark mode */
+.benchmark-mode-active .override-sub-field {
+    display: none !important;
+}

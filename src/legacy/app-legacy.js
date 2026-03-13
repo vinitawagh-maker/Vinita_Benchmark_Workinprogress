@@ -674,6 +674,89 @@ let projectData = {
             }
         }
 
+        // ============================================
+        // Estimate Mode: Benchmark vs Detailed
+        // ============================================
+        let currentEstimateMode = 'benchmark'; // default to Step 1
+
+        /**
+         * Apply kie-detail-col class to KIE Total Cost and KIE Revenue cells
+         * in static rows that don't have it in the HTML template.
+         */
+        function applyKieDetailColClasses() {
+            const kieDetailIds = [
+                'kie-labor-total-cost', 'kie-labor-kie-revenue',
+                'unified-total-cost', 'unified-kie-revenue',
+                'unified-indirect-total-cost', 'unified-indirect-kie-revenue',
+                'subs-section-total-cost', 'subs-section-kie-revenue',
+                'ls-subs-total-cost', 'ls-subs-kie-revenue',
+                'survey-total-cost', 'survey-kie-revenue',
+                'subsurface-utility-total-cost', 'subsurface-utility-kie-revenue',
+                'esdc-total-cost', 'tscd-total-cost',
+                'escalation-total-cost', 'contingency-total-cost',
+                'grand-total-cost', 'grand-total-kie-revenue'
+            ];
+            kieDetailIds.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.add('kie-detail-col');
+            });
+            // For rows without KIE Revenue IDs (ESDC, TSCD, Escalation, Contingency),
+            // the — cell is the next sibling after the margin cell
+            ['esdc-total-margin', 'tscd-total-margin', 'escalation-total-margin', 'contingency-total-margin'].forEach(id => {
+                const marginCell = document.getElementById(id);
+                if (marginCell && marginCell.nextElementSibling) {
+                    marginCell.nextElementSibling.classList.add('kie-detail-col');
+                }
+            });
+        }
+
+        /**
+         * Switch between Benchmark Estimate (Step 1) and Detailed Estimate (Step 2)
+         */
+        function switchEstimateMode(mode) {
+            currentEstimateMode = mode;
+            const table = document.getElementById('unified-estimate-table');
+            const wrapper = document.querySelector('.unified-benchmarking-layout');
+
+            // Update tab styling
+            document.getElementById('tab-benchmark').classList.toggle('active', mode === 'benchmark');
+            document.getElementById('tab-detailed').classList.toggle('active', mode === 'detailed');
+
+            // Ensure kie-detail-col classes are applied
+            applyKieDetailColClasses();
+
+            if (mode === 'benchmark') {
+                table.classList.add('benchmark-mode');
+                if (wrapper) wrapper.classList.add('benchmark-mode-active');
+
+                // Rename headers for benchmark mode
+                const thLabor = document.getElementById('th-labor');
+                const thBurden = document.getElementById('th-burden');
+                const thExpenses = document.getElementById('th-expenses');
+                const thMargin = document.getElementById('th-margin');
+                if (thLabor) thLabor.innerHTML = 'Raw Labor<span class="header-help" data-tooltip="Total MH × Weighted Rate (per role)">?</span>';
+                if (thBurden) thBurden.innerHTML = 'Burden<span class="header-help" data-tooltip="Raw Labor × Burden Rate %">?</span>';
+                if (thExpenses) thExpenses.innerHTML = 'Expenses<span class="header-help" data-tooltip="IPC + ODCs + LS Sub Consultants">?</span>';
+                if (thMargin) thMargin.innerHTML = 'Margin<span class="header-help" data-tooltip="Raw Labor × Margin %">?</span>';
+            } else {
+                table.classList.remove('benchmark-mode');
+                if (wrapper) wrapper.classList.remove('benchmark-mode-active');
+
+                // Restore KIE-prefixed headers for detailed mode
+                const thLabor = document.getElementById('th-labor');
+                const thBurden = document.getElementById('th-burden');
+                const thExpenses = document.getElementById('th-expenses');
+                const thMargin = document.getElementById('th-margin');
+                if (thLabor) thLabor.innerHTML = 'KIE Labor<span class="header-help" data-tooltip="KIE Labor = KIE MH × Weighted Rate">?</span>';
+                if (thBurden) thBurden.innerHTML = 'KIE Burden<span class="header-help" data-tooltip="KIE Burden = KIE Labor × Burden Rate %">?</span>';
+                if (thExpenses) thExpenses.innerHTML = 'KIE Expenses<span class="header-help" data-tooltip="Other direct costs and expenses">?</span>';
+                if (thMargin) thMargin.innerHTML = 'KIE Margin<span class="header-help" data-tooltip="KIE Margin = KIE Labor × Margin %">?</span>';
+            }
+
+            // Recalculate with current mode
+            recalculateAllUnifiedCosts();
+        }
+
         /**
          * Calculates and displays the Margin % based on KIE Multiplier, Burden Rate, and G&A Rate
          * Margin % = KIE Multiplier - 1 (raw labor) - Burden Rate - G&A Rate
@@ -6345,6 +6428,8 @@ ${reasoning}`;
 
             // Reinitialize the unified table with all projects selected
             initUnifiedEstimator();
+            applyKieDetailColClasses();
+            switchEstimateMode(currentEstimateMode);
 
             updateStatus('READY');
 
@@ -8100,7 +8185,7 @@ ${reasoning}`;
                 ${qtyCell}
                 <td class="mh-col">${unit}</td>
                 ${benchmarkCell}
-                <td class="mh-col numeric">
+                <td class="mh-col numeric subs-pct-col">
                     <input type="number" class="qty-input subs-pct-input" id="unified-subs-pct-${discId}"
                            value="${state.subsPct ?? ''}" min="0" max="100" step="1" placeholder="0"
                            onchange="updateSubsPct('${discId}', this.value)"
@@ -8163,13 +8248,13 @@ ${reasoning}`;
                 <td class="cost-col numeric revenue-detail-col">
                     <span id="unified-expenses-${discId}">$0</span>
                 </td>
-                <td class="cost-col numeric revenue-detail-col">
+                <td class="cost-col numeric revenue-detail-col kie-detail-col">
                     <span id="unified-total-cost-${discId}">$0</span>
                 </td>
                 <td class="cost-col numeric revenue-detail-col">
                     <span id="unified-margin-${discId}">$0</span>
                 </td>
-                <td class="cost-col numeric revenue-detail-col">
+                <td class="cost-col numeric revenue-detail-col kie-detail-col">
                     <span id="unified-kie-revenue-${discId}">$0</span>
                 </td>
                 <td class="cost-col numeric revenue-detail-col sub-cost-col">
@@ -10151,8 +10236,8 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
                     state.mh = Math.round(rawLabor / weightedRate);
                 }
             } else {
-                // Standard disciplines: Calculate KIE costs from KIE MH only (sub MH handled in SUBS section)
-                const subPctForCalc = (state.subsPct || 0) / 100;
+                // Standard disciplines: In benchmark mode use total MH; in detailed mode use KIE MH only
+                const subPctForCalc = currentEstimateMode === 'benchmark' ? 0 : ((state.subsPct || 0) / 100);
                 const subMHForCalc = Math.round(state.mh * subPctForCalc);
                 const kieMHForCalc = state.mh - subMHForCalc;
                 rawLabor = kieMHForCalc * weightedRate;
@@ -10561,10 +10646,10 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
                 // Only include disciplines with actual MH data (quantity entered)
                 if (state.active && discId !== 'esdc' && discId !== 'tscd' && (state.mh || 0) > 0) {
                     const totalMH = state.mh || 0;
-                    const subPct = (state.subsPct || 0) / 100;
+                    const subPct = currentEstimateMode === 'benchmark' ? 0 : ((state.subsPct || 0) / 100);
                     const subMH = Math.round(totalMH * subPct);
                     const kieMH = totalMH - subMH;
-                    // state.laborCost is already KIE-only (calculated from KIE MH)
+                    // In benchmark mode, laborCost uses total MH; in detailed mode, KIE MH only
                     directsMH += kieMH;
                     directsRawLabor += state.laborCost || 0;
                     directsBurden += state.burdenCost || 0;
@@ -12369,6 +12454,9 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             initMHEstimator();
             initUnifiedEstimator(); // Initialize unified table
             buildBudgetTable();
+            // Apply benchmark mode classes and default to Step 1
+            applyKieDetailColClasses();
+            switchEstimateMode('benchmark');
             updateStatus('READY');
             
             // Check for saved data after a brief delay to let UI initialize
@@ -22244,6 +22332,7 @@ Chunks: ${JSON.stringify(complexFieldsOnly, null, 2)}`;
         window.setBenchmarkCurveType = setBenchmarkCurveType;
         window.toggleRevenueDetails = toggleRevenueDetails;
         window.toggleMHDetails = toggleMHDetails;
+        window.switchEstimateMode = switchEstimateMode;
         
         // Sensitivity analysis modal
         window.openSensitivityModal = openSensitivityModal;

@@ -144,7 +144,7 @@
                                             </label>
                                             <input type="number" id="calc-kie-multiplier" placeholder="2.85" value="2.85" min="0" step="0.01" onchange="calculateMarginPercent()" disabled style="background-color: #e0e0e0; color: #666; cursor: not-allowed;">
                                         </div>
-                                        <div class="input-group">
+                                        <div class="input-group override-sub-field">
                                             <label style="display: flex; align-items: center; gap: 4px;">
                                                 Sub Multiplier
                                                 <label class="toggle-switch" title="Toggle to enable editing">
@@ -154,7 +154,7 @@
                                             </label>
                                             <input type="number" id="calc-sub-multiplier" placeholder="3.00" value="3.00" min="0" step="0.01" disabled style="background-color: #e0e0e0; color: #666; cursor: not-allowed;">
                                         </div>
-                                        <div class="input-group">
+                                        <div class="input-group override-sub-field">
                                             <label style="display: flex; align-items: center; gap: 4px;">
                                                 Sub Markup (%)
                                                 <label class="toggle-switch" title="Toggle to enable editing">
@@ -246,6 +246,16 @@
                             <span id="dillon-cost-status" style="font-size:10px; color:#4caf50; font-style:italic;"></span>
                         </div>
 
+                        <!-- Estimate Mode Tabs -->
+                        <div class="estimate-mode-tabs">
+                            <button class="estimate-tab active" id="tab-benchmark" onclick="switchEstimateMode('benchmark')">
+                                Step 1: Benchmark Estimate
+                            </button>
+                            <button class="estimate-tab" id="tab-detailed" onclick="switchEstimateMode('detailed')">
+                                Step 2: Detailed Estimate
+                            </button>
+                        </div>
+
                         <!-- Unified Table -->
                         <div class="unified-table-wrapper">
                             <div class="unified-table-header" onclick="toggleUnifiedTable()">
@@ -268,7 +278,7 @@
                                         <th class="mh-col numeric">Quantity<span class="header-help" data-tooltip="Auto-populated from RFP, verify with Discipline Lead">?</span></th>
                                         <th class="mh-col">Unit<span class="header-help" data-tooltip="Unit of measure based on account code">?</span></th>
                                         <th class="mh-col">Benchmark<span class="header-help" data-tooltip="Click to select historical projects for rate calculation">?</span></th>
-                                        <th class="mh-col numeric">% Subs<span class="header-help" data-tooltip="Portion of work subcontracted out — enter 0–100%">?</span></th>
+                                        <th class="mh-col numeric subs-pct-col">% Subs<span class="header-help" data-tooltip="Portion of work subcontracted out — enter 0–100%">?</span></th>
                                         <th class="mh-col numeric col-all-rate">All Rate<span class="header-help" data-tooltip="Production rate using ALL available benchmark projects">?</span></th>
                                         <th class="mh-col numeric col-selected-rate">Selected Rate<span class="header-help" data-tooltip="Production rate using SELECTED benchmark projects only">?</span></th>
                                         <th class="mh-col numeric">Wide Open MHs<span class="header-help" data-tooltip="All Rate × Quantity (for directs)">?</span></th>
@@ -284,12 +294,12 @@
                                         </th>
                                         <!-- Cost Columns (Green) -->
                                         <th class="cost-col numeric">Weighted Rate<span class="header-help" data-tooltip="Weighted hourly rate based on complexity % and resource codes">?</span><br><span style="font-size: 8px; font-weight: 400;">($/hr)</span></th>
-                                        <th class="cost-col numeric revenue-detail-col">KIE Labor<span class="header-help" data-tooltip="KIE Labor = KIE MH × Weighted Rate">?</span></th>
-                                        <th class="cost-col numeric revenue-detail-col">KIE Burden<span class="header-help" data-tooltip="KIE Burden = KIE Labor × Burden Rate %">?</span></th>
-                                        <th class="cost-col numeric revenue-detail-col">KIE Expenses<span class="header-help" data-tooltip="Other direct costs and expenses">?</span></th>
-                                        <th class="cost-col numeric revenue-detail-col">KIE Total Cost<span class="header-help" data-tooltip="KIE Labor + KIE Burden + KIE Expenses">?</span></th>
-                                        <th class="cost-col numeric revenue-detail-col">KIE Margin<span class="header-help" data-tooltip="KIE Margin = KIE Labor × Margin %">?</span></th>
-                                        <th class="cost-col numeric revenue-detail-col">KIE Revenue<span class="header-help" data-tooltip="KIE Revenue = KIE Labor × KIE Multiplier">?</span></th>
+                                        <th class="cost-col numeric revenue-detail-col" id="th-labor">KIE Labor<span class="header-help" data-tooltip="KIE Labor = KIE MH × Weighted Rate">?</span></th>
+                                        <th class="cost-col numeric revenue-detail-col" id="th-burden">KIE Burden<span class="header-help" data-tooltip="KIE Burden = KIE Labor × Burden Rate %">?</span></th>
+                                        <th class="cost-col numeric revenue-detail-col" id="th-expenses">KIE Expenses<span class="header-help" data-tooltip="Other direct costs and expenses">?</span></th>
+                                        <th class="cost-col numeric revenue-detail-col kie-detail-col">KIE Total Cost<span class="header-help" data-tooltip="KIE Labor + KIE Burden + KIE Expenses">?</span></th>
+                                        <th class="cost-col numeric revenue-detail-col" id="th-margin">KIE Margin<span class="header-help" data-tooltip="KIE Margin = KIE Labor × Margin %">?</span></th>
+                                        <th class="cost-col numeric revenue-detail-col kie-detail-col">KIE Revenue<span class="header-help" data-tooltip="KIE Revenue = KIE Labor × KIE Multiplier">?</span></th>
                                         <th class="cost-col numeric revenue-detail-col sub-cost-col">Sub Labor<span class="header-help" data-tooltip="Sub Labor = Sub MH × Weighted Rate">?</span></th>
                                         <th class="cost-col numeric revenue-detail-col sub-cost-col">Sub Expenses<span class="header-help" data-tooltip="General subcontractor expenses">?</span></th>
                                         <th class="cost-col numeric revenue-detail-col sub-cost-col">Sub Total Cost<span class="header-help" data-tooltip="Sub Labor + Sub Expenses + LS Sub Expenses">?</span></th>
