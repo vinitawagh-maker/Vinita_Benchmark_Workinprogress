@@ -10547,7 +10547,8 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             for (const discId of Object.keys(mhEstimateState.disciplines)) {
                 const state = mhEstimateState.disciplines[discId];
                 // Exclude ESDC and TSCD from DIRECTS - they have their own sections
-                if (state.active && discId !== 'esdc' && discId !== 'tscd') {
+                // Only include disciplines with actual MH data (quantity entered)
+                if (state.active && discId !== 'esdc' && discId !== 'tscd' && (state.mh || 0) > 0) {
                     const totalMH = state.mh || 0;
                     const subPct = (state.subsPct || 0) / 100;
                     const subMH = Math.round(totalMH * subPct);
