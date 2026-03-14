@@ -10404,16 +10404,15 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
 
             const colCount = mainRow.cells.length;
 
-            // Find column indices by scanning the main row's cell IDs/classes
-            let mhColIdx = -1, expColIdx = -1, revenueColIdx = colCount - 1;
-            for (let i = 0; i < colCount; i++) {
-                const cell = mainRow.cells[i];
-                const span = cell.querySelector('span');
-                const spanId = span ? span.id : '';
-                if (spanId === `unified-mh-${discId}`) mhColIdx = i;
-                if (spanId === `unified-expenses-${discId}`) expColIdx = i;
-                if (spanId === `unified-total-revenue-${discId}`) revenueColIdx = i;
-            }
+            // Find column indices by locating the actual DOM elements and mapping back to cell index
+            let mhColIdx = -1, expColIdx = -1, revenueColIdx = -1;
+            const mhEl = document.getElementById(`unified-mh-${discId}`);
+            const expEl = document.getElementById(`unified-expenses-${discId}`);
+            const revEl = document.getElementById(`unified-total-revenue-${discId}`);
+            if (mhEl) { const td = mhEl.closest('td'); if (td) mhColIdx = td.cellIndex; }
+            if (expEl) { const td = expEl.closest('td'); if (td) expColIdx = td.cellIndex; }
+            if (revEl) { const td = revEl.closest('td'); if (td) revenueColIdx = td.cellIndex; }
+            if (revenueColIdx === -1) revenueColIdx = colCount - 1;
 
             // Get discipline totals
             const totalMhEl = document.getElementById(`unified-mh-${discId}`);
