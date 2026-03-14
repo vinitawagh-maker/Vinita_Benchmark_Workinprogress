@@ -10408,17 +10408,14 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             const mainRow = document.querySelector(`tr[data-disc-id="${discId}"]`);
             if (!mainRow) return;
 
-            const colCount = mainRow.cells.length;
-
-            // Find column indices by locating the actual DOM elements and mapping back to cell index
-            let mhColIdx = -1, expColIdx = -1, revenueColIdx = -1;
-            const mhEl = document.getElementById(`unified-mh-${discId}`);
-            const expEl = document.getElementById(`unified-expenses-${discId}`);
-            const revEl = document.getElementById(`unified-total-revenue-${discId}`);
-            if (mhEl) { const td = mhEl.closest('td'); if (td) mhColIdx = td.cellIndex; }
-            if (expEl) { const td = expEl.closest('td'); if (td) expColIdx = td.cellIndex; }
-            if (revEl) { const td = revEl.closest('td'); if (td) revenueColIdx = td.cellIndex; }
-            if (revenueColIdx === -1) revenueColIdx = colCount - 1;
+            // Use thead as single source of truth for column count
+            const thead = document.querySelector('#unified-estimate-table thead tr');
+            const colCount = thead ? thead.cells.length : mainRow.cells.length;
+            // Fixed column indices based on thead layout:
+            // 11=Total MH, 18=Expenses, last=Total Revenue/Bill
+            const mhColIdx = 11;
+            const expColIdx = 18;
+            const revenueColIdx = colCount - 1;
 
             // Get discipline totals
             const totalMhEl = document.getElementById(`unified-mh-${discId}`);
