@@ -10434,41 +10434,50 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             // Use thead as single source of truth for column count
             const thead = document.querySelector('#unified-estimate-table thead tr');
             const colCount = thead ? thead.cells.length : mainRow.cells.length;
-            // Fixed column indices based on thead layout:
-            // 11=Total MH, 18=Expenses, last=Total Revenue/Bill
-            const mhColIdx = 11;
-            const expColIdx = 18;
-            const revenueColIdx = colCount - 1;
+            // Column indices (0-indexed, from thead):
+            // 11:TotalMH 16:RawLabor 17:Burden 18:Expenses 19:TotalCost 20:Margin 29:TotalRevenue
+            const COL = { mh: 11, rawLabor: 16, burden: 17, expenses: 18, totalCost: 19, margin: 20, revenue: colCount - 1 };
 
-            // Get discipline totals
-            const totalMhEl = document.getElementById(`unified-mh-${discId}`);
-            const totalMh = parseFloat((totalMhEl?.textContent || '0').replace(/,/g, '')) || 0;
-            const totalRevenueEl = document.getElementById(`unified-total-revenue-${discId}`);
-            const totalRevenue = parseFloat((totalRevenueEl?.textContent || '0').replace(/[$,]/g, '')) || 0;
-            // Get weighted rate for sub labor calculation
-            const rateEl = document.getElementById(`unified-hourly-rate-${discId}`);
-            const weightedRate = parseFloat((rateEl?.textContent || '0').replace(/[$,]/g, '')) || 0;
-            // Get sub markup % from Design Metrics
+            // Get discipline totals and rates
+            const totalMh = parseFloat((document.getElementById(`unified-mh-${discId}`)?.textContent || '0').replace(/,/g, '')) || 0;
+            const config = DISCIPLINE_CONFIG[discId];
+            const state = mhEstimateState.disciplines[discId];
+            const resources = getDisciplineResources(config ? config.name : 'Roadway');
+            const l4Pct = (state?.l4Percentage !== undefined ? state.l4Percentage : getGlobalComplexityPct());
+            const lowPct = (100 - l4Pct) / 100;
+            const highPct = l4Pct / 100;
+            const burdenRate = parseFloat(document.getElementById('calc-burden-rate')?.value) || 0;
             const subMarkupPct = parseFloat(document.getElementById('calc-sub-markup')?.value) || 5;
 
             // Calculate KIE's remaining %
             const totalSubPct = subs.reduce((sum, s) => sum + s.pctWork, 0);
             const kiePct = Math.max(0, 100 - totalSubPct);
 
-            // Helper to build a row with values in specific columns
-            function buildSubRow(label, mh, expenses, revenue, cssClass) {
+            const fmt$ = (v) => '$' + Math.round(v).toLocaleString();
+
+            // Helper to build a row with values in specific column positions
+            function buildDetailRow(label, vals, cssClass) {
+                // vals = { mh, rawLabor, burden, expenses, totalCost, margin, revenue }
                 const tr = document.createElement('tr');
                 tr.className = `${cssClass} sub-row-${discId}`;
                 let html = '';
                 for (let i = 0; i < colCount; i++) {
                     if (i === 0) {
                         html += `<td class="frozen-col">${label}</td>`;
-                    } else if (i === mhColIdx) {
-                        html += `<td class="mh-col mh-col-keep numeric mh-cell">${mh > 0 ? mh.toLocaleString() : ''}</td>`;
-                    } else if (i === expColIdx && expenses > 0) {
-                        html += `<td class="cost-col numeric revenue-detail-col">$${expenses.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}</td>`;
-                    } else if (i === revenueColIdx) {
-                        html += `<td class="cost-col numeric">$${revenue.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}</td>`;
+                    } else if (i === COL.mh && vals.mh != null) {
+                        html += `<td class="mh-col mh-col-keep numeric mh-cell">${vals.mh > 0 ? vals.mh.toLocaleString() : ''}</td>`;
+                    } else if (i === COL.rawLabor && vals.rawLabor != null) {
+                        html += `<td class="cost-col numeric revenue-detail-col">${fmt$(vals.rawLabor)}</td>`;
+                    } else if (i === COL.burden && vals.burden != null) {
+                        html += `<td class="cost-col numeric revenue-detail-col">${fmt$(vals.burden)}</td>`;
+                    } else if (i === COL.expenses && vals.expenses) {
+                        html += `<td class="cost-col numeric revenue-detail-col">${fmt$(vals.expenses)}</td>`;
+                    } else if (i === COL.totalCost && vals.totalCost != null) {
+                        html += `<td class="cost-col numeric revenue-detail-col">${fmt$(vals.totalCost)}</td>`;
+                    } else if (i === COL.margin && vals.margin != null) {
+                        html += `<td class="cost-col numeric revenue-detail-col">${fmt$(vals.margin)}</td>`;
+                    } else if (i === COL.revenue && vals.revenue != null) {
+                        html += `<td class="cost-col numeric">${fmt$(vals.revenue)}</td>`;
                     } else {
                         html += '<td></td>';
                     }
@@ -10477,29 +10486,38 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
                 return tr;
             }
 
-            // Insert KIE row first
+            // --- KIE row ---
             const kieMh = Math.round(totalMh * kiePct / 100);
-            const kieRevenue = totalRevenue * kiePct / 100;
-            const kieRow = buildSubRow(`↳ KIE (${kiePct.toFixed(0)}%)`, kieMh, 0, kieRevenue, 'kie-split-row');
+            const kieRawLabor = kieMh * lowPct * resources.lowRate + kieMh * highPct * resources.highRate;
+            const kieBurden = kieRawLabor * (burdenRate / 100);
+            const kieTotalCost = kieRawLabor + kieBurden;
+            // KIE margin/revenue read from parent row proportionally
+            const parentMargin = parseFloat((document.getElementById(`unified-margin-${discId}`)?.textContent || '0').replace(/[$,]/g, '')) || 0;
+            const parentRevenue = parseFloat((document.getElementById(`unified-total-revenue-${discId}`)?.textContent || '0').replace(/[$,]/g, '')) || 0;
+            const kieMargin = parentMargin * kiePct / 100;
+            const kieRevenue = parentRevenue * kiePct / 100;
+            const kieRow = buildDetailRow(`↳ KIE (${kiePct.toFixed(0)}%)`, {
+                mh: kieMh, rawLabor: kieRawLabor, burden: kieBurden,
+                expenses: 0, totalCost: kieTotalCost, margin: kieMargin, revenue: kieRevenue
+            }, 'kie-split-row');
             mainRow.parentNode.insertBefore(kieRow, mainRow.nextSibling);
 
-            // Insert sub rows after KIE row
+            // --- Sub rows ---
             let insertAfter = kieRow;
             for (const sub of subs) {
                 const subMh = Math.round(totalMh * sub.pctWork / 100);
                 const mult = sub.multiplier || 3.0;
-                // Sub labor = subMh × weightedRate, then revenue = labor × multiplier + markup + expenses
-                const subLabor = subMh * weightedRate;
-                const subCostToKie = subLabor * mult;
-                const subMarkup = subCostToKie * (subMarkupPct / 100);
-                const subTotalRevenue = subCostToKie + subMarkup + (sub.fixedExpenses || 0);
-                const subRow = buildSubRow(
-                    `↳ ${sub.name} (${sub.pctWork}%, ${mult}x)`,
-                    subMh,
-                    sub.fixedExpenses,
-                    subTotalRevenue,
-                    'sub-consultant-row'
-                );
+                // Same jr/sr split as KIE
+                const subRawLabor = subMh * lowPct * resources.lowRate + subMh * highPct * resources.highRate;
+                // No burden on subs
+                const subTotalCost = subRawLabor * mult;
+                const subMargin = subTotalCost * (subMarkupPct / 100);
+                const subRevenue = subTotalCost + subMargin + (sub.fixedExpenses || 0);
+                const subRow = buildDetailRow(`↳ ${sub.name} (${sub.pctWork}%, ${mult}x)`, {
+                    mh: subMh, rawLabor: subRawLabor, burden: 0,
+                    expenses: sub.fixedExpenses || 0, totalCost: subTotalCost,
+                    margin: subMargin, revenue: subRevenue
+                }, 'sub-consultant-row');
                 insertAfter.parentNode.insertBefore(subRow, insertAfter.nextSibling);
                 insertAfter = subRow;
             }
