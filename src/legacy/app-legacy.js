@@ -736,6 +736,7 @@ let projectData = {
                 if (mainTableWrapper) mainTableWrapper.style.display = 'none';
                 if (subsWrapper) subsWrapper.style.display = '';
                 document.querySelector('.unified-actions').style.display = 'none';
+                populateSubsDetailTable();
                 return;
             } else {
                 // Show main table, hide subs-detail
@@ -786,11 +787,13 @@ let projectData = {
          * Clones the Step 1 unified table and switches to the subs-detail tab
          */
         function openSubsDetailEstimate() {
-            // Show the Step 2 tab
-            const subsTab = document.getElementById('tab-subs-detail');
-            if (subsTab) subsTab.style.display = '';
+            switchEstimateMode('subs-detail');
+        }
 
-            // Clone the current unified table into the subs-detail container
+        /**
+         * Clone the Step 1 unified table into the Step 2 subs-detail container
+         */
+        function populateSubsDetailTable() {
             const sourceTable = document.getElementById('unified-estimate-table');
             const container = document.getElementById('subs-detail-table-container');
             if (sourceTable && container) {
@@ -803,9 +806,6 @@ let projectData = {
                 container.innerHTML = '';
                 container.appendChild(clone);
             }
-
-            // Switch to the subs-detail tab
-            switchEstimateMode('subs-detail');
         }
 
         /**
