@@ -2036,6 +2036,8 @@ let projectData = {
                             </span>
                         </div>
                         <div class="benchmark-projects hidden" id="str-benchmark-other-projects">
+                            <input type="text" id="str-other-filter" placeholder="Filter projects..." oninput="filterStrBenchmarkOther(this.value)" style="width:calc(100% - 16px); margin:6px 8px; padding:5px 8px; background:#1a1a1a; border:1px solid #444; color:#ccc; border-radius:4px; font-size:11px;">
+                            <div id="str-other-projects-list">
                     `;
                     for (let i = 0; i < structureBenchmarkProjects.length; i++) {
                         const p = structureBenchmarkProjects[i];
@@ -2045,7 +2047,7 @@ let projectData = {
                         const typeLabel = [p.structureType, p.spanArrangement, p.structureScope].filter(Boolean).join(' | ');
                         const stats = `${formatMH(p.mh || 0)} MH | ${(p.quantity || 0).toLocaleString()} SF | Rate: ${(p.rate || 0).toFixed(4)} MH/SF | ${typeLabel}`;
                         projectListHtml += `
-                            <label class="benchmark-project-item">
+                            <label class="benchmark-project-item" data-filter-name="${(displayName + ' ' + typeLabel).toLowerCase()}">
                                 <input type="checkbox" ${checked} onchange="toggleStructureBenchmarkProject(${i})">
                                 <div class="benchmark-project-info">
                                     <span class="project-name">${displayName}</span>
@@ -2055,6 +2057,7 @@ let projectData = {
                         `;
                     }
                     projectListHtml += `
+                            </div>
                         </div>
                     </div>
                     `;
@@ -2313,6 +2316,17 @@ let projectData = {
                 // Update chart
                 updateStructureBenchmarkChart();
             }
+        }
+
+        function filterStrBenchmarkOther(query) {
+            const list = document.getElementById('str-other-projects-list');
+            if (!list) return;
+            const items = list.querySelectorAll('.benchmark-project-item');
+            const q = query.toLowerCase().trim();
+            items.forEach(item => {
+                const name = item.getAttribute('data-filter-name') || '';
+                item.style.display = (!q || name.includes(q)) ? '' : 'none';
+            });
         }
 
         function toggleStrBenchmarkOther() {
@@ -8277,6 +8291,7 @@ ${reasoning}`;
         function createUnifiedRow(discId, config, benchmarks) {
             const row = document.createElement('tr');
             row.id = `unified-row-${discId}`;
+            row.dataset.discId = discId;
 
             const state = mhEstimateState.disciplines[discId];
             const allProjects = benchmarks ? benchmarks.projects || [] : [];
@@ -8322,21 +8337,22 @@ ${reasoning}`;
             const isFte = (config.calculationType === 'fte');
             let descCell, qtyCell;
             const calcInfoBtn = `<span class="calc-info-btn" onclick="event.stopPropagation(); showCalcInfo('${discId}')" title="How is this calculated?">i</span>`;
+            const addSubBtn = `<br><span class="add-sub-btn" onclick="event.stopPropagation(); openAddSubPopup('${discId}')" title="Add sub-consultants">+</span>`;
             if (isEsdcTscd) {
-                descCell = `<td class="frozen-col">${disciplineName} <button class="btn-benchmark-select" onclick="showDisciplineBenchmark('${discId}')" title="Select benchmark projects">📊 Select</button></td>`;
+                descCell = `<td class="frozen-col">${disciplineName} <button class="btn-benchmark-select" onclick="showDisciplineBenchmark('${discId}')" title="Select benchmark projects">📊 Select</button>${addSubBtn}</td>`;
                 qtyCell = `<td class="mh-col numeric" title="Uses Assumed Construction Cost from Cost Parameters">—</td>`;
             } else if (isStructures) {
                 const totalSF = (state.structureEntries || []).reduce((sum, e) => sum + (e.eqty || 0), 0);
-                descCell = `<td class="frozen-col">${disciplineName} <button class="btn-structures-entry" onclick="openStructuresModal()" title="Enter structure details">📋 Enter</button> ${calcInfoBtn}</td>`;
+                descCell = `<td class="frozen-col">${disciplineName} <button class="btn-structures-entry" onclick="openStructuresModal()" title="Enter structure details">📋 Enter</button> ${calcInfoBtn}${addSubBtn}</td>`;
                 qtyCell = `<td class="mh-col numeric"><span id="unified-qty-structures" style="font-weight: bold;">${totalSF > 0 ? totalSF.toLocaleString('en-US') : '0'}</span></td>`;
             } else if (isMiscStructures) {
-                descCell = `<td class="frozen-col">${disciplineName} ${calcInfoBtn}</td>`;
+                descCell = `<td class="frozen-col">${disciplineName} ${calcInfoBtn}${addSubBtn}</td>`;
                 qtyCell = `<td class="mh-col numeric" title="Auto-calculated from Roadway + Drainage + Traffic MH"><span id="unified-qty-miscStructures" style="font-weight: bold;">${(state.quantity || 0).toLocaleString('en-US')}</span></td>`;
             } else if (isFte) {
-                descCell = `<td class="frozen-col">${disciplineName} ${calcInfoBtn}</td>`;
+                descCell = `<td class="frozen-col">${disciplineName} ${calcInfoBtn}${addSubBtn}</td>`;
                 qtyCell = `<td class="mh-col numeric" title="Lump Sum">1</td>`;
             } else {
-                descCell = `<td class="frozen-col">${disciplineName} ${calcInfoBtn}</td>`;
+                descCell = `<td class="frozen-col">${disciplineName} ${calcInfoBtn}${addSubBtn}</td>`;
                 qtyCell = `<td class="mh-col numeric">
                     <input type="text" class="qty-input" id="unified-qty-${discId}"
                            value="${(state.quantity || 0).toLocaleString('en-US')}" inputmode="numeric"
@@ -10270,6 +10286,175 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             saveToLocalStorage();
         }
 
+        // ============================================
+        // Sub-Consultant Management per Discipline
+        // ============================================
+        // Stores sub-consultant data per discipline: { discId: [{name, pctWork, fixedExpenses}] }
+        const disciplineSubs = {};
+
+        function openAddSubPopup(discId) {
+            const config = DISCIPLINE_CONFIG[discId];
+            const disciplineName = config ? config.name : discId;
+            const existing = disciplineSubs[discId] || [];
+            // Start with existing subs or one empty row
+            const subs = existing.length > 0 ? existing.map(s => ({...s})) : [{name: '', pctWork: '', fixedExpenses: ''}];
+
+            function renderRows() {
+                return subs.map((s, i) => `
+                    <tr>
+                        <td><input type="text" id="sub-name-${i}" value="${s.name}" placeholder="Sub name"></td>
+                        <td><input type="number" id="sub-pct-${i}" value="${s.pctWork}" placeholder="0" min="0" max="100" step="1" style="width:60px;"></td>
+                        <td><input type="number" id="sub-exp-${i}" value="${s.fixedExpenses}" placeholder="0" min="0" step="100" style="width:80px;"></td>
+                        <td><span class="btn-remove-row" onclick="removeSubRow('${discId}', ${i})">✕</span></td>
+                    </tr>
+                `).join('');
+            }
+
+            const overlay = document.createElement('div');
+            overlay.className = 'sub-popup-overlay';
+            overlay.id = 'sub-popup-overlay';
+            overlay.innerHTML = `
+                <div class="sub-popup">
+                    <h3>Sub-Consultants — ${disciplineName}</h3>
+                    <table class="sub-popup-table">
+                        <thead>
+                            <tr>
+                                <th>Sub Name</th>
+                                <th style="width:70px;">% Work</th>
+                                <th style="width:90px;">Fixed Expenses ($)</th>
+                                <th style="width:30px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="sub-popup-rows">
+                            ${renderRows()}
+                        </tbody>
+                    </table>
+                    <div class="sub-popup-actions">
+                        <button class="btn-add-row" onclick="addSubRowToPopup('${discId}')">+ Add Row</button>
+                        <div style="display:flex;gap:8px;">
+                            <button class="btn-cancel-subs" onclick="closeSubPopup()">Cancel</button>
+                            <button class="btn-save-subs" onclick="saveSubPopup('${discId}')">Save</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+            overlay.onclick = function(e) { if (e.target === overlay) closeSubPopup(); };
+        }
+
+        function addSubRowToPopup(discId) {
+            const tbody = document.getElementById('sub-popup-rows');
+            if (!tbody) return;
+            const idx = tbody.rows.length;
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><input type="text" id="sub-name-${idx}" value="" placeholder="Sub name"></td>
+                <td><input type="number" id="sub-pct-${idx}" value="" placeholder="0" min="0" max="100" step="1" style="width:60px;"></td>
+                <td><input type="number" id="sub-exp-${idx}" value="" placeholder="0" min="0" step="100" style="width:80px;"></td>
+                <td><span class="btn-remove-row" onclick="this.closest('tr').remove()">✕</span></td>
+            `;
+            tbody.appendChild(tr);
+        }
+
+        function removeSubRow(discId, idx) {
+            const tbody = document.getElementById('sub-popup-rows');
+            if (!tbody || !tbody.rows[idx]) return;
+            tbody.rows[idx].remove();
+        }
+
+        function closeSubPopup() {
+            const overlay = document.getElementById('sub-popup-overlay');
+            if (overlay) overlay.remove();
+        }
+
+        function saveSubPopup(discId) {
+            const tbody = document.getElementById('sub-popup-rows');
+            if (!tbody) return;
+            const subs = [];
+            for (let i = 0; i < tbody.rows.length; i++) {
+                const nameInput = tbody.rows[i].querySelector('input[type="text"]');
+                const pctInput = tbody.rows[i].querySelectorAll('input[type="number"]')[0];
+                const expInput = tbody.rows[i].querySelectorAll('input[type="number"]')[1];
+                const name = (nameInput?.value || '').trim();
+                const pctWork = parseFloat(pctInput?.value) || 0;
+                const fixedExpenses = parseFloat(expInput?.value) || 0;
+                if (name) {
+                    subs.push({ name, pctWork, fixedExpenses });
+                }
+            }
+            disciplineSubs[discId] = subs;
+            closeSubPopup();
+            renderSubRows(discId);
+        }
+
+        /**
+         * Renders sub-consultant rows + KIE row under a discipline in the unified table
+         */
+        function renderSubRows(discId) {
+            // Remove any existing sub/kie rows for this discipline
+            document.querySelectorAll(`.sub-row-${discId}`).forEach(el => el.remove());
+
+            const subs = disciplineSubs[discId];
+            if (!subs || subs.length === 0) return;
+
+            // Find the discipline's main row
+            const mainRow = document.querySelector(`tr[data-disc-id="${discId}"]`);
+            if (!mainRow) return;
+
+            const colCount = mainRow.cells.length;
+            const config = DISCIPLINE_CONFIG[discId];
+            const disciplineName = config ? config.name : discId;
+
+            // Get the discipline's total revenue for splitting
+            const totalRevenueEl = document.getElementById(`unified-total-revenue-${discId}`);
+            const totalRevenue = parseFloat((totalRevenueEl?.textContent || '0').replace(/[$,]/g, '')) || 0;
+            const totalMhEl = document.getElementById(`unified-mh-${discId}`);
+            const totalMh = parseFloat((totalMhEl?.textContent || '0').replace(/,/g, '')) || 0;
+
+            // Calculate KIE's remaining %
+            const totalSubPct = subs.reduce((sum, s) => sum + s.pctWork, 0);
+            const kiePct = Math.max(0, 100 - totalSubPct);
+
+            // Insert KIE row first
+            const kieRow = document.createElement('tr');
+            kieRow.className = `kie-split-row sub-row-${discId}`;
+            const kieMh = Math.round(totalMh * kiePct / 100);
+            const kieRevenue = totalRevenue * kiePct / 100;
+            kieRow.innerHTML = `
+                <td class="frozen-col">↳ KIE (${kiePct.toFixed(0)}%)</td>
+                ${buildEmptyCells(colCount - 3)}
+                <td class="cost-col numeric">${kieMh.toLocaleString()}</td>
+                <td class="cost-col numeric">$${kieRevenue.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}</td>
+            `;
+            mainRow.parentNode.insertBefore(kieRow, mainRow.nextSibling);
+
+            // Insert sub rows after KIE row
+            let insertAfter = kieRow;
+            for (const sub of subs) {
+                const subRow = document.createElement('tr');
+                subRow.className = `sub-consultant-row sub-row-${discId}`;
+                const subMh = Math.round(totalMh * sub.pctWork / 100);
+                const subRevenue = totalRevenue * sub.pctWork / 100;
+                const expDisplay = sub.fixedExpenses > 0 ? ` + $${sub.fixedExpenses.toLocaleString()} exp` : '';
+                subRow.innerHTML = `
+                    <td class="frozen-col">↳ ${sub.name} (${sub.pctWork}%${expDisplay})</td>
+                    ${buildEmptyCells(colCount - 3)}
+                    <td class="cost-col numeric">${subMh.toLocaleString()}</td>
+                    <td class="cost-col numeric">$${(subRevenue + sub.fixedExpenses).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}</td>
+                `;
+                insertAfter.parentNode.insertBefore(subRow, insertAfter.nextSibling);
+                insertAfter = subRow;
+            }
+        }
+
+        function buildEmptyCells(count) {
+            let html = '';
+            for (let i = 0; i < count; i++) {
+                html += '<td></td>';
+            }
+            return html;
+        }
+
         /**
          * Open a popup to adjust complexity % for a discipline (used in benchmark mode)
          */
@@ -10912,6 +11097,12 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
                 recalculateUnifiedCosts(discId);
             }
             updateUnifiedSummary();
+            // Refresh sub-consultant rows with updated revenue numbers
+            for (const discId of Object.keys(disciplineSubs)) {
+                if (disciplineSubs[discId] && disciplineSubs[discId].length > 0) {
+                    renderSubRows(discId);
+                }
+            }
             saveToLocalStorage();
         }
 
@@ -22941,6 +23132,11 @@ Chunks: ${JSON.stringify(complexFieldsOnly, null, 2)}`;
         window.switchEstimateMode = switchEstimateMode;
         window.openSubsDetailEstimate = openSubsDetailEstimate;
         window.openComplexityPopup = openComplexityPopup;
+        window.openAddSubPopup = openAddSubPopup;
+        window.addSubRowToPopup = addSubRowToPopup;
+        window.removeSubRow = removeSubRow;
+        window.closeSubPopup = closeSubPopup;
+        window.saveSubPopup = saveSubPopup;
         window.applyComplexityPopup = applyComplexityPopup;
         window.showCalcInfo = showCalcInfo;
         window.syncContingencyFromInline = function(value) {
@@ -22978,6 +23174,7 @@ Chunks: ${JSON.stringify(complexFieldsOnly, null, 2)}`;
         window.checkAllStructureBenchmark = checkAllStructureBenchmark;
         window.uncheckAllStructureBenchmark = uncheckAllStructureBenchmark;
         window.toggleStrBenchmarkOther = toggleStrBenchmarkOther;
+        window.filterStrBenchmarkOther = filterStrBenchmarkOther;
         window.setStructureCurveType = setStructureCurveType;
         window.updateStructureRowForecast = updateStructureRowForecast;
         window.recalculateEscalation = recalculateEscalation;

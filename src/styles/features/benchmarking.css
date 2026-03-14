@@ -2578,6 +2578,150 @@ tbody.hidden {
     border-color: #6ab0f0;
 }
 
+/* Add Sub-Consultant button (orange +) */
+.add-sub-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1;
+    color: #fff;
+    background: #e07c3a;
+    border: 1px solid #c4632e;
+    border-radius: 3px;
+    cursor: pointer;
+    opacity: 0.85;
+    vertical-align: middle;
+}
+.add-sub-btn:hover {
+    opacity: 1;
+    background: #f08c4a;
+}
+
+/* Sub-consultant popup */
+.sub-popup-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.sub-popup {
+    background: #1a1a1a;
+    border: 1px solid #444;
+    border-radius: 8px;
+    width: 560px;
+    max-height: 80vh;
+    overflow-y: auto;
+    padding: 20px;
+    color: #ccc;
+}
+.sub-popup h3 {
+    color: #ffd700;
+    margin: 0 0 12px 0;
+    font-size: 14px;
+}
+.sub-popup-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 12px;
+}
+.sub-popup-table th {
+    background: #222;
+    color: #aaa;
+    font-size: 10px;
+    text-transform: uppercase;
+    padding: 6px 8px;
+    text-align: left;
+    border-bottom: 1px solid #444;
+}
+.sub-popup-table td {
+    padding: 4px 6px;
+    border-bottom: 1px solid #333;
+}
+.sub-popup-table input {
+    background: #111;
+    border: 1px solid #444;
+    color: #ccc;
+    padding: 4px 6px;
+    border-radius: 3px;
+    font-size: 11px;
+    width: 100%;
+    box-sizing: border-box;
+}
+.sub-popup-table input:focus {
+    border-color: #e07c3a;
+    outline: none;
+}
+.sub-popup-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+}
+.sub-popup-actions button {
+    padding: 6px 16px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid #555;
+}
+.sub-popup-actions .btn-add-row {
+    background: #333;
+    color: #ccc;
+    border-color: #555;
+}
+.sub-popup-actions .btn-add-row:hover {
+    background: #444;
+}
+.sub-popup-actions .btn-save-subs {
+    background: #e07c3a;
+    color: #fff;
+    border-color: #c4632e;
+}
+.sub-popup-actions .btn-save-subs:hover {
+    background: #f08c4a;
+}
+.sub-popup-actions .btn-cancel-subs {
+    background: #333;
+    color: #ccc;
+}
+.sub-popup-actions .btn-remove-row {
+    background: transparent;
+    color: #ff4444;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 2px 6px;
+}
+
+/* Sub-consultant rows in the table */
+.sub-consultant-row td {
+    font-size: 10px !important;
+    background: #f8f4e8 !important;
+    color: #333 !important;
+}
+.sub-consultant-row td.frozen-col {
+    padding-left: 24px !important;
+    font-style: italic;
+}
+.kie-split-row td {
+    font-size: 10px !important;
+    background: #eef6ff !important;
+    color: #333 !important;
+}
+.kie-split-row td.frozen-col {
+    padding-left: 24px !important;
+    font-weight: 600;
+}
+
 /* Calc info popup */
 .calc-info-overlay {
     position: fixed;
