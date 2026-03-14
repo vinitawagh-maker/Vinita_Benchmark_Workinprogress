@@ -10388,7 +10388,8 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
         }
 
         /**
-         * Renders sub-consultant rows + KIE row under a discipline in the unified table
+         * Renders sub-consultant rows + KIE row under a discipline in the unified table.
+         * Places Total MH in the Total MH column and Fixed Expenses in the Expenses column.
          */
         function renderSubRows(discId) {
             // Remove any existing sub/kie rows for this discipline
@@ -10402,57 +10403,71 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             if (!mainRow) return;
 
             const colCount = mainRow.cells.length;
-            const config = DISCIPLINE_CONFIG[discId];
-            const disciplineName = config ? config.name : discId;
 
-            // Get the discipline's total revenue for splitting
-            const totalRevenueEl = document.getElementById(`unified-total-revenue-${discId}`);
-            const totalRevenue = parseFloat((totalRevenueEl?.textContent || '0').replace(/[$,]/g, '')) || 0;
+            // Find column indices by scanning the main row's cell IDs/classes
+            let mhColIdx = -1, expColIdx = -1, revenueColIdx = colCount - 1;
+            for (let i = 0; i < colCount; i++) {
+                const cell = mainRow.cells[i];
+                const span = cell.querySelector('span');
+                const spanId = span ? span.id : '';
+                if (spanId === `unified-mh-${discId}`) mhColIdx = i;
+                if (spanId === `unified-expenses-${discId}`) expColIdx = i;
+                if (spanId === `unified-total-revenue-${discId}`) revenueColIdx = i;
+            }
+
+            // Get discipline totals
             const totalMhEl = document.getElementById(`unified-mh-${discId}`);
             const totalMh = parseFloat((totalMhEl?.textContent || '0').replace(/,/g, '')) || 0;
+            const totalRevenueEl = document.getElementById(`unified-total-revenue-${discId}`);
+            const totalRevenue = parseFloat((totalRevenueEl?.textContent || '0').replace(/[$,]/g, '')) || 0;
 
             // Calculate KIE's remaining %
             const totalSubPct = subs.reduce((sum, s) => sum + s.pctWork, 0);
             const kiePct = Math.max(0, 100 - totalSubPct);
 
+            // Helper to build a row with values in specific columns
+            function buildSubRow(label, mh, expenses, revenue, cssClass) {
+                const tr = document.createElement('tr');
+                tr.className = `${cssClass} sub-row-${discId}`;
+                let html = '';
+                for (let i = 0; i < colCount; i++) {
+                    if (i === 0) {
+                        html += `<td class="frozen-col">${label}</td>`;
+                    } else if (i === mhColIdx) {
+                        html += `<td class="mh-col mh-col-keep numeric mh-cell">${mh > 0 ? mh.toLocaleString() : ''}</td>`;
+                    } else if (i === expColIdx && expenses > 0) {
+                        html += `<td class="cost-col numeric revenue-detail-col">$${expenses.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}</td>`;
+                    } else if (i === revenueColIdx) {
+                        html += `<td class="cost-col numeric">$${revenue.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}</td>`;
+                    } else {
+                        html += '<td></td>';
+                    }
+                }
+                tr.innerHTML = html;
+                return tr;
+            }
+
             // Insert KIE row first
-            const kieRow = document.createElement('tr');
-            kieRow.className = `kie-split-row sub-row-${discId}`;
             const kieMh = Math.round(totalMh * kiePct / 100);
             const kieRevenue = totalRevenue * kiePct / 100;
-            kieRow.innerHTML = `
-                <td class="frozen-col">↳ KIE (${kiePct.toFixed(0)}%)</td>
-                ${buildEmptyCells(colCount - 3)}
-                <td class="cost-col numeric">${kieMh.toLocaleString()}</td>
-                <td class="cost-col numeric">$${kieRevenue.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}</td>
-            `;
+            const kieRow = buildSubRow(`↳ KIE (${kiePct.toFixed(0)}%)`, kieMh, 0, kieRevenue, 'kie-split-row');
             mainRow.parentNode.insertBefore(kieRow, mainRow.nextSibling);
 
             // Insert sub rows after KIE row
             let insertAfter = kieRow;
             for (const sub of subs) {
-                const subRow = document.createElement('tr');
-                subRow.className = `sub-consultant-row sub-row-${discId}`;
                 const subMh = Math.round(totalMh * sub.pctWork / 100);
                 const subRevenue = totalRevenue * sub.pctWork / 100;
-                const expDisplay = sub.fixedExpenses > 0 ? ` + $${sub.fixedExpenses.toLocaleString()} exp` : '';
-                subRow.innerHTML = `
-                    <td class="frozen-col">↳ ${sub.name} (${sub.pctWork}%${expDisplay})</td>
-                    ${buildEmptyCells(colCount - 3)}
-                    <td class="cost-col numeric">${subMh.toLocaleString()}</td>
-                    <td class="cost-col numeric">$${(subRevenue + sub.fixedExpenses).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}</td>
-                `;
+                const subRow = buildSubRow(
+                    `↳ ${sub.name} (${sub.pctWork}%)`,
+                    subMh,
+                    sub.fixedExpenses,
+                    subRevenue + sub.fixedExpenses,
+                    'sub-consultant-row'
+                );
                 insertAfter.parentNode.insertBefore(subRow, insertAfter.nextSibling);
                 insertAfter = subRow;
             }
-        }
-
-        function buildEmptyCells(count) {
-            let html = '';
-            for (let i = 0; i < count; i++) {
-                html += '<td></td>';
-            }
-            return html;
         }
 
         /**
