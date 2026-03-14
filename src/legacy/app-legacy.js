@@ -12419,11 +12419,11 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             const projectValue = parseFloat(raw.replace(/[$,]/g, '')) || 0;
             let ftes = 0;
             if (projectValue > 0) {
-                if      (projectValue <= 250e6)  ftes = 4;
-                else if (projectValue <= 500e6)  ftes = 5;
-                else if (projectValue <= 750e6)  ftes = 6;
-                else if (projectValue < 1000e6)  ftes = 7;
-                else                             ftes = 8;
+                if      (projectValue <= 250e6)  ftes = 5;
+                else if (projectValue <= 500e6)  ftes = 6;
+                else if (projectValue <= 750e6)  ftes = 7;
+                else if (projectValue < 1000e6)  ftes = 8;
+                else                             ftes = 9;
             }
             const input = document.getElementById('indirects-fte');
             if (input && ftes > 0) input.value = ftes;
