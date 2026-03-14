@@ -10435,8 +10435,8 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             const thead = document.querySelector('#unified-estimate-table thead tr');
             const colCount = thead ? thead.cells.length : mainRow.cells.length;
             // Column indices (0-indexed, from thead):
-            // 11:TotalMH 16:RawLabor 17:Burden 18:Expenses 19:TotalCost 20:Margin 29:TotalRevenue
-            const COL = { mh: 11, rawLabor: 16, burden: 17, expenses: 18, totalCost: 19, margin: 20, revenue: colCount - 1 };
+            // 11:TotalMH 16:RawLabor 17:Burden 18:Expenses 19:TotalCost 20:Margin 28:G&A 29:TotalRevenue
+            const COL = { mh: 11, rawLabor: 16, burden: 17, expenses: 18, totalCost: 19, margin: 20, gna: colCount - 2, revenue: colCount - 1 };
 
             // Get discipline totals and rates
             const totalMh = parseFloat((document.getElementById(`unified-mh-${discId}`)?.textContent || '0').replace(/,/g, '')) || 0;
@@ -10476,6 +10476,8 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
                         html += `<td class="cost-col numeric revenue-detail-col">${fmt$(vals.totalCost)}</td>`;
                     } else if (i === COL.margin && vals.margin != null) {
                         html += `<td class="cost-col numeric revenue-detail-col">${fmt$(vals.margin)}</td>`;
+                    } else if (i === COL.gna && vals.gna != null) {
+                        html += `<td class="cost-col numeric revenue-detail-col">${fmt$(vals.gna)}</td>`;
                     } else if (i === COL.revenue && vals.revenue != null) {
                         html += `<td class="cost-col numeric">${fmt$(vals.revenue)}</td>`;
                     } else {
@@ -10487,18 +10489,21 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             }
 
             // --- KIE row ---
+            const kieMultiplier = parseFloat(document.getElementById('calc-kie-multiplier')?.value) || 2.85;
+            const gnaRate = (parseFloat(document.getElementById('unified-gna')?.value) || 104) / 100;
             const kieMh = Math.round(totalMh * kiePct / 100);
             const kieRawLabor = kieMh * lowPct * resources.lowRate + kieMh * highPct * resources.highRate;
             const kieBurden = kieRawLabor * (burdenRate / 100);
             const kieTotalCost = kieRawLabor + kieBurden;
-            // KIE margin/revenue read from parent row proportionally
-            const parentMargin = parseFloat((document.getElementById(`unified-margin-${discId}`)?.textContent || '0').replace(/[$,]/g, '')) || 0;
-            const parentRevenue = parseFloat((document.getElementById(`unified-total-revenue-${discId}`)?.textContent || '0').replace(/[$,]/g, '')) || 0;
-            const kieMargin = parentMargin * kiePct / 100;
-            const kieRevenue = parentRevenue * kiePct / 100;
+            // Revenue = KIE Multiplier × Raw Labor
+            const kieRevenue = kieRawLabor * kieMultiplier;
+            // G&A = G&A Rate × Raw Labor
+            const kieGna = kieRawLabor * gnaRate;
+            // Margin = Revenue - G&A - Total Cost
+            const kieMargin = kieRevenue - kieGna - kieTotalCost;
             const kieRow = buildDetailRow(`↳ KIE (${kiePct.toFixed(0)}%)`, {
                 mh: kieMh, rawLabor: kieRawLabor, burden: kieBurden,
-                expenses: 0, totalCost: kieTotalCost, margin: kieMargin, revenue: kieRevenue
+                expenses: 0, totalCost: kieTotalCost, margin: kieMargin, gna: kieGna, revenue: kieRevenue
             }, 'kie-split-row');
             mainRow.parentNode.insertBefore(kieRow, mainRow.nextSibling);
 
