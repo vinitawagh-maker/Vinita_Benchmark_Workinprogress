@@ -10297,13 +10297,15 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             const disciplineName = config ? config.name : discId;
             const existing = disciplineSubs[discId] || [];
             // Start with existing subs or one empty row
-            const subs = existing.length > 0 ? existing.map(s => ({...s})) : [{name: '', pctWork: '', fixedExpenses: ''}];
+            const defaultMultiplier = parseFloat(document.getElementById('calc-sub-multiplier')?.value) || 3.0;
+            const subs = existing.length > 0 ? existing.map(s => ({...s})) : [{name: '', pctWork: '', multiplier: defaultMultiplier, fixedExpenses: ''}];
 
             function renderRows() {
                 return subs.map((s, i) => `
                     <tr>
                         <td><input type="text" id="sub-name-${i}" value="${s.name}" placeholder="Sub name"></td>
                         <td><input type="number" id="sub-pct-${i}" value="${s.pctWork}" placeholder="0" min="0" max="100" step="1" style="width:60px;"></td>
+                        <td><input type="number" id="sub-mult-${i}" value="${s.multiplier ?? defaultMultiplier}" placeholder="${defaultMultiplier}" min="0" max="10" step="0.1" style="width:60px;"></td>
                         <td><input type="number" id="sub-exp-${i}" value="${s.fixedExpenses}" placeholder="0" min="0" step="100" style="width:80px;"></td>
                         <td><span class="btn-remove-row" onclick="removeSubRow('${discId}', ${i})">✕</span></td>
                     </tr>
@@ -10316,11 +10318,13 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             overlay.innerHTML = `
                 <div class="sub-popup">
                     <h3>Sub-Consultants — ${disciplineName}</h3>
+                    <p style="font-size:10px;color:#888;margin:0 0 8px;">Multiplier default from Design Metrics: ${defaultMultiplier.toFixed(2)}x</p>
                     <table class="sub-popup-table">
                         <thead>
                             <tr>
                                 <th>Sub Name</th>
                                 <th style="width:70px;">% Work</th>
+                                <th style="width:70px;">Multiplier</th>
                                 <th style="width:90px;">Fixed Expenses ($)</th>
                                 <th style="width:30px;"></th>
                             </tr>
@@ -10346,10 +10350,12 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             const tbody = document.getElementById('sub-popup-rows');
             if (!tbody) return;
             const idx = tbody.rows.length;
+            const defaultMult = parseFloat(document.getElementById('calc-sub-multiplier')?.value) || 3.0;
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td><input type="text" id="sub-name-${idx}" value="" placeholder="Sub name"></td>
                 <td><input type="number" id="sub-pct-${idx}" value="" placeholder="0" min="0" max="100" step="1" style="width:60px;"></td>
+                <td><input type="number" id="sub-mult-${idx}" value="${defaultMult}" placeholder="${defaultMult}" min="0" max="10" step="0.1" style="width:60px;"></td>
                 <td><input type="number" id="sub-exp-${idx}" value="" placeholder="0" min="0" step="100" style="width:80px;"></td>
                 <td><span class="btn-remove-row" onclick="this.closest('tr').remove()">✕</span></td>
             `;
@@ -10373,13 +10379,13 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             const subs = [];
             for (let i = 0; i < tbody.rows.length; i++) {
                 const nameInput = tbody.rows[i].querySelector('input[type="text"]');
-                const pctInput = tbody.rows[i].querySelectorAll('input[type="number"]')[0];
-                const expInput = tbody.rows[i].querySelectorAll('input[type="number"]')[1];
+                const numInputs = tbody.rows[i].querySelectorAll('input[type="number"]');
                 const name = (nameInput?.value || '').trim();
-                const pctWork = parseFloat(pctInput?.value) || 0;
-                const fixedExpenses = parseFloat(expInput?.value) || 0;
+                const pctWork = parseFloat(numInputs[0]?.value) || 0;
+                const multiplier = parseFloat(numInputs[1]?.value) || 3.0;
+                const fixedExpenses = parseFloat(numInputs[2]?.value) || 0;
                 if (name) {
-                    subs.push({ name, pctWork, fixedExpenses });
+                    subs.push({ name, pctWork, multiplier, fixedExpenses });
                 }
             }
             disciplineSubs[discId] = subs;
@@ -10419,6 +10425,11 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             const totalMh = parseFloat((totalMhEl?.textContent || '0').replace(/,/g, '')) || 0;
             const totalRevenueEl = document.getElementById(`unified-total-revenue-${discId}`);
             const totalRevenue = parseFloat((totalRevenueEl?.textContent || '0').replace(/[$,]/g, '')) || 0;
+            // Get weighted rate for sub labor calculation
+            const rateEl = document.getElementById(`unified-hourly-rate-${discId}`);
+            const weightedRate = parseFloat((rateEl?.textContent || '0').replace(/[$,]/g, '')) || 0;
+            // Get sub markup % from Design Metrics
+            const subMarkupPct = parseFloat(document.getElementById('calc-sub-markup')?.value) || 5;
 
             // Calculate KIE's remaining %
             const totalSubPct = subs.reduce((sum, s) => sum + s.pctWork, 0);
@@ -10456,12 +10467,17 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             let insertAfter = kieRow;
             for (const sub of subs) {
                 const subMh = Math.round(totalMh * sub.pctWork / 100);
-                const subRevenue = totalRevenue * sub.pctWork / 100;
+                const mult = sub.multiplier || 3.0;
+                // Sub labor = subMh × weightedRate, then revenue = labor × multiplier + markup + expenses
+                const subLabor = subMh * weightedRate;
+                const subCostToKie = subLabor * mult;
+                const subMarkup = subCostToKie * (subMarkupPct / 100);
+                const subTotalRevenue = subCostToKie + subMarkup + (sub.fixedExpenses || 0);
                 const subRow = buildSubRow(
-                    `↳ ${sub.name} (${sub.pctWork}%)`,
+                    `↳ ${sub.name} (${sub.pctWork}%, ${mult}x)`,
                     subMh,
                     sub.fixedExpenses,
-                    subRevenue + sub.fixedExpenses,
+                    subTotalRevenue,
                     'sub-consultant-row'
                 );
                 insertAfter.parentNode.insertBefore(subRow, insertAfter.nextSibling);
