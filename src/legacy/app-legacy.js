@@ -8337,7 +8337,8 @@ ${reasoning}`;
             const isFte = (config.calculationType === 'fte');
             let descCell, qtyCell;
             const calcInfoBtn = `<span class="calc-info-btn" onclick="event.stopPropagation(); showCalcInfo('${discId}')" title="How is this calculated?">i</span>`;
-            const addSubBtn = `<br><span class="add-sub-btn" onclick="event.stopPropagation(); openAddSubPopup('${discId}')" title="Add sub-consultants">+</span>`;
+            const subToggle = `<span class="disc-sub-toggle" id="disc-sub-toggle-${discId}" onclick="event.stopPropagation(); toggleDiscSubs('${discId}')" title="Show/hide sub-consultant detail" style="display:none; cursor:pointer; font-size:10px; margin-right:3px;">▶</span>`;
+            const addSubBtn = `<br>${subToggle}<span class="add-sub-btn" onclick="event.stopPropagation(); openAddSubPopup('${discId}')" title="Add sub-consultants">+</span>`;
             if (isEsdcTscd) {
                 descCell = `<td class="frozen-col">${disciplineName} <button class="btn-benchmark-select" onclick="showDisciplineBenchmark('${discId}')" title="Select benchmark projects">📊 Select</button>${addSubBtn}</td>`;
                 qtyCell = `<td class="mh-col numeric" title="Uses Assumed Construction Cost from Cost Parameters">—</td>`;
@@ -10291,6 +10292,23 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
         // ============================================
         // Stores sub-consultant data per discipline: { discId: [{name, pctWork, fixedExpenses}] }
         const disciplineSubs = {};
+        // Track collapsed state per discipline (default collapsed after first save)
+        const discSubsCollapsed = {};
+
+        function toggleDiscSubs(discId) {
+            const rows = document.querySelectorAll(`.sub-row-${discId}`);
+            const icon = document.getElementById(`disc-sub-toggle-${discId}`);
+            const isCollapsed = discSubsCollapsed[discId];
+            if (isCollapsed) {
+                rows.forEach(r => r.style.display = '');
+                if (icon) icon.textContent = '▼';
+                discSubsCollapsed[discId] = false;
+            } else {
+                rows.forEach(r => r.style.display = 'none');
+                if (icon) icon.textContent = '▶';
+                discSubsCollapsed[discId] = true;
+            }
+        }
 
         function openAddSubPopup(discId) {
             const config = DISCIPLINE_CONFIG[discId];
@@ -10402,7 +10420,12 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             document.querySelectorAll(`.sub-row-${discId}`).forEach(el => el.remove());
 
             const subs = disciplineSubs[discId];
-            if (!subs || subs.length === 0) return;
+            if (!subs || subs.length === 0) {
+                // Hide toggle when no subs
+                const toggleIcon = document.getElementById(`disc-sub-toggle-${discId}`);
+                if (toggleIcon) toggleIcon.style.display = 'none';
+                return;
+            }
 
             // Find the discipline's main row
             const mainRow = document.querySelector(`tr[data-disc-id="${discId}"]`);
@@ -10479,6 +10502,18 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
                 );
                 insertAfter.parentNode.insertBefore(subRow, insertAfter.nextSibling);
                 insertAfter = subRow;
+            }
+
+            // Show the toggle triangle
+            const toggleIcon = document.getElementById(`disc-sub-toggle-${discId}`);
+            if (toggleIcon) {
+                toggleIcon.style.display = 'inline';
+                toggleIcon.textContent = discSubsCollapsed[discId] ? '▶' : '▼';
+            }
+
+            // If collapsed, hide the newly rendered rows
+            if (discSubsCollapsed[discId]) {
+                document.querySelectorAll(`.sub-row-${discId}`).forEach(r => r.style.display = 'none');
             }
         }
 
@@ -23160,6 +23195,7 @@ Chunks: ${JSON.stringify(complexFieldsOnly, null, 2)}`;
         window.openSubsDetailEstimate = openSubsDetailEstimate;
         window.openComplexityPopup = openComplexityPopup;
         window.openAddSubPopup = openAddSubPopup;
+        window.toggleDiscSubs = toggleDiscSubs;
         window.addSubRowToPopup = addSubRowToPopup;
         window.removeSubRow = removeSubRow;
         window.closeSubPopup = closeSubPopup;
