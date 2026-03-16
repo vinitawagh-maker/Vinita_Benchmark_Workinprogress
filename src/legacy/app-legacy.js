@@ -10455,36 +10455,27 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
 
             const fmt$ = (v) => '$' + Math.round(v).toLocaleString();
 
-            // Helper to build a row with values in specific column positions
+            // Build sub/KIE row by cloning the main row structure then clearing & setting values
             function buildDetailRow(label, vals, cssClass) {
-                // vals = { mh, rawLabor, burden, expenses, totalCost, margin, revenue }
-                const tr = document.createElement('tr');
+                const tr = mainRow.cloneNode(true);
+                tr.removeAttribute('id');
+                tr.removeAttribute('data-disc-id');
                 tr.className = `${cssClass} sub-row-${discId}`;
-                let html = '';
-                for (let i = 0; i < colCount; i++) {
-                    if (i === 0) {
-                        html += `<td class="frozen-col">${label}</td>`;
-                    } else if (i === COL.mh && vals.mh != null) {
-                        html += `<td class="mh-col mh-col-keep numeric mh-cell">${vals.mh > 0 ? vals.mh.toLocaleString() : ''}</td>`;
-                    } else if (i === COL.rawLabor && vals.rawLabor != null) {
-                        html += `<td class="cost-col numeric revenue-detail-col">${fmt$(vals.rawLabor)}</td>`;
-                    } else if (i === COL.burden && vals.burden != null) {
-                        html += `<td class="cost-col numeric revenue-detail-col">${fmt$(vals.burden)}</td>`;
-                    } else if (i === COL.expenses && vals.expenses) {
-                        html += `<td class="cost-col numeric revenue-detail-col">${fmt$(vals.expenses)}</td>`;
-                    } else if (i === COL.totalCost && vals.totalCost != null) {
-                        html += `<td class="cost-col numeric revenue-detail-col">${fmt$(vals.totalCost)}</td>`;
-                    } else if (i === COL.margin && vals.margin != null) {
-                        html += `<td class="cost-col numeric revenue-detail-col">${fmt$(vals.margin)}</td>`;
-                    } else if (i === COL.gna && vals.gna != null) {
-                        html += `<td class="cost-col numeric revenue-detail-col">${fmt$(vals.gna)}</td>`;
-                    } else if (i === COL.revenue && vals.revenue != null) {
-                        html += `<td class="cost-col numeric">${fmt$(vals.revenue)}</td>`;
-                    } else {
-                        html += '<td></td>';
-                    }
+                // Clear all cell content
+                for (let i = 0; i < tr.cells.length; i++) {
+                    tr.cells[i].textContent = '';
+                    tr.cells[i].innerHTML = '';
                 }
-                tr.innerHTML = html;
+                // Set specific cells
+                if (tr.cells[0]) tr.cells[0].innerHTML = label;
+                if (tr.cells[COL.mh] && vals.mh != null) tr.cells[COL.mh].textContent = vals.mh > 0 ? vals.mh.toLocaleString() : '';
+                if (tr.cells[COL.rawLabor] && vals.rawLabor != null) tr.cells[COL.rawLabor].textContent = fmt$(vals.rawLabor);
+                if (tr.cells[COL.burden] && vals.burden != null) tr.cells[COL.burden].textContent = fmt$(vals.burden);
+                if (tr.cells[COL.expenses] && vals.expenses) tr.cells[COL.expenses].textContent = fmt$(vals.expenses);
+                if (tr.cells[COL.totalCost] && vals.totalCost != null) tr.cells[COL.totalCost].textContent = fmt$(vals.totalCost);
+                if (tr.cells[COL.margin] && vals.margin != null) tr.cells[COL.margin].textContent = fmt$(vals.margin);
+                if (tr.cells[COL.gna] && vals.gna != null) tr.cells[COL.gna].textContent = fmt$(vals.gna);
+                if (tr.cells[COL.revenue] && vals.revenue != null) tr.cells[COL.revenue].textContent = fmt$(vals.revenue);
                 return tr;
             }
 
