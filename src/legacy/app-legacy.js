@@ -805,6 +805,38 @@ let projectData = {
                 });
                 container.innerHTML = '';
                 container.appendChild(clone);
+
+                // Add orange "+" buttons and toggle triangles to each discipline row in Step 2
+                clone.querySelectorAll('tr[data-disc-id]').forEach(row => {
+                    const did = row.dataset.discId;
+                    const firstCell = row.cells[0];
+                    if (firstCell) {
+                        const toggle = document.createElement('span');
+                        toggle.className = 'disc-sub-toggle';
+                        toggle.id = `disc-sub-toggle-${did}`;
+                        toggle.style.cssText = 'display:none; cursor:pointer; font-size:10px; margin-right:3px;';
+                        toggle.textContent = '▶';
+                        toggle.onclick = function(e) { e.stopPropagation(); toggleDiscSubs(did); };
+
+                        const addBtn = document.createElement('span');
+                        addBtn.className = 'add-sub-btn';
+                        addBtn.textContent = '+';
+                        addBtn.title = 'Add sub-consultants';
+                        addBtn.onclick = function(e) { e.stopPropagation(); openAddSubPopup(did); };
+
+                        const br = document.createElement('br');
+                        firstCell.appendChild(br);
+                        firstCell.appendChild(toggle);
+                        firstCell.appendChild(addBtn);
+                    }
+                });
+
+                // Re-render any existing sub rows in the cloned table
+                for (const did of Object.keys(disciplineSubs)) {
+                    if (disciplineSubs[did] && disciplineSubs[did].length > 0) {
+                        renderSubRows(did);
+                    }
+                }
             }
         }
 
@@ -8337,23 +8369,21 @@ ${reasoning}`;
             const isFte = (config.calculationType === 'fte');
             let descCell, qtyCell;
             const calcInfoBtn = `<span class="calc-info-btn" onclick="event.stopPropagation(); showCalcInfo('${discId}')" title="How is this calculated?">i</span>`;
-            const subToggle = `<span class="disc-sub-toggle" id="disc-sub-toggle-${discId}" onclick="event.stopPropagation(); toggleDiscSubs('${discId}')" title="Show/hide sub-consultant detail" style="display:none; cursor:pointer; font-size:10px; margin-right:3px;">▶</span>`;
-            const addSubBtn = `<br>${subToggle}<span class="add-sub-btn" onclick="event.stopPropagation(); openAddSubPopup('${discId}')" title="Add sub-consultants">+</span>`;
             if (isEsdcTscd) {
-                descCell = `<td class="frozen-col">${disciplineName} <button class="btn-benchmark-select" onclick="showDisciplineBenchmark('${discId}')" title="Select benchmark projects">📊 Select</button>${addSubBtn}</td>`;
+                descCell = `<td class="frozen-col">${disciplineName} <button class="btn-benchmark-select" onclick="showDisciplineBenchmark('${discId}')" title="Select benchmark projects">📊 Select</button></td>`;
                 qtyCell = `<td class="mh-col numeric" title="Uses Assumed Construction Cost from Cost Parameters">—</td>`;
             } else if (isStructures) {
                 const totalSF = (state.structureEntries || []).reduce((sum, e) => sum + (e.eqty || 0), 0);
-                descCell = `<td class="frozen-col">${disciplineName} <button class="btn-structures-entry" onclick="openStructuresModal()" title="Enter structure details">📋 Enter</button> ${calcInfoBtn}${addSubBtn}</td>`;
+                descCell = `<td class="frozen-col">${disciplineName} <button class="btn-structures-entry" onclick="openStructuresModal()" title="Enter structure details">📋 Enter</button> ${calcInfoBtn}</td>`;
                 qtyCell = `<td class="mh-col numeric"><span id="unified-qty-structures" style="font-weight: bold;">${totalSF > 0 ? totalSF.toLocaleString('en-US') : '0'}</span></td>`;
             } else if (isMiscStructures) {
-                descCell = `<td class="frozen-col">${disciplineName} ${calcInfoBtn}${addSubBtn}</td>`;
+                descCell = `<td class="frozen-col">${disciplineName} ${calcInfoBtn}</td>`;
                 qtyCell = `<td class="mh-col numeric" title="Auto-calculated from Roadway + Drainage + Traffic MH"><span id="unified-qty-miscStructures" style="font-weight: bold;">${(state.quantity || 0).toLocaleString('en-US')}</span></td>`;
             } else if (isFte) {
-                descCell = `<td class="frozen-col">${disciplineName} ${calcInfoBtn}${addSubBtn}</td>`;
+                descCell = `<td class="frozen-col">${disciplineName} ${calcInfoBtn}</td>`;
                 qtyCell = `<td class="mh-col numeric" title="Lump Sum">1</td>`;
             } else {
-                descCell = `<td class="frozen-col">${disciplineName} ${calcInfoBtn}${addSubBtn}</td>`;
+                descCell = `<td class="frozen-col">${disciplineName} ${calcInfoBtn}</td>`;
                 qtyCell = `<td class="mh-col numeric">
                     <input type="text" class="qty-input" id="unified-qty-${discId}"
                            value="${(state.quantity || 0).toLocaleString('en-US')}" inputmode="numeric"
@@ -10296,8 +10326,9 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
         const discSubsCollapsed = {};
 
         function toggleDiscSubs(discId) {
-            const rows = document.querySelectorAll(`.sub-row-${discId}`);
-            const icon = document.getElementById(`disc-sub-toggle-${discId}`);
+            const scope = document.getElementById('subs-detail-table') || document;
+            const rows = scope.querySelectorAll(`.sub-row-${discId}`);
+            const icon = scope.querySelector(`#disc-sub-toggle-${discId}, [id$="disc-sub-toggle-${discId}"]`);
             const isCollapsed = discSubsCollapsed[discId];
             if (isCollapsed) {
                 rows.forEach(r => r.style.display = '');
@@ -10416,23 +10447,27 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
          * Places Total MH in the Total MH column and Fixed Expenses in the Expenses column.
          */
         function renderSubRows(discId) {
+            // Sub rows only exist in Step 2 (subs-detail table)
+            const subsTable = document.getElementById('subs-detail-table');
+            const scope = subsTable || document;
+
             // Remove any existing sub/kie rows for this discipline
-            document.querySelectorAll(`.sub-row-${discId}`).forEach(el => el.remove());
+            scope.querySelectorAll(`.sub-row-${discId}`).forEach(el => el.remove());
 
             const subs = disciplineSubs[discId];
             if (!subs || subs.length === 0) {
                 // Hide toggle when no subs
-                const toggleIcon = document.getElementById(`disc-sub-toggle-${discId}`);
+                const toggleIcon = scope.querySelector(`#disc-sub-toggle-${discId}, [id$="disc-sub-toggle-${discId}"]`);
                 if (toggleIcon) toggleIcon.style.display = 'none';
                 return;
             }
 
-            // Find the discipline's main row
-            const mainRow = document.querySelector(`tr[data-disc-id="${discId}"]`);
+            // Find the discipline's main row in Step 2 table
+            const mainRow = scope.querySelector(`tr[data-disc-id="${discId}"]`);
             if (!mainRow) return;
 
             // Use thead as single source of truth for column count
-            const thead = document.querySelector('#unified-estimate-table thead tr');
+            const thead = (subsTable || document.getElementById('unified-estimate-table'))?.querySelector('thead tr');
             const colCount = thead ? thead.cells.length : mainRow.cells.length;
             // Column indices (0-indexed, from thead):
             // 11:TotalMH 16:RawLabor 17:Burden 18:Expenses 19:TotalCost 20:Margin 28:G&A 29:TotalRevenue
@@ -10519,7 +10554,7 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             }
 
             // Show the toggle triangle
-            const toggleIcon = document.getElementById(`disc-sub-toggle-${discId}`);
+            const toggleIcon = scope.querySelector(`#disc-sub-toggle-${discId}, [id$="disc-sub-toggle-${discId}"]`);
             if (toggleIcon) {
                 toggleIcon.style.display = 'inline';
                 toggleIcon.textContent = discSubsCollapsed[discId] ? '▶' : '▼';
@@ -10527,7 +10562,7 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
 
             // If collapsed, hide the newly rendered rows
             if (discSubsCollapsed[discId]) {
-                document.querySelectorAll(`.sub-row-${discId}`).forEach(r => r.style.display = 'none');
+                scope.querySelectorAll(`.sub-row-${discId}`).forEach(r => r.style.display = 'none');
             }
         }
 
