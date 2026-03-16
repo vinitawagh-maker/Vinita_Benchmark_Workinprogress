@@ -2151,6 +2151,7 @@ tbody.hidden {
 .ribbon-override-content {
     display: flex;
     flex-direction: row;
+    flex-wrap: wrap;
     gap: 0;
     padding: 10px 14px;
     background: #ffffff;
@@ -2173,6 +2174,14 @@ tbody.hidden {
 
 .override-section:last-child {
     border-right: none;
+}
+
+.override-changelog {
+    flex-basis: 100% !important;
+    flex: none !important;
+    border-right: none !important;
+    border-top: 1px dashed #81A1B2;
+    padding-top: 8px;
 }
 
 .override-section-label {

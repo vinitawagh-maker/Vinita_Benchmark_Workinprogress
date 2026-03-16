@@ -127,7 +127,7 @@ export const AVAILABLE_DISCIPLINES = [
 
 // OpenAI configuration
 export const OPENAI_CONFIG = {
-    model: 'gpt-4o-mini',
+    model: 'gpt-5.4',
     maxTokens: 2000,
     temperature: 0.7
 };

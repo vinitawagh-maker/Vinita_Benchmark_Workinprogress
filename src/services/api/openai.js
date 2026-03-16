@@ -161,7 +161,7 @@ export async function chatWithTools(messages, tools, options = {}) {
             'Authorization': `Bearer ${apiKey}`
         },
         body: JSON.stringify({
-            model: options.model || 'gpt-4o-mini',
+            model: options.model || 'gpt-5.4',
             messages,
             tools,
             tool_choice: options.toolChoice || 'auto',

@@ -42,6 +42,7 @@ let projectData = {
             // RFP-extracted data for export
             projectScope: '',
             scheduleNotes: '',
+            subbingPhilosophy: '',
             disciplineScopes: {},
             rfpReviewSteps: [],  // Review steps extracted from RFP
             
@@ -483,6 +484,10 @@ let projectData = {
             try {
                 showAutosaveIndicator('saving');
                 
+                // Sync subbing philosophy from textarea
+                const subbingEl = document.getElementById('subbing-philosophy');
+                if (subbingEl) projectData.subbingPhilosophy = subbingEl.value;
+
                 const saveData = {
                     version: STORAGE_VERSION,
                     timestamp: Date.now(),
@@ -2685,11 +2690,11 @@ let projectData = {
         function calculateMonthlyBellCurve(numMonths) {
             if (numMonths <= 1) return [1];
 
-            // Logistic sigmoid S-curve with k=0.9
-            // Cumulative curve is a standard S-curve with visible ramp-up and ramp-down
+            // Logistic sigmoid S-curve with k=0.25
+            // Standard design engineering S-curve: ~5% at 20%, ~50% at 50%, ~95% at 80% of duration
             // Monthly distribution is the derivative (incremental spend per month)
             // Normalized so S_norm(0)=0 and S_norm(N)=1 exactly
-            const k = 0.9;
+            const k = 0.25;
             const tMid = numMonths / 2;
 
             // Raw logistic
@@ -2715,8 +2720,8 @@ let projectData = {
         function calculateBellCurveDistribution(years) {
             if (years === 1) return [1];
 
-            // Scale k=0.9 from monthly to yearly (multiply by 12)
-            const k = 0.9 * 12;
+            // Scale k=0.25 from monthly to yearly (multiply by 12)
+            const k = 0.25 * 12;
             const numMonths = years * 12;
             const tMid = numMonths / 2;
             const S = (t) => 1 / (1 + Math.exp(-k / numMonths * (t - tMid)));
@@ -2985,11 +2990,19 @@ let projectData = {
             // Use raw labor COST distribution instead of hours
             const costData = monthlyData.map(row => Math.round(row.rawLaborCost));
             const escalationData2 = monthlyData.map(row => Math.round(row.escalationAmount));
-            
+
+            // Calculate cumulative cost for S-curve
+            let cumSum = 0;
+            const totalCost = costData.reduce((a, b) => a + b, 0);
+            const cumulativeData = costData.map(val => {
+                cumSum += val;
+                return totalCost > 0 ? Math.round((cumSum / totalCost) * 100) : 0;
+            });
+
             // Calculate max values for better scaling
             const maxCost = Math.max(...costData);
             const maxEscalation = Math.max(...escalationData2);
-            
+
             // Add 10% padding to the max for better visualization
             const costMax = Math.ceil(maxCost * 1.1);
             const escalationMax = Math.ceil(maxEscalation * 1.1);
@@ -3025,6 +3038,19 @@ let projectData = {
                             pointBorderColor: '#fff',
                             pointBorderWidth: 1,
                             yAxisID: 'y1'
+                        },
+                        {
+                            label: 'Cumulative Cost (S-Curve %)',
+                            data: cumulativeData,
+                            type: 'line',
+                            borderColor: 'rgba(0, 255, 128, 1)',
+                            backgroundColor: 'rgba(0, 255, 128, 0.05)',
+                            fill: false,
+                            tension: 0.4,
+                            borderWidth: 2.5,
+                            borderDash: [6, 3],
+                            pointRadius: 0,
+                            yAxisID: 'y2'
                         }
                     ]
                 },
@@ -3062,7 +3088,9 @@ let projectData = {
                                 label: function(context) {
                                     const idx = context.dataIndex;
                                     const monthData = monthlyData[idx];
-                                    if (context.dataset.label.includes('KIE Labor')) {
+                                    if (context.dataset.label.includes('Cumulative')) {
+                                        return `Cumulative: ${context.raw}%`;
+                                    } else if (context.dataset.label.includes('KIE Labor')) {
                                         return `KIE Labor: $${context.raw.toLocaleString()} (${monthData.costPercent.toFixed(1)}%)`;
                                     } else {
                                         const escalYears = monthData.escalationYears;
@@ -3135,6 +3163,27 @@ let projectData = {
                             grid: {
                                 drawOnChartArea: false
                             }
+                        },
+                        y2: {
+                            type: 'linear',
+                            position: 'right',
+                            beginAtZero: true,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: 'Cumulative %',
+                                color: '#00ff80'
+                            },
+                            ticks: {
+                                color: '#00ff80',
+                                callback: function(value) {
+                                    return value + '%';
+                                },
+                                stepSize: 20
+                            },
+                            grid: {
+                                drawOnChartArea: false
+                            }
                         }
                     }
                 }
@@ -3161,21 +3210,27 @@ let projectData = {
             if (escalationRateInput) {
                 escalationRateInput.value = baseRate;
             }
-            
-            // Update the escalation total in the main table (now in the margin column)
-            const escalationMarginCell = document.getElementById('escalation-total-margin');
-            if (escalationMarginCell) {
-                escalationMarginCell.innerHTML = '$' + Math.round(escalationData.totalCost).toLocaleString() + 
-                    ' <button class="escalation-details-btn" onclick="openEscalationModal()" title="View Escalation Breakdown">📊</button>';
+
+            // Sync NTP date and duration back to main form so calculateEscalation can find them
+            const modalNtp = document.getElementById('escalation-ntp-date')?.value;
+            const modalDuration = document.getElementById('escalation-duration-months')?.value;
+            if (modalNtp) {
+                const calcNtp = document.getElementById('calc-ntp-date');
+                if (calcNtp && !calcNtp.value) calcNtp.value = modalNtp;
             }
-            
+            if (modalDuration) {
+                const calcDuration = document.getElementById('calc-design-duration');
+                if (calcDuration && !calcDuration.value) calcDuration.value = modalDuration;
+            }
+
             // Close the modal
             closeEscalationModal();
-            
-            // Trigger recalculation of the main table
-            if (typeof calculateMHEstimates === 'function') {
-                calculateMHEstimates();
-            }
+
+            // Recalculate costs and summary — escalationData.totalCost is already
+            // set by recalculateEscalation() in the modal, so updateUnifiedSummary will use it
+            recalculateAllUnifiedCosts();
+            updateUnifiedSummary();
+            saveToLocalStorage();
         }
 
         /**
@@ -3275,6 +3330,12 @@ let projectData = {
                 initDisciplines();
             }
             
+            // Restore subbing philosophy textarea
+            const subbingEl = document.getElementById('subbing-philosophy');
+            if (subbingEl && projectData.subbingPhilosophy) {
+                subbingEl.value = projectData.subbingPhilosophy;
+            }
+
             // Navigate to saved step (default to Benchmarking if not saved)
             currentStep = savedData.currentStep || 4;
             showStep(currentStep);
@@ -4196,11 +4257,15 @@ let projectData = {
                 'bridges': 'bridges',
                 'structures': 'bridges',
                 'retaining walls': 'walls',
+                'retainingwalls': 'walls',
                 'noise walls': 'walls',
+                'noisewalls': 'walls',
                 'misc structures': 'bridges',
+                'miscstructures': 'bridges',
                 'geotechnical': 'geotechnical',
                 'environmental': 'environmental',
                 'digital delivery': 'roadway',
+                'digitaldelivery': 'roadway',
                 'pavement': 'roadway',
                 'landscaping': 'roadway',
                 'esdc': 'esdc',
@@ -9696,7 +9761,7 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
                                 body: JSON.stringify({
-                                    model: 'gpt-4.1',
+                                    model: 'gpt-5.4',
                                     max_tokens: 2000,
                                     messages: [{
                                         role: 'user',
@@ -10061,9 +10126,108 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             }
             tableHtml += '</table>';
 
+            // ── Page 2: Job Cost Summary ──
+            // Gather values
+            var grandRow = rows.find(function(r) { return r.label === 'GRAND TOTAL'; }) || {};
+            var kieLaborRow = rows.find(function(r) { return r.label === 'KIE LABOR'; }) || {};
+            var directsRow = rows.find(function(r) { return r.label === 'DIRECTS'; }) || {};
+            var indirectsRow = rows.find(function(r) { return r.label === 'INDIRECTS'; }) || {};
+            var contingencyRow = rows.find(function(r) { return r.label === 'CONTINGENCY'; }) || {};
+            var escalationRow = rows.find(function(r) { return r.label === 'ESCALATION'; }) || {};
+            var ipcRow = rows.find(function(r) { return r.label === 'IPC'; }) || {};
+            var odcsRow = rows.find(function(r) { return r.label === 'EXPENSES/ODC\'S'; }) || {};
+            var lsSubsRow = rows.find(function(r) { return r.label === 'LS CONSULTANTS'; }) || {};
+            var esdcRow = rows.find(function(r) { return r.label === 'ESDC'; }) || {};
+            var tscdRow = rows.find(function(r) { return r.label === 'TSCD'; }) || {};
+
+            var p2Revenue = grandRow.revenue || 0;
+            var p2BillableLabor = kieLaborRow.rawLabor || 0;
+            var p2Burden = kieLaborRow.burden || 0;
+            var p2SubtotalLaborBurden = p2BillableLabor + p2Burden;
+            var p2Contingency = contingencyRow.revenue || 0;
+            var p2Escalation = escalationRow.revenue || 0;
+            var p2Expenses = (ipcRow.expenses || 0) + (odcsRow.expenses || 0);
+            var p2Subcontracts = (lsSubsRow.revenue || 0);
+            // Individual LS consultant revenues
+            var p2SurveySubs = parseFloat((document.getElementById('ls-subs-total-revenue')?.textContent || '0').replace(/[$,]/g, '')) || 0;
+            var p2SubsurfaceUtilitySubs = parseFloat((document.getElementById('survey-total-revenue')?.textContent || '0').replace(/[$,]/g, '')) || 0;
+            var p2GeotechDrillingSubs = parseFloat((document.getElementById('subsurface-utility-total-revenue')?.textContent || '0').replace(/[$,]/g, '')) || 0;
+            var p2SubtotalExpenses = p2Contingency + p2Escalation + p2Expenses + p2Subcontracts;
+            var p2DirectCost = p2SubtotalLaborBurden + p2SubtotalExpenses;
+            var p2GrossProfit = p2Revenue - p2DirectCost;
+            var p2GPpct = p2Revenue > 0 ? Math.round((p2GrossProfit / p2Revenue) * 100) : 0;
+            var p2GnA = kieLaborRow.gna || 0;
+            var p2GrossJobGain = p2GrossProfit - p2GnA;
+
+            // Metrics
+            var p2LaborHours = kieLaborRow.mh || 0;
+            var p2SubHours = (lsSubsRow.mh || 0) + (esdcRow.mh || 0) + (tscdRow.mh || 0);
+            var p2LaborPerMH = p2LaborHours > 0 ? (p2BillableLabor / p2LaborHours) : 0;
+            var p2SubPerMH = p2SubHours > 0 ? (p2Subcontracts / p2SubHours) : 0;
+            var p2EffMultiplier = parseFloat(document.getElementById('calc-kie-multiplier')?.value) || 2.85;
+            var p2GnAPct = parseFloat(document.getElementById('unified-gna')?.value) || 104;
+            var p2BurdenRate = parseFloat(document.getElementById('unified-burden')?.value) || 66;
+
+            // Is this Step 1 (benchmark)?
+            var isStep1 = currentEstimateMode === 'benchmark';
+
+            var p2hdr = 'padding:6px 10px; font-size:12px; font-weight:bold; border-bottom:2px solid #ffd700; color:#ffd700;';
+            var p2lbl = 'padding:5px 10px; font-size:12px; border-bottom:1px solid #333;';
+            var p2val = 'padding:5px 10px; font-size:12px; text-align:right; border-bottom:1px solid #333;';
+            var p2bold = 'padding:5px 10px; font-size:12px; font-weight:bold; border-bottom:1px solid #333;';
+            var p2boldVal = 'padding:5px 10px; font-size:12px; font-weight:bold; text-align:right; border-bottom:1px solid #333;';
+            var p2pink = 'background:rgba(255,100,100,0.2);';
+            var p2yellow = 'background:rgba(255,255,0,0.25);';
+
+            var page2Html = '<table style="width:100%; border-collapse:collapse; margin-top:24px;">';
+            page2Html += '<tr><td style="' + p2hdr + '">Variable</td><td style="' + p2hdr + ' text-align:right;">$</td></tr>';
+            page2Html += '<tr><td style="' + p2bold + '">Revenue</td><td style="' + p2boldVal + '">' + fmtD(p2Revenue) + '</td></tr>';
+            page2Html += '<tr><td colspan="2" style="padding:0; border-bottom:2px solid #555;"></td></tr>';
+
+            // Labor section
+            page2Html += '<tr><td style="' + p2lbl + '">Billable Labor</td><td style="' + p2val + '">' + fmtD(p2BillableLabor) + '</td></tr>';
+            page2Html += '<tr><td style="' + p2lbl + '">Burden</td><td style="' + p2val + '">' + fmtD(p2Burden) + '</td></tr>';
+            page2Html += '<tr><td style="' + p2bold + '">Subtotal Labor/Burden</td><td style="' + p2boldVal + '">' + fmtD(p2SubtotalLaborBurden) + '</td></tr>';
+            page2Html += '<tr><td colspan="2" style="padding:0; border-bottom:2px solid #555;"></td></tr>';
+
+            // Expenses section
+            page2Html += '<tr><td style="' + p2lbl + p2pink + '">Contingency</td><td style="' + p2val + p2pink + '">' + fmtD(p2Contingency) + '</td></tr>';
+            page2Html += '<tr><td style="' + p2lbl + p2yellow + '">Escalation</td><td style="' + p2val + p2yellow + '">' + fmtD(p2Escalation) + '</td></tr>';
+            page2Html += '<tr><td style="' + p2lbl + '">Expenses</td><td style="' + p2val + '">' + fmtD(p2Expenses) + '</td></tr>';
+            page2Html += '<tr><td style="' + p2lbl + '">Subconsultants</td><td style="' + p2val + '">' + (isStep1 ? 'TBD' : fmtD(p2Subcontracts)) + '</td></tr>';
+            var p2indent = 'padding:5px 10px 5px 30px; font-size:11px; border-bottom:1px solid #333; color:#aaa;';
+            var p2indentVal = 'padding:5px 10px; font-size:11px; text-align:right; border-bottom:1px solid #333; color:#aaa;';
+            if (!isStep1) {
+                page2Html += '<tr><td style="' + p2indent + '">Survey Subs</td><td style="' + p2indentVal + '">' + fmtD(p2SurveySubs) + '</td></tr>';
+                page2Html += '<tr><td style="' + p2indent + '">Subsurface Utility Subs</td><td style="' + p2indentVal + '">' + fmtD(p2SubsurfaceUtilitySubs) + '</td></tr>';
+                page2Html += '<tr><td style="' + p2indent + '">Geotech Drilling Subs</td><td style="' + p2indentVal + '">' + fmtD(p2GeotechDrillingSubs) + '</td></tr>';
+            }
+            page2Html += '<tr><td style="' + p2bold + '">Subtotal Expenses</td><td style="' + p2boldVal + '">' + fmtD(p2SubtotalExpenses) + '</td></tr>';
+
+            // Profit section
+            page2Html += '<tr><td style="' + p2lbl + '">Revenue</td><td style="' + p2val + '">' + fmtD(p2Revenue) + '</td></tr>';
+            page2Html += '<tr><td style="' + p2lbl + '">Direct Cost</td><td style="' + p2val + '">' + fmtD(p2DirectCost) + '</td></tr>';
+            page2Html += '<tr><td style="' + p2lbl + '">Gross Profit</td><td style="' + p2val + '">' + fmtD(p2GrossProfit) + '</td></tr>';
+            page2Html += '<tr><td style="' + p2lbl + '">GP %</td><td style="' + p2val + '">' + p2GPpct + '%</td></tr>';
+            page2Html += '<tr><td style="' + p2lbl + p2yellow + '">G&A</td><td style="' + p2val + p2yellow + '">' + fmtD(p2GnA) + '</td></tr>';
+            page2Html += '<tr><td style="' + p2bold + '">Gross Job Gain</td><td style="' + p2boldVal + '">' + fmtD(p2GrossJobGain) + '</td></tr>';
+            page2Html += '<tr><td colspan="2" style="padding:0; border-bottom:2px solid #555;"></td></tr>';
+
+            // Metrics section
+            page2Html += '<tr><td style="' + p2lbl + '">Labor Hours</td><td style="' + p2val + '">' + fmtMH(p2LaborHours) + '</td></tr>';
+            page2Html += '<tr><td style="' + p2lbl + '">Subcontract Hours</td><td style="' + p2val + '">' + fmtMH(p2SubHours) + '</td></tr>';
+            page2Html += '<tr><td style="' + p2lbl + '">Labor $/Mh</td><td style="' + p2val + '">' + p2LaborPerMH.toFixed(2) + '</td></tr>';
+            page2Html += '<tr><td style="' + p2lbl + '">Sub $/Mh</td><td style="' + p2val + '">' + p2SubPerMH.toFixed(2) + '</td></tr>';
+            page2Html += '<tr><td style="' + p2lbl + '">Effective Multiplier</td><td style="' + p2val + '">' + p2EffMultiplier.toFixed(2) + '</td></tr>';
+            page2Html += '<tr><td style="' + p2lbl + '">G&A % of Wages</td><td style="' + p2val + '">' + p2GnAPct + '%</td></tr>';
+            page2Html += '<tr><td style="' + p2lbl + '">Burden Rate</td><td style="' + p2val + '">' + p2BurdenRate + '%</td></tr>';
+            page2Html += '</table>';
+
             modal.innerHTML = '<div style="background:#1a1a2e; border:1px solid #ffd700; border-radius:8px; padding:24px; max-width:950px; width:95%; color:#e0e0e0; font-family:Arial,sans-serif; max-height:90vh; overflow-y:auto;">' +
                 '<h3 style="margin:0 0 16px; color:#ffd700; font-size:16px;">Project Financials Summary</h3>' +
                 tableHtml +
+                '<h3 style="margin:24px 0 16px; color:#ffd700; font-size:16px;">Job Cost Summary</h3>' +
+                page2Html +
                 '<div style="margin-top:16px; display:flex; gap:8px; justify-content:flex-end;">' +
                 '<button id="pf-download-btn" style="padding:8px 16px; background:#ffd700; color:#000; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">Download Excel</button>' +
                 '<button id="pf-cancel-btn" style="padding:8px 16px; background:#333; color:#e0e0e0; border:1px solid #555; border-radius:4px; cursor:pointer;">Cancel</button>' +
@@ -10102,6 +10266,62 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
 
                     var wb = XLSXLib.utils.book_new();
                     XLSXLib.utils.book_append_sheet(wb, ws, 'Project Financials');
+
+                    // Sheet 2: Job Cost Summary
+                    var jcs = [];
+                    jcs.push(['Variable', '$']);
+                    jcs.push(['Revenue', p2Revenue]);
+                    jcs.push([]);
+                    jcs.push(['Billable Labor', p2BillableLabor]);
+                    jcs.push(['Burden', p2Burden]);
+                    jcs.push(['Subtotal Labor/Burden', p2SubtotalLaborBurden]);
+                    jcs.push([]);
+                    jcs.push(['Contingency', p2Contingency]);
+                    jcs.push(['Escalation', p2Escalation]);
+                    jcs.push(['Expenses', p2Expenses]);
+                    jcs.push(['Subconsultants', isStep1 ? 'TBD' : p2Subcontracts]);
+                    if (!isStep1) {
+                        jcs.push(['   Survey Subs', p2SurveySubs]);
+                        jcs.push(['   Subsurface Utility Subs', p2SubsurfaceUtilitySubs]);
+                        jcs.push(['   Geotech Drilling Subs', p2GeotechDrillingSubs]);
+                    }
+                    jcs.push(['Subtotal Expenses', p2SubtotalExpenses]);
+                    jcs.push(['Revenue', p2Revenue]);
+                    jcs.push(['Direct Cost', p2DirectCost]);
+                    jcs.push(['Gross Profit', p2GrossProfit]);
+                    jcs.push(['GP %', p2GPpct / 100]);
+                    jcs.push(['G&A', p2GnA]);
+                    jcs.push(['Gross Job Gain', p2GrossJobGain]);
+                    jcs.push([]);
+                    jcs.push(['Labor Hours', p2LaborHours]);
+                    jcs.push(['Subcontract Hours', p2SubHours]);
+                    jcs.push(['Labor $/Mh', p2LaborPerMH]);
+                    jcs.push(['Sub $/Mh', p2SubPerMH]);
+                    jcs.push(['Effective Multiplier', p2EffMultiplier]);
+                    jcs.push(['G&A % of Wages', p2GnAPct / 100]);
+                    jcs.push(['Burden Rate', p2BurdenRate / 100]);
+
+                    var ws2 = XLSXLib.utils.aoa_to_sheet(jcs);
+                    ws2['!cols'] = [{ wch: 28 }, { wch: 16 }];
+                    // Format all cells dynamically based on label
+                    for (var jr = 0; jr < jcs.length; jr++) {
+                        var jcell = ws2[XLSXLib.utils.encode_cell({ r: jr, c: 1 })];
+                        if (!jcell) continue;
+                        var jlabel = (jcs[jr][0] || '').trim();
+                        if (jlabel === 'GP %' || jlabel === 'G&A % of Wages' || jlabel === 'Burden Rate') {
+                            jcell.z = '0%';
+                        } else if (jlabel === 'Labor Hours' || jlabel === 'Subcontract Hours') {
+                            jcell.z = '#,##0';
+                        } else if (jlabel === 'Labor $/Mh' || jlabel === 'Sub $/Mh') {
+                            jcell.z = '$#,##0.00';
+                        } else if (jlabel === 'Effective Multiplier') {
+                            jcell.z = '0.00';
+                        } else if (typeof jcell.v === 'number') {
+                            jcell.z = '$#,##0';
+                        }
+                    }
+
+                    XLSXLib.utils.book_append_sheet(wb, ws2, 'Job Cost Summary');
 
                     var dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
                     XLSXLib.writeFile(wb, 'ProjectFinancials_' + dateStr + '.xlsx');
@@ -10347,7 +10567,11 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             const existing = disciplineSubs[discId] || [];
             // Start with existing subs or one empty row
             const defaultMultiplier = parseFloat(document.getElementById('calc-sub-multiplier')?.value) || 3.0;
-            const subs = existing.length > 0 ? existing.map(s => ({...s})) : [{name: '', pctWork: '', multiplier: defaultMultiplier, fixedExpenses: ''}];
+            // Get KIE rates for this discipline as default sub rates
+            const resources = getDisciplineResources(config ? config.name : 'Roadway');
+            const defaultJrRate = resources.lowRate;
+            const defaultSrRate = resources.highRate;
+            const subs = existing.length > 0 ? existing.map(s => ({...s})) : [{name: '', pctWork: '', multiplier: defaultMultiplier, fixedExpenses: '', jrRate: defaultJrRate, srRate: defaultSrRate}];
 
             function renderRows() {
                 return subs.map((s, i) => `
@@ -10355,6 +10579,8 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
                         <td><input type="text" id="sub-name-${i}" value="${s.name}" placeholder="Sub name"></td>
                         <td><input type="number" id="sub-pct-${i}" value="${s.pctWork}" placeholder="0" min="0" max="100" step="1" style="width:60px;"></td>
                         <td><input type="number" id="sub-mult-${i}" value="${s.multiplier ?? defaultMultiplier}" placeholder="${defaultMultiplier}" min="0" max="10" step="0.1" style="width:60px;"></td>
+                        <td><input type="number" id="sub-jr-${i}" value="${s.jrRate ?? defaultJrRate}" placeholder="${defaultJrRate}" min="0" step="0.01" style="width:70px;"></td>
+                        <td><input type="number" id="sub-sr-${i}" value="${s.srRate ?? defaultSrRate}" placeholder="${defaultSrRate}" min="0" step="0.01" style="width:70px;"></td>
                         <td><input type="number" id="sub-exp-${i}" value="${s.fixedExpenses}" placeholder="0" min="0" step="100" style="width:80px;"></td>
                         <td><span class="btn-remove-row" onclick="removeSubRow('${discId}', ${i})">✕</span></td>
                     </tr>
@@ -10374,6 +10600,8 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
                                 <th>Sub Name</th>
                                 <th style="width:70px;">% Work</th>
                                 <th style="width:70px;">Multiplier</th>
+                                <th style="width:80px;">Base Rate ($/hr)</th>
+                                <th style="width:80px;">Uplift Rate ($/hr)</th>
                                 <th style="width:90px;">Fixed Expenses ($)</th>
                                 <th style="width:30px;"></th>
                             </tr>
@@ -10400,11 +10628,15 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             if (!tbody) return;
             const idx = tbody.rows.length;
             const defaultMult = parseFloat(document.getElementById('calc-sub-multiplier')?.value) || 3.0;
+            const config = DISCIPLINE_CONFIG[discId];
+            const resources = getDisciplineResources(config ? config.name : 'Roadway');
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td><input type="text" id="sub-name-${idx}" value="" placeholder="Sub name"></td>
                 <td><input type="number" id="sub-pct-${idx}" value="" placeholder="0" min="0" max="100" step="1" style="width:60px;"></td>
                 <td><input type="number" id="sub-mult-${idx}" value="${defaultMult}" placeholder="${defaultMult}" min="0" max="10" step="0.1" style="width:60px;"></td>
+                <td><input type="number" id="sub-jr-${idx}" value="${resources.lowRate}" placeholder="${resources.lowRate}" min="0" step="0.01" style="width:70px;"></td>
+                <td><input type="number" id="sub-sr-${idx}" value="${resources.highRate}" placeholder="${resources.highRate}" min="0" step="0.01" style="width:70px;"></td>
                 <td><input type="number" id="sub-exp-${idx}" value="" placeholder="0" min="0" step="100" style="width:80px;"></td>
                 <td><span class="btn-remove-row" onclick="this.closest('tr').remove()">✕</span></td>
             `;
@@ -10432,9 +10664,11 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
                 const name = (nameInput?.value || '').trim();
                 const pctWork = parseFloat(numInputs[0]?.value) || 0;
                 const multiplier = parseFloat(numInputs[1]?.value) || 3.0;
-                const fixedExpenses = parseFloat(numInputs[2]?.value) || 0;
+                const jrRate = parseFloat(numInputs[2]?.value) || 0;
+                const srRate = parseFloat(numInputs[3]?.value) || 0;
+                const fixedExpenses = parseFloat(numInputs[4]?.value) || 0;
                 if (name) {
-                    subs.push({ name, pctWork, multiplier, fixedExpenses });
+                    subs.push({ name, pctWork, multiplier, jrRate, srRate, fixedExpenses });
                 }
             }
             disciplineSubs[discId] = subs;
@@ -10538,8 +10772,10 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             for (const sub of subs) {
                 const subMh = Math.round(totalMh * sub.pctWork / 100);
                 const mult = sub.multiplier || 3.0;
-                // Same jr/sr split as KIE
-                const subRawLabor = subMh * lowPct * resources.lowRate + subMh * highPct * resources.highRate;
+                // Use sub-specific rates if set, otherwise fall back to KIE rates
+                const subJrRate = sub.jrRate || resources.lowRate;
+                const subSrRate = sub.srRate || resources.highRate;
+                const subRawLabor = subMh * lowPct * subJrRate + subMh * highPct * subSrRate;
                 // No burden on subs
                 const subTotalCost = subRawLabor * mult;
                 const subMargin = subTotalCost * (subMarkupPct / 100);
@@ -10604,10 +10840,10 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
                 <div class="complexity-popup">
                     <h3>${discName} — Complexity</h3>
                     <div class="popup-rates-table">
-                        <div class="popup-rate-row"><span class="popup-rate-label">Junior (${resources.lowCode || 'L1-L3'}):</span> <span class="popup-rate-value">$${resources.lowRate.toFixed(2)}/hr</span></div>
-                        <div class="popup-rate-row"><span class="popup-rate-label">Senior (${resources.highCode || 'L4-L6'}):</span> <span class="popup-rate-value">$${resources.highRate.toFixed(2)}/hr</span></div>
+                        <div class="popup-rate-row"><span class="popup-rate-label">Base (Junior ${resources.lowCode || ''} - L1-3):</span> <span class="popup-rate-value">$${resources.lowRate.toFixed(2)}/hr</span></div>
+                        <div class="popup-rate-row"><span class="popup-rate-label">Regional/Technical Uplift (Senior ${resources.highCode || ''} - L4-6):</span> <span class="popup-rate-value">$${resources.highRate.toFixed(2)}/hr</span></div>
                     </div>
-                    <label>Senior Engineer % (L4-L6)</label>
+                    <label>Regional/Technical Uplift % (L4-6)</label>
                     <input type="number" id="complexity-popup-input" value="${currentPct}" min="0" max="100" step="5">
                     <div class="popup-formula" id="complexity-popup-formula">
                         <span style="color:#888;">Weighted Rate =</span> $${resources.lowRate.toFixed(2)} × <span id="popup-junior-pct">${juniorPct}</span>% + $${resources.highRate.toFixed(2)} × <span id="popup-senior-pct">${currentPct}</span>%<br>
@@ -10674,6 +10910,79 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
         // ============================================
         // Calculation Info Popups
         // ============================================
+        function showContingencyBreakdown() {
+            const d = window._contingencyBreakdown;
+            if (!d) return;
+            const fmt$ = (v) => '$' + Math.round(v).toLocaleString('en-US');
+
+            const overlay = document.createElement('div');
+            overlay.className = 'complexity-popup-overlay';
+            overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+            overlay.innerHTML = `
+                <div class="complexity-popup" style="max-width:480px;">
+                    <h3>Contingency Breakdown (${d.contingencyPercent}%)</h3>
+                    <table style="width:100%; border-collapse:collapse; margin:12px 0; font-size:12px;">
+                        <tr style="border-bottom:2px solid #ffd700;">
+                            <th style="text-align:left; padding:6px 8px; color:#ffd700;">Component</th>
+                            <th style="text-align:right; padding:6px 8px; color:#ffd700;">MH</th>
+                            <th style="text-align:right; padding:6px 8px; color:#ffd700;">Raw Labor</th>
+                        </tr>
+                        <tr style="border-bottom:1px solid #333;">
+                            <td style="padding:5px 8px;">Directs</td>
+                            <td style="text-align:right; padding:5px 8px;">${Math.round(d.directsMH).toLocaleString()}</td>
+                            <td style="text-align:right; padding:5px 8px;">${fmt$(d.directsRawLabor)}</td>
+                        </tr>
+                        <tr style="border-bottom:1px solid #333;">
+                            <td style="padding:5px 8px;">Indirects</td>
+                            <td style="text-align:right; padding:5px 8px;">${Math.round(d.indirectsMH).toLocaleString()}</td>
+                            <td style="text-align:right; padding:5px 8px;">${fmt$(d.indirectsRawLabor)}</td>
+                        </tr>
+                        <tr style="border-bottom:1px solid #333;">
+                            <td style="padding:5px 8px;">ESDC</td>
+                            <td style="text-align:right; padding:5px 8px;">${Math.round(d.esdcMH).toLocaleString()}</td>
+                            <td style="text-align:right; padding:5px 8px;">${fmt$(d.esdcRawLabor)}</td>
+                        </tr>
+                        <tr style="border-bottom:2px solid #555; font-weight:bold;">
+                            <td style="padding:5px 8px;">Base Total</td>
+                            <td style="text-align:right; padding:5px 8px;">${Math.round(d.contingencyBaseMH).toLocaleString()}</td>
+                            <td style="text-align:right; padding:5px 8px;">${fmt$(d.contingencyBaseRawLabor)}</td>
+                        </tr>
+                    </table>
+                    <div style="margin:10px 0; font-size:12px; color:#ccc; line-height:1.6;">
+                        <div><strong style="color:#ffd700;">Contingency ${d.contingencyPercent}%</strong></div>
+                        <div>Contingency MH: ${Math.round(d.contingencyBaseMH).toLocaleString()} × ${d.contingencyPercent}% = <strong>${Math.round(d.contingencyMH).toLocaleString()}</strong></div>
+                        <div>Weighted Avg Rate: ${fmt$(d.contingencyBaseRawLabor)} / ${Math.round(d.contingencyBaseMH).toLocaleString()} = <strong>$${d.contingencyAvgRate.toFixed(2)}/hr</strong></div>
+                    </div>
+                    <table style="width:100%; border-collapse:collapse; margin:12px 0; font-size:12px;">
+                        <tr style="border-bottom:1px solid #333;">
+                            <td style="padding:5px 8px;">Raw Labor</td>
+                            <td style="text-align:right; padding:5px 8px;">${fmt$(d.contingencyRawLabor)}</td>
+                        </tr>
+                        <tr style="border-bottom:1px solid #333;">
+                            <td style="padding:5px 8px;">Burden (${d.burdenRate}%)</td>
+                            <td style="text-align:right; padding:5px 8px;">${fmt$(d.contingencyBurden)}</td>
+                        </tr>
+                        <tr style="border-bottom:1px solid #333;">
+                            <td style="padding:5px 8px;">G&A (${d.gnaRate}%)</td>
+                            <td style="text-align:right; padding:5px 8px;">${fmt$(d.contingencyGna)}</td>
+                        </tr>
+                        <tr style="border-bottom:1px solid #333;">
+                            <td style="padding:5px 8px;">Margin (${d.marginPercent}%)</td>
+                            <td style="text-align:right; padding:5px 8px;">${fmt$(d.contingencyMargin)}</td>
+                        </tr>
+                        <tr style="border-bottom:2px solid #ffd700; font-weight:bold; color:#00ff00;">
+                            <td style="padding:5px 8px;">Total Contingency Revenue</td>
+                            <td style="text-align:right; padding:5px 8px;">${fmt$(d.contingencyTotalRevenue)}</td>
+                        </tr>
+                    </table>
+                    <div class="popup-actions">
+                        <button class="popup-apply" onclick="this.closest('.complexity-popup-overlay').remove()">Close</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+        }
+
         function showCalcInfo(sectionId) {
             const info = {
                 labor: {
@@ -10691,7 +11000,7 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
                         G&A = Raw Labor × G&A %<br>
                         Margin = Raw Labor × Margin %<br>
                         Total Revenue = Raw Labor + Burden + Expenses + G&A + Margin</div>
-                        <p><strong>MH Source:</strong> Benchmark power curve (production rate at assumed construction cost) or manual entry. Weighted Rate is blended from junior (L1-L3) and senior (L4-L6) resource rates based on complexity %.</p>`
+                        <p><strong>MH Source:</strong> Benchmark power curve (production rate at assumed construction cost) or manual entry. Weighted Rate is blended from Base (Junior L1-3) and Regional/Technical Uplift (Senior L4-6) resource rates based on complexity %.</p>`
                 },
                 indirects: {
                     title: 'INDIRECTS — How Revenue is Calculated',
@@ -10779,7 +11088,7 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
                     title: '{name} — How Revenue is Calculated',
                     body: `<p>Revenue is calculated from benchmark man-hours:</p>
                         <div class="formula">1. Quantity × Benchmark Production Rate → Estimated MH<br>
-                        2. Weighted Rate = (Junior Rate × (100-Complexity%)) + (Senior Rate × Complexity%)<br>
+                        2. Weighted Rate = (Base Rate × (100-Complexity%)) + (Uplift Rate × Complexity%)<br>
                         3. Raw Labor = MH × Weighted Rate<br>
                         4. Burden = Raw Labor × Burden %<br>
                         5. G&A = Raw Labor × G&A %<br>
@@ -11396,10 +11705,18 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
          * Calculate escalation cost based on bell curve distribution and annual raises
          */
         function calculateEscalation(totalMH, totalRawLabor) {
-            // Get input parameters
-            const ntpDateInput = document.getElementById('calc-ntp-date');
-            const durationInput = document.getElementById('calc-design-duration');
+            // Get input parameters — try Design Metrics inputs first, fall back to escalation modal inputs
+            let ntpDateInput = document.getElementById('calc-ntp-date');
+            let durationInput = document.getElementById('calc-design-duration');
             const escalationRateInput = document.getElementById('unified-escalation');
+
+            // Fall back to modal inputs if main form inputs are empty
+            if (!ntpDateInput?.value) {
+                ntpDateInput = document.getElementById('escalation-ntp-date');
+            }
+            if (!durationInput?.value) {
+                durationInput = document.getElementById('escalation-duration-months');
+            }
 
             if (!ntpDateInput || !ntpDateInput.value || !durationInput || !durationInput.value) {
                 return 0; // No escalation if dates not provided
@@ -11926,7 +12243,12 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             // The G&A column totals are already included in the LABOR section
 
             // Calculate ESCALATION based on raises over design duration
-            const escalationRawLabor = calculateEscalation(kieLaborMH, kieLaborRawLabor);
+            // Use modal's computed totalCost if available (it survives modal close),
+            // otherwise fall back to the standalone calculation
+            const calcEsc = calculateEscalation(kieLaborMH, kieLaborRawLabor);
+            const escalationRawLabor = (escalationData.totalCost > 0 && calcEsc === 0) ? escalationData.totalCost : calcEsc;
+            // Keep escalationData in sync
+            if (escalationRawLabor > 0) escalationData.totalCost = escalationRawLabor;
             // Calculate burden and G&A on escalation
             const escalationBurden = escalationRawLabor * (burdenRate / 100);
             const escalationGna = escalationRawLabor * (gnaRate / 100);
@@ -11999,9 +12321,26 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
                 '$' + Math.round(contingencyMargin).toLocaleString('en-US');
             document.getElementById('contingency-total-revenue').textContent = 
                 '$' + Math.round(contingencyTotalRevenue).toLocaleString('en-US');
-            document.getElementById('contingency-total-expenses').textContent = '$0';
+            // Show contingency revenue in expenses column with a star for breakdown popup
+            const contingencyExpensesEl = document.getElementById('contingency-total-expenses');
+            if (contingencyExpensesEl) {
+                contingencyExpensesEl.innerHTML = '$' + Math.round(contingencyTotalRevenue).toLocaleString('en-US') +
+                    ' <span class="contingency-star" onclick="event.stopPropagation(); showContingencyBreakdown()" title="View contingency breakdown" style="color:#ffd700; cursor:pointer; font-size:14px;">★</span>';
+            }
             document.getElementById('contingency-total-cost').textContent =
                 '$' + Math.round(contingencyTotalCosts).toLocaleString('en-US');
+
+            // Store contingency breakdown data for the popup
+            window._contingencyBreakdown = {
+                contingencyPercent,
+                directsMH, directsRawLabor,
+                indirectsMH, indirectsRawLabor,
+                esdcMH: esdcForContingency.mh, esdcRawLabor: esdcForContingency.rawLabor,
+                contingencyBaseMH, contingencyBaseRawLabor,
+                contingencyMH, contingencyAvgRate, contingencyRawLabor,
+                contingencyBurden, contingencyGna, contingencyMargin,
+                contingencyTotalRevenue, burdenRate, gnaRate, marginPercent
+            };
 
             // Calculate ESDC and TSCD based on ASSUMED CONSTRUCTION COST
             // (assumedConstructionCost already defined at top of function)
@@ -13564,61 +13903,21 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
          * @param {number} step - Step number to navigate to
          */
         function goToStep(step) {
-            if (step !== currentStep) {
-                saveCurrentStep();
-                currentStep = step;
-                showStep(step);
-
-                // Initialize step-specific content
-                if (step === 4) {
-                    buildBudgetTable();
-                    updateUnifiedSummary(); // Update totals when showing benchmarking step
-                }
-                if (step === 5) buildClaimingTable();
-                if (step === 6) buildDatesTable();
-                if (step === 7) loadProjectInfo();
-            }
+            currentStep = 4;
+            showStep(4);
+            buildBudgetTable();
+            updateUnifiedSummary();
         }
 
         /**
-         * Saves data from the current wizard step to projectData object
+         * Saves data from the current step to projectData object
          */
         function saveCurrentStep() {
-            switch(currentStep) {
-                case 1:
-                    projectData.phases = document.getElementById('phases-input').value.split(',').map(p => p.trim()).filter(p => p);
-                    break;
-                case 2:
-                    projectData.disciplines = Array.from(document.querySelectorAll('.disc-item.selected')).map(el => el.dataset.name);
-                    break;
-                case 3:
-                    projectData.packages = document.getElementById('packages-input').value.split(',').map(p => p.trim()).filter(p => p);
-                    break;
-                case 4:
-                    document.querySelectorAll('.budget-input').forEach(input => {
-                        // Remove commas before parsing
-                        const value = parseFloat(input.value.replace(/,/g, '')) || 0;
-                        projectData.budgets[input.dataset.disc] = value;
-                    });
-                    break;
-                case 5:
-                    document.querySelectorAll('.claiming-input').forEach(input => {
-                        projectData.claiming[input.dataset.key] = parseFloat(input.value) || 0;
-                    });
-                    break;
-                case 6:
-                    document.querySelectorAll('.date-start').forEach(input => {
-                        const key = input.dataset.key;
-                        const endInput = document.querySelector(`.date-end[data-key="${key}"]`);
-                        projectData.dates[key] = { start: input.value, end: endInput.value };
-                    });
-                    break;
-                case 7:
-                    saveProjectInfo();
-                    break;
-            }
-            
-            // Trigger autosave after any step save
+            // Save budget inputs
+            document.querySelectorAll('.budget-input').forEach(input => {
+                const value = parseFloat(input.value.replace(/,/g, '')) || 0;
+                projectData.budgets[input.dataset.disc] = value;
+            });
             triggerAutosave();
         }
         
@@ -13679,96 +13978,25 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
         }
 
         /**
-         * Validates the current wizard step before allowing progression
-         * @returns {boolean} True if validation passes, false otherwise
+         * Validates the current step
+         * @returns {boolean} True if validation passes
          */
         function validate() {
-            switch(currentStep) {
-                case 1:
-                    if (!document.getElementById('phases-input').value.trim()) {
-                        alert('Enter at least one phase.');
-                        return false;
-                    }
-                    break;
-                case 2:
-                    if (document.querySelectorAll('.disc-item.selected').length === 0) {
-                        alert('Select at least one discipline.');
-                        return false;
-                    }
-                    break;
-                case 3:
-                    if (!document.getElementById('packages-input').value.trim()) {
-                        alert('Enter at least one package.');
-                        return false;
-                    }
-                    break;
-            }
             return true;
         }
 
         /**
-         * Advances to the next wizard step after validation
+         * No-op — single page app, no wizard navigation
          */
         function nextStep() {
-            if (!validate()) return;
-            saveCurrentStep();
-            
-            // Visual step order: BENCHMARKING(4), PHASES(1), DISCIPLINES(2), PACKAGES(3), CLAIMING(5), SCHEDULE(6), PROJECT(7)
-            const visualOrder = [4, 1, 2, 3, 5, 6, 7];
-            const currentVisualIndex = visualOrder.indexOf(currentStep);
-            
-            if (currentVisualIndex < visualOrder.length - 1) {
-                currentStep = visualOrder[currentVisualIndex + 1];
-                showStep(currentStep);
-                
-                if (currentStep === 4) {
-                    buildBudgetTable();
-                    updateUnifiedSummary(); // Update totals when navigating to benchmarking step
-                    // Re-apply RFP quantities to MH Estimator if RFP data was imported
-                    if (rfpState.extractedData && rfpState.quantities) {
-                        reapplyRfpQuantitiesToMHEstimator();
-                    }
-                }
-                if (currentStep === 5) buildClaimingTable();
-                if (currentStep === 7) loadProjectInfo();
-                if (currentStep === 6) buildDatesTable();
-            }
+            // No wizard steps to advance through
         }
 
         /**
-         * Returns to the previous wizard step or from results to wizard
+         * No-op — single page app, no wizard navigation
          */
         function prevStep() {
-            // Check if we're on the results page
-            const resultsVisible = !document.getElementById('results-section').classList.contains('hidden');
-            
-            if (resultsVisible) {
-                // Return from results to wizard (step 7)
-                editWBS();
-                currentStep = 7;
-                showStep(7);
-                return;
-            }
-            
-            saveCurrentStep();
-            
-            // Visual step order: BENCHMARKING(4), PHASES(1), DISCIPLINES(2), PACKAGES(3), CLAIMING(5), SCHEDULE(6), PROJECT(7)
-            const visualOrder = [4, 1, 2, 3, 5, 6, 7];
-            const currentVisualIndex = visualOrder.indexOf(currentStep);
-            
-            if (currentVisualIndex > 0) {
-                currentStep = visualOrder[currentVisualIndex - 1];
-                showStep(currentStep);
-
-                // Initialize step-specific content
-                if (currentStep === 4) {
-                    buildBudgetTable();
-                    updateUnifiedSummary(); // Update totals when navigating back to benchmarking step
-                }
-                if (currentStep === 5) buildClaimingTable();
-                if (currentStep === 6) buildDatesTable();
-                if (currentStep === 7) loadProjectInfo();
-            }
+            // No wizard steps to go back through
         }
 
         /**
@@ -17421,7 +17649,7 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
                     wideOpenMH: readCell(`unified-wide-${id}`),
                     customMH: readInput(`unified-custom-${id}`),
                     complexity: readInput(`unified-complexity-${id}`),
-                    totalMH: readCell(`unified-total-${id}`),
+                    totalMH: readCell(`unified-mh-${id}`),
                 };
             }).filter(Boolean);
 
@@ -17449,6 +17677,7 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
 
 ## Your Role
 - You have FULL ACCESS to all data currently visible on the benchmarking page (see below)
+- You CAN directly modify the project by setting discipline quantities and sub percentages — use the available tools whenever the user asks you to make a change, enter a value, or update a number. DO NOT tell the user you cannot make changes — you CAN and SHOULD use tools to do it.
 - Answer questions about the data, calculations, costs, man-hours, rates, and benchmarking methodology
 - When users ask about code or how something works, explain it in SIMPLE PLAIN LANGUAGE that anyone can understand — no code snippets, no technical jargon
 - For example, instead of saying "the function iterates over DISCIPLINE_CONFIG", say "The tool goes through each discipline one by one and calculates its hours"
@@ -18014,6 +18243,37 @@ Be helpful, friendly, and context-aware. When users are on the Results page, you
                     }
                 }
             }
+            ,{
+                type: "function",
+                function: {
+                    name: "set_parameter",
+                    description: "Set any calculation parameter or input field on the page. Use this to change ODCs %, burden %, G&A %, contingency %, escalation %, IPC fee, KIE multiplier, sub multiplier, sub markup %, design duration, indirects FTEs, ESDC %, TSCD %, est. construction cost, assumed construction cost, NTP date, survey subs %, subsurface utility subs %, geotech drilling subs %, or any other numeric input.",
+                    parameters: {
+                        type: "object",
+                        properties: {
+                            parameter_id: {
+                                type: "string",
+                                enum: [
+                                    "odcs-pct", "unified-burden", "unified-gna", "unified-contingency",
+                                    "contingency-inline-pct",
+                                    "unified-escalation", "unified-ipc-fee", "calc-kie-multiplier",
+                                    "calc-sub-multiplier", "calc-sub-markup", "calc-design-duration",
+                                    "indirects-fte", "calc-esdc-pct", "calc-tscd-pct",
+                                    "calc-est-construction-cost", "calc-assumed-construction-cost",
+                                    "calc-ntp-date", "calc-construction-gna",
+                                    "survey-subs-pct", "subsurface-utility-subs-pct", "geotech-subs-pct"
+                                ],
+                                description: "The HTML input element ID. Use indirects-fte for FTEs, survey-subs-pct for Survey Subs %, subsurface-utility-subs-pct for Subsurface Utility Subs %, geotech-subs-pct for Geotech Drilling Subs %, contingency-inline-pct for Contingency %."
+                            },
+                            value: {
+                                type: "string",
+                                description: "The value to set (number, percentage, date string, or dollar amount)"
+                            }
+                        },
+                        required: ["parameter_id", "value"]
+                    }
+                }
+            }
         ];
 
         /**
@@ -18032,6 +18292,9 @@ Be helpful, friendly, and context-aware. When users are on the Results page, you
                     case 'set_discipline_subs_pct':
                         result = executeSetDisciplineSubsPct(args);
                         break;
+                    case 'set_parameter':
+                        result = executeSetParameter(args);
+                        break;
                     default:
                         return { success: false, error: `Unknown tool: ${name}` };
                 }
@@ -18039,6 +18302,105 @@ Be helpful, friendly, and context-aware. When users are on the Results page, you
             } catch (error) {
                 return { success: false, error: error.message };
             }
+        }
+
+        /**
+         * Sets any calculation parameter input and triggers recalculation
+         */
+        // Parameters that require executive approval before the chatbot can change them
+        const EXECUTIVE_APPROVAL_PARAMS = ['unified-burden', 'unified-gna'];
+
+        // Friendly labels for parameter IDs
+        const PARAM_LABELS = {
+            'unified-burden': 'Burden Rate (%)',
+            'unified-gna': 'G&A Rate (%)',
+            'unified-contingency': 'Contingency (%)',
+            'contingency-inline-pct': 'Contingency (%)',
+            'unified-escalation': 'Escalation (%)',
+            'unified-ipc-fee': 'IPC Fee ($/MH)',
+            'calc-kie-multiplier': 'KIE Multiplier',
+            'calc-sub-multiplier': 'Sub Multiplier',
+            'calc-sub-markup': 'Sub Markup (%)',
+            'calc-design-duration': 'Design Duration (months)',
+            'indirects-fte': 'Indirects FTEs',
+            'calc-esdc-pct': 'ESDC %',
+            'calc-tscd-pct': 'TSCD %',
+            'calc-est-construction-cost': 'Est. Construction Cost',
+            'calc-assumed-construction-cost': 'Assumed Construction Cost',
+            'calc-ntp-date': 'NTP Date',
+            'calc-construction-gna': 'Construction G&A (%)',
+            'odcs-pct': 'ODCs (%)',
+            'survey-subs-pct': 'Survey Subs (%)',
+            'subsurface-utility-subs-pct': 'Subsurface Utility Subs (%)',
+            'geotech-subs-pct': 'Geotech Drilling Subs (%)'
+        };
+
+        /**
+         * Logs a chatbot parameter change to the AI Change Log in Management Override
+         */
+        function logAIChange(paramId, oldVal, newVal, status) {
+            const section = document.getElementById('ai-changelog-section');
+            const tbody = document.getElementById('ai-changelog-tbody');
+            if (!section || !tbody) return;
+
+            // Clear placeholder row on first real entry
+            if (tbody.rows.length === 1 && tbody.rows[0].cells.length === 1) {
+                tbody.innerHTML = '';
+            }
+            const label = PARAM_LABELS[paramId] || paramId;
+            const now = new Date();
+            const time = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+            const statusColor = status === 'Applied' ? '#4caf50' : status === 'Denied' ? '#ff4444' : '#e07c3a';
+            const statusIcon = status === 'Applied' ? '✅' : status === 'Denied' ? '❌' : '⏳';
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td style="padding:3px 6px; border-bottom:1px solid #eee;">${time}</td>
+                <td style="padding:3px 6px; border-bottom:1px solid #eee; font-weight:600;">${label}</td>
+                <td style="padding:3px 6px; border-bottom:1px solid #eee;">${oldVal}</td>
+                <td style="padding:3px 6px; border-bottom:1px solid #eee;">${newVal}</td>
+                <td style="padding:3px 6px; border-bottom:1px solid #eee; color:${statusColor};">${statusIcon} ${status}</td>
+            `;
+            tbody.appendChild(tr);
+        }
+
+        function executeSetParameter(args) {
+            const { parameter_id, value } = args;
+            const label = PARAM_LABELS[parameter_id] || parameter_id;
+
+            const input = document.getElementById(parameter_id);
+            if (!input) {
+                return { success: false, error: `Parameter "${parameter_id}" not found on page` };
+            }
+            const oldValue = input.value;
+
+            // Block restricted parameters with approval prompt
+            if (EXECUTIVE_APPROVAL_PARAMS.includes(parameter_id)) {
+                const approved = confirm(`⚠️ Executive Approval Required\n\nChanging "${label}" from ${oldValue} to ${value} requires executive approval.\n\nDo you have authorization to make this change?`);
+                if (!approved) {
+                    logAIChange(parameter_id, oldValue, value, 'Denied');
+                    return { success: false, error: `Change to ${label} was denied. Executive approval is required to modify this parameter.` };
+                }
+                logAIChange(parameter_id, oldValue, value, 'Approved (Exec)');
+            } else {
+                logAIChange(parameter_id, oldValue, value, 'Applied');
+            }
+
+            input.value = value;
+            // Trigger input and change events so listeners fire
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+            // Recalculate everything
+            if (typeof recalculateAllUnifiedCosts === 'function') {
+                recalculateAllUnifiedCosts();
+            }
+            if (typeof updateUnifiedSummary === 'function') {
+                updateUnifiedSummary();
+            }
+            return {
+                success: true,
+                message: `Set ${label} from "${oldValue}" to "${value}". Table recalculated.`
+            };
         }
 
         /**
@@ -18060,7 +18422,7 @@ Be helpful, friendly, and context-aware. When users are on the Results page, you
                 updateUnifiedSummary();
             }
             const config = DISCIPLINE_CONFIG[discipline_id];
-            const newMH = document.getElementById(`unified-total-${discipline_id}`)?.textContent || '0';
+            const newMH = document.getElementById(`unified-mh-${discipline_id}`)?.textContent || '0';
             return {
                 success: true,
                 message: `Set ${config?.name || discipline_id} quantity to ${Math.round(quantity).toLocaleString()} ${config?.unit || ''}. New Total MH: ${newMH}`
@@ -18802,7 +19164,7 @@ Return ONLY the JSON array, no markdown.`;
                         'Authorization': `Bearer ${apiKey}`
                     },
                     body: JSON.stringify({
-                        model: 'gpt-4.1',
+                        model: 'gpt-5.4',
                         messages: [{ role: 'user', content: prompt }],
                         max_completion_tokens: 1500,
                         temperature: 0.7
@@ -18937,7 +19299,7 @@ Return ONLY the JSON, no markdown formatting.`;
                         'Authorization': `Bearer ${apiKey}`
                     },
                     body: JSON.stringify({
-                        model: 'gpt-4.1',
+                        model: 'gpt-5.4',
                         messages: [
                             { role: 'user', content: contextPrompt }
                         ],
@@ -19041,9 +19403,9 @@ Return ONLY the JSON, no markdown formatting.`;
             showTypingIndicator(true);
             
             try {
-                // Check if we're on the results page (tools are available)
-                const resultsVisible = !document.getElementById('results-section').classList.contains('hidden');
-                const useTools = resultsVisible && projectData.disciplines.length > 0;
+                // Enable tools whenever the estimate table exists (any budget step)
+                const estimateTableExists = !!document.getElementById('unified-estimate-table');
+                const useTools = estimateTableExists;
                 
                 // Build messages for API
                 const apiMessages = [
@@ -19062,7 +19424,7 @@ Return ONLY the JSON, no markdown formatting.`;
                         'Authorization': `Bearer ${apiKey}`
                     },
                     body: JSON.stringify({
-                        model: 'gpt-4.1',
+                        model: 'gpt-5.4',
                         messages: apiMessages,
                         max_completion_tokens: 1000,
                         tools: useTools ? chatTools : undefined,
@@ -19138,7 +19500,7 @@ Return ONLY the JSON, no markdown formatting.`;
                             'Authorization': `Bearer ${apiKey}`
                         },
                         body: JSON.stringify({
-                            model: 'gpt-4.1',
+                            model: 'gpt-5.4',
                             messages: followUpMessages,
                             max_completion_tokens: 1000
                         })
@@ -19664,7 +20026,7 @@ IMPORTANT:
                             'Authorization': `Bearer ${apiKey}`
                         },
                         body: JSON.stringify({
-                            model: 'gpt-4.1',
+                            model: 'gpt-5.4',
                             messages: [
                                 { role: 'system', content: systemPrompt },
                                 { role: 'user', content: `Analyze this RFP document (chunk ${chunkIndex + 1} of ${totalChunks}). Extract WBS information AND estimate all quantities and project costs based on the scope described. Even if quantities aren't explicitly stated, use your engineering expertise to provide reasonable estimates for man-hour estimation purposes:\n\n${chunkText}` }
@@ -19749,7 +20111,7 @@ IMPORTANT:
             return {
                 data: parsedData,
                 usage: usage,
-                model: data.model || 'gpt-4.1'
+                model: data.model || 'gpt-5.4'
             };
         }
 
@@ -20024,7 +20386,7 @@ Chunks: ${JSON.stringify(complexFieldsOnly, null, 2)}`;
                             'Authorization': `Bearer ${apiKey}`
                         },
                         body: JSON.stringify({
-                            model: 'gpt-4.1',
+                            model: 'gpt-5.4',
                             messages: [
                                 { role: 'user', content: mergePrompt }
                             ],
@@ -20127,7 +20489,7 @@ Chunks: ${JSON.stringify(complexFieldsOnly, null, 2)}`;
                     commercialTermsConfidence: aiMerged.commercialTermsConfidence || {}
                 },
                 usage: usage,
-                model: data.model || 'gpt-4.1'
+                model: data.model || 'gpt-5.4'
             };
         }
 
@@ -20282,7 +20644,7 @@ Chunks: ${JSON.stringify(complexFieldsOnly, null, 2)}`;
                     totalTokens: 0,
                     apiCalls: 0,
                     estimatedCost: 0,
-                    model: 'gpt-4.1',
+                    model: 'gpt-5.4',
                     startTime: Date.now(),
                     endTime: null
                 };
@@ -20517,7 +20879,7 @@ Chunks: ${JSON.stringify(complexFieldsOnly, null, 2)}`;
             if (stats && stats.totalTokens > 0) {
                 document.getElementById('rfp-usage-stats').style.display = 'block';
                 document.getElementById('rfp-stats-calls').textContent = stats.apiCalls;
-                document.getElementById('rfp-stats-model').textContent = stats.model || 'gpt-4.1';
+                document.getElementById('rfp-stats-model').textContent = stats.model || 'gpt-5.4';
                 document.getElementById('rfp-stats-prompt').textContent = formatNumber(stats.totalPromptTokens);
                 document.getElementById('rfp-stats-completion').textContent = formatNumber(stats.totalCompletionTokens);
                 document.getElementById('rfp-stats-tokens').textContent = formatNumber(stats.totalTokens);
@@ -23251,6 +23613,7 @@ Chunks: ${JSON.stringify(complexFieldsOnly, null, 2)}`;
         window.saveSubPopup = saveSubPopup;
         window.applyComplexityPopup = applyComplexityPopup;
         window.showCalcInfo = showCalcInfo;
+        window.showContingencyBreakdown = showContingencyBreakdown;
         window.syncContingencyFromInline = function(value) {
             const mgmtInput = document.getElementById('unified-contingency');
             const mgmtToggle = document.getElementById('toggle-contingency');
