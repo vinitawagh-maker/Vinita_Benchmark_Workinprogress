@@ -11992,7 +11992,7 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             const durationMonths = (durationRaw !== '' && durationRaw !== undefined) ? parseInt(durationRaw) : 0;
             const hasDuration = durationMonths > 0;
 
-            // If no duration entered or no project value, show N/A
+            // If no duration entered or no project value, show N/A but still update weighted rate
             if (!hasDuration || projectValueM <= 0) {
                 state.active = false;
                 state.mh = 0;
@@ -12012,6 +12012,16 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
                 if (rateEl) rateEl.textContent = '$0';
                 const totalRevEl = document.getElementById('unified-total-revenue-digitalDelivery');
                 if (totalRevEl) totalRevEl.textContent = '$0';
+                // Still update weighted rate display so complexity changes are visible
+                const _earlyRes = getDisciplineResources('roadway');
+                const _earlyL4 = (state?.l4Percentage !== undefined && state?.l4Percentage !== null) ? state.l4Percentage : getGlobalComplexityPct();
+                const _earlyRate = (_earlyRes.lowRate * ((100 - _earlyL4) / 100)) + (_earlyRes.highRate * (_earlyL4 / 100));
+                state.weightedRate = _earlyRate;
+                const ddHourlyEl = document.getElementById('unified-hourly-rate-digitalDelivery');
+                if (ddHourlyEl) {
+                    const _lp = (100 - _earlyL4) / 100, _hp = _earlyL4 / 100;
+                    ddHourlyEl.innerHTML = `$${_earlyRate.toFixed(2)}<br><span style="font-size: 8px; color: #666;">${Math.round(_lp * 100)}% ${_earlyRes.lowCode} ($${_earlyRes.lowRate.toFixed(2)}) + ${Math.round(_hp * 100)}% ${_earlyRes.highCode} ($${_earlyRes.highRate.toFixed(2)})</span>`;
+                }
                 return;
             }
 
