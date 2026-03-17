@@ -11145,7 +11145,8 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
         function applyComplexityPopup(discId) {
             const input = document.getElementById('complexity-popup-input');
             if (!input) return;
-            const pct = Math.max(0, Math.min(100, parseFloat(input.value) || 30));
+            const parsed = parseFloat(input.value);
+            const pct = Math.max(0, Math.min(100, isNaN(parsed) ? 30 : parsed));
 
             // Capture old value for change log
             const state = mhEstimateState.disciplines[discId];
