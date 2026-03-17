@@ -7365,6 +7365,7 @@ ${reasoning}`;
          */
         function updateDDComplexity() {
             recalculateDigitalDelivery();
+            recalculateTotalMH();
             recalculateUnifiedCosts('digitalDelivery');
             updateUnifiedSummary();
             saveToLocalStorage();
@@ -8477,6 +8478,8 @@ ${reasoning}`;
                                oninput="recalculateFteDiscipline('${discId}')" title="Duration (months)"> mo
                     </div>
                    </td>`
+                : isStructures
+                ? `<td class="mh-col" title="Structures uses entry modal">—</td>`
                 : `<td class="mh-col">
                     <button class="btn-benchmark-select" onclick="showDisciplineBenchmark('${discId}')">
                         📊 Select
@@ -8507,10 +8510,10 @@ ${reasoning}`;
                     <span id="unified-rate-${discId}">${formatRate(selectedRate, unit)}</span>
                 </td>
                 <td class="mh-col numeric">
-                    <span id="unified-wide-open-mh-${discId}">${isFte ? '—' : formatMH(Math.round(((isEsdcTscd ? selectedRate : (state.allRate != null ? state.allRate : allProjectsRate)) || 0) * (state.quantity || 0)))}</span>
+                    <span id="unified-wide-open-mh-${discId}">${(isFte || isMatrix) ? '—' : formatMH(Math.round(((isEsdcTscd ? selectedRate : (state.allRate != null ? state.allRate : allProjectsRate)) || 0) * (state.quantity || 0)))}</span>
                 </td>
                 <td class="mh-col numeric">
-                    <span id="unified-custom-mh-${discId}">${isFte ? '—' : formatMH(state.mh || Math.round((state.quantity || 0) * (selectedRate || 0)))}</span>
+                    <span id="unified-custom-mh-${discId}">${(isFte || isMatrix) ? '—' : formatMH(state.mh || Math.round((state.quantity || 0) * (selectedRate || 0)))}</span>
                 </td>
                 <td class="mh-col numeric complexity-col">
                     <input type="number" class="l4-input" id="unified-l4-${discId}"
