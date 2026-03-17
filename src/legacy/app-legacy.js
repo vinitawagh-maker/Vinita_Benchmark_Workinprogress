@@ -1018,15 +1018,14 @@ let projectData = {
             document.getElementById('escalation-base-rate').value = escalationData.baseRate;
             document.getElementById('escalation-duration-months').value = durationMonths;
 
-            // Sync NTP date from Cost Calculation Parameters; fall back to today
+            // Always sync NTP date from main page input; fall back to today
             const ntpDateInput = document.getElementById('escalation-ntp-date');
-            const calcNtpDate = document.getElementById('calc-ntp-date')?.value;
+            const calcNtpEl = document.getElementById('calc-ntp-date');
+            const calcNtpDate = calcNtpEl ? calcNtpEl.value : '';
             if (ntpDateInput) {
-                if (calcNtpDate) {
-                    ntpDateInput.value = calcNtpDate;
-                } else if (!ntpDateInput.value) {
-                    ntpDateInput.value = new Date().toISOString().split('T')[0];
-                }
+                ntpDateInput.value = (calcNtpDate && calcNtpDate.length > 0)
+                    ? calcNtpDate
+                    : new Date().toISOString().split('T')[0];
             }
 
             recalculateEscalation();
@@ -10140,12 +10139,15 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             var esdcRow = rows.find(function(r) { return r.label === 'ESDC'; }) || {};
             var tscdRow = rows.find(function(r) { return r.label === 'TSCD'; }) || {};
 
+            // Is this Step 1 (benchmark)?
+            var isStep1 = currentEstimateMode === 'benchmark';
+
             var p2Revenue = grandRow.revenue || 0;
-            var p2BillableLabor = kieLaborRow.rawLabor || 0;
-            var p2Burden = kieLaborRow.burden || 0;
+            var p2BillableLabor = grandRow.rawLabor || 0;
+            var p2Burden = grandRow.burden || 0;
             var p2SubtotalLaborBurden = p2BillableLabor + p2Burden;
-            var p2Contingency = contingencyRow.revenue || 0;
-            var p2Escalation = escalationRow.revenue || 0;
+            var p2Contingency = contingencyRow.expenses || 0;
+            var p2Escalation = escalationRow.expenses || 0;
             var p2Expenses = (ipcRow.expenses || 0) + (odcsRow.expenses || 0);
             var p2Subcontracts = (lsSubsRow.revenue || 0);
             // Individual LS consultant revenues
@@ -10160,16 +10162,13 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             var p2GrossJobGain = p2GrossProfit - p2GnA;
 
             // Metrics
-            var p2LaborHours = kieLaborRow.mh || 0;
-            var p2SubHours = (lsSubsRow.mh || 0) + (esdcRow.mh || 0) + (tscdRow.mh || 0);
+            var p2LaborHours = grandRow.mh || 0;
+            var p2SubHours = isStep1 ? 0 : ((lsSubsRow.mh || 0) + (esdcRow.mh || 0) + (tscdRow.mh || 0));
             var p2LaborPerMH = p2LaborHours > 0 ? (p2BillableLabor / p2LaborHours) : 0;
             var p2SubPerMH = p2SubHours > 0 ? (p2Subcontracts / p2SubHours) : 0;
             var p2EffMultiplier = parseFloat(document.getElementById('calc-kie-multiplier')?.value) || 2.85;
             var p2GnAPct = parseFloat(document.getElementById('unified-gna')?.value) || 104;
             var p2BurdenRate = parseFloat(document.getElementById('unified-burden')?.value) || 66;
-
-            // Is this Step 1 (benchmark)?
-            var isStep1 = currentEstimateMode === 'benchmark';
 
             var p2hdr = 'padding:6px 10px; font-size:12px; font-weight:bold; border-bottom:2px solid #ffd700; color:#ffd700;';
             var p2lbl = 'padding:5px 10px; font-size:12px; border-bottom:1px solid #333;';
@@ -10191,10 +10190,10 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             page2Html += '<tr><td colspan="2" style="padding:0; border-bottom:2px solid #555;"></td></tr>';
 
             // Expenses section
-            page2Html += '<tr><td style="' + p2lbl + p2pink + '">Contingency</td><td style="' + p2val + p2pink + '">' + fmtD(p2Contingency) + '</td></tr>';
-            page2Html += '<tr><td style="' + p2lbl + p2yellow + '">Escalation</td><td style="' + p2val + p2yellow + '">' + fmtD(p2Escalation) + '</td></tr>';
+            page2Html += '<tr><td style="' + p2lbl + p2pink + '">Contingency <span onclick="event.stopPropagation(); showContingencyBreakdown()" style="color:#ffd700; cursor:pointer; font-size:14px;" title="View contingency breakdown">★</span></td><td style="' + p2val + p2pink + '">' + fmtD(p2Contingency) + '</td></tr>';
+            page2Html += '<tr><td style="' + p2lbl + p2yellow + '">Escalation <span onclick="event.stopPropagation(); showEscalationBreakdown()" style="color:#ffd700; cursor:pointer; font-size:14px;" title="View escalation breakdown">★</span></td><td style="' + p2val + p2yellow + '">' + fmtD(p2Escalation) + '</td></tr>';
             page2Html += '<tr><td style="' + p2lbl + '">Expenses</td><td style="' + p2val + '">' + fmtD(p2Expenses) + '</td></tr>';
-            page2Html += '<tr><td style="' + p2lbl + '">Subconsultants</td><td style="' + p2val + '">' + (isStep1 ? 'TBD' : fmtD(p2Subcontracts)) + '</td></tr>';
+            page2Html += '<tr><td style="' + p2lbl + '">Subconsultants</td><td style="' + p2val + '">' + fmtD(p2Subcontracts) + '</td></tr>';
             var p2indent = 'padding:5px 10px 5px 30px; font-size:11px; border-bottom:1px solid #333; color:#aaa;';
             var p2indentVal = 'padding:5px 10px; font-size:11px; text-align:right; border-bottom:1px solid #333; color:#aaa;';
             if (!isStep1) {
@@ -10215,9 +10214,13 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
 
             // Metrics section
             page2Html += '<tr><td style="' + p2lbl + '">Labor Hours</td><td style="' + p2val + '">' + fmtMH(p2LaborHours) + '</td></tr>';
-            page2Html += '<tr><td style="' + p2lbl + '">Subcontract Hours</td><td style="' + p2val + '">' + fmtMH(p2SubHours) + '</td></tr>';
+            if (!isStep1) {
+                page2Html += '<tr><td style="' + p2lbl + '">Subcontract Hours</td><td style="' + p2val + '">' + fmtMH(p2SubHours) + '</td></tr>';
+            }
             page2Html += '<tr><td style="' + p2lbl + '">Labor $/Mh</td><td style="' + p2val + '">' + p2LaborPerMH.toFixed(2) + '</td></tr>';
-            page2Html += '<tr><td style="' + p2lbl + '">Sub $/Mh</td><td style="' + p2val + '">' + p2SubPerMH.toFixed(2) + '</td></tr>';
+            if (!isStep1) {
+                page2Html += '<tr><td style="' + p2lbl + '">Sub $/Mh</td><td style="' + p2val + '">' + p2SubPerMH.toFixed(2) + '</td></tr>';
+            }
             page2Html += '<tr><td style="' + p2lbl + '">Effective Multiplier</td><td style="' + p2val + '">' + p2EffMultiplier.toFixed(2) + '</td></tr>';
             page2Html += '<tr><td style="' + p2lbl + '">G&A % of Wages</td><td style="' + p2val + '">' + p2GnAPct + '%</td></tr>';
             page2Html += '<tr><td style="' + p2lbl + '">Burden Rate</td><td style="' + p2val + '">' + p2BurdenRate + '%</td></tr>';
@@ -10279,7 +10282,7 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
                     jcs.push(['Contingency', p2Contingency]);
                     jcs.push(['Escalation', p2Escalation]);
                     jcs.push(['Expenses', p2Expenses]);
-                    jcs.push(['Subconsultants', isStep1 ? 'TBD' : p2Subcontracts]);
+                    jcs.push(['Subconsultants', p2Subcontracts]);
                     if (!isStep1) {
                         jcs.push(['   Survey Subs', p2SurveySubs]);
                         jcs.push(['   Subsurface Utility Subs', p2SubsurfaceUtilitySubs]);
@@ -10294,9 +10297,13 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
                     jcs.push(['Gross Job Gain', p2GrossJobGain]);
                     jcs.push([]);
                     jcs.push(['Labor Hours', p2LaborHours]);
-                    jcs.push(['Subcontract Hours', p2SubHours]);
+                    if (!isStep1) {
+                        jcs.push(['Subcontract Hours', p2SubHours]);
+                    }
                     jcs.push(['Labor $/Mh', p2LaborPerMH]);
-                    jcs.push(['Sub $/Mh', p2SubPerMH]);
+                    if (!isStep1) {
+                        jcs.push(['Sub $/Mh', p2SubPerMH]);
+                    }
                     jcs.push(['Effective Multiplier', p2EffMultiplier]);
                     jcs.push(['G&A % of Wages', p2GnAPct / 100]);
                     jcs.push(['Burden Rate', p2BurdenRate / 100]);
@@ -10967,12 +10974,83 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
                             <td style="text-align:right; padding:5px 8px;">${fmt$(d.contingencyGna)}</td>
                         </tr>
                         <tr style="border-bottom:1px solid #333;">
-                            <td style="padding:5px 8px;">Margin (${d.marginPercent}%)</td>
+                            <td style="padding:5px 8px;">Margin (${parseFloat(d.marginPercent).toFixed(2)}%)</td>
                             <td style="text-align:right; padding:5px 8px;">${fmt$(d.contingencyMargin)}</td>
                         </tr>
                         <tr style="border-bottom:2px solid #ffd700; font-weight:bold; color:#00ff00;">
                             <td style="padding:5px 8px;">Total Contingency Revenue</td>
                             <td style="text-align:right; padding:5px 8px;">${fmt$(d.contingencyTotalRevenue)}</td>
+                        </tr>
+                    </table>
+                    <div class="popup-actions">
+                        <button class="popup-apply" onclick="this.closest('.complexity-popup-overlay').remove()">Close</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+        }
+
+        function showEscalationBreakdown() {
+            const d = window._escalationBreakdown;
+            if (!d) return;
+            const fmt$ = (v) => '$' + Math.round(v).toLocaleString('en-US');
+
+            // Build yearly breakdown rows if available
+            let yearlyHtml = '';
+            if (d.yearlyBreakdown && d.yearlyBreakdown.length > 0) {
+                yearlyHtml = `
+                    <table style="width:100%; border-collapse:collapse; margin:12px 0; font-size:12px;">
+                        <tr style="border-bottom:2px solid #ffd700;">
+                            <th style="text-align:left; padding:6px 8px; color:#ffd700;">Year</th>
+                            <th style="text-align:right; padding:6px 8px; color:#ffd700;">Rate</th>
+                            <th style="text-align:right; padding:6px 8px; color:#ffd700;">Hours</th>
+                            <th style="text-align:right; padding:6px 8px; color:#ffd700;">Escalation Cost</th>
+                        </tr>
+                        ${d.yearlyBreakdown.map(y => `
+                            <tr style="border-bottom:1px solid #333;">
+                                <td style="padding:5px 8px;">Year ${y.year} (FY${y.fiscalYear || ''})</td>
+                                <td style="text-align:right; padding:5px 8px;">${((y.rate || 0) * 100).toFixed(2)}%</td>
+                                <td style="text-align:right; padding:5px 8px;">${Math.round(y.hours || 0).toLocaleString()}</td>
+                                <td style="text-align:right; padding:5px 8px;">${fmt$(y.escalationAmount || 0)}</td>
+                            </tr>
+                        `).join('')}
+                    </table>`;
+            }
+
+            const overlay = document.createElement('div');
+            overlay.className = 'complexity-popup-overlay';
+            overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+            overlay.innerHTML = `
+                <div class="complexity-popup" style="max-width:480px;">
+                    <h3>Escalation Breakdown (${d.baseRate}% base rate)</h3>
+                    <div style="margin:10px 0; font-size:12px; color:#ccc; line-height:1.6;">
+                        <div>Design Duration: <strong>${d.durationMonths} months</strong></div>
+                        <div>Total Hours: <strong>${Math.round(d.totalHours).toLocaleString()}</strong></div>
+                    </div>
+                    ${yearlyHtml}
+                    <div style="margin:10px 0; font-size:12px; color:#ccc; line-height:1.6;">
+                        <div><strong style="color:#ffd700;">Revenue Buildup</strong></div>
+                    </div>
+                    <table style="width:100%; border-collapse:collapse; margin:12px 0; font-size:12px;">
+                        <tr style="border-bottom:1px solid #333;">
+                            <td style="padding:5px 8px;">Raw Labor (Escalation)</td>
+                            <td style="text-align:right; padding:5px 8px;">${fmt$(d.escalationRawLabor)}</td>
+                        </tr>
+                        <tr style="border-bottom:1px solid #333;">
+                            <td style="padding:5px 8px;">Burden (${d.burdenRate}%)</td>
+                            <td style="text-align:right; padding:5px 8px;">${fmt$(d.escalationBurden)}</td>
+                        </tr>
+                        <tr style="border-bottom:1px solid #333;">
+                            <td style="padding:5px 8px;">G&A (${d.gnaRate}%)</td>
+                            <td style="text-align:right; padding:5px 8px;">${fmt$(d.escalationGna)}</td>
+                        </tr>
+                        <tr style="border-bottom:1px solid #333;">
+                            <td style="padding:5px 8px;">Margin (${parseFloat(d.marginPercent).toFixed(2)}%)</td>
+                            <td style="text-align:right; padding:5px 8px;">${fmt$(d.escalationMarginValue)}</td>
+                        </tr>
+                        <tr style="border-bottom:2px solid #ffd700; font-weight:bold; color:#00ff00;">
+                            <td style="padding:5px 8px;">Total Escalation Revenue</td>
+                            <td style="text-align:right; padding:5px 8px;">${fmt$(d.escalationRevenue)}</td>
                         </tr>
                     </table>
                     <div class="popup-actions">
@@ -11683,7 +11761,7 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             
             if (mhEl) mhEl.textContent = formatMH(result.mh);
             if (rateEl) rateEl.textContent = '$' + _rwWeightedRate.toFixed(2);
-            if (qtyEl) qtyEl.value = projectValueM > 0 ? '$' + Math.round(initialProjectValue).toLocaleString('en-US') : '0';
+            if (qtyEl) qtyEl.value = projectValueM > 0 ? '$' + Math.round(initialProjectValue / 1000).toLocaleString('en-US') : '0';
             if (rawLaborEl) rawLaborEl.textContent = '$' + Math.round(result.rawLabor).toLocaleString('en-US');
             if (burdenEl) burdenEl.textContent = '$' + Math.round(result.burden).toLocaleString('en-US');
             if (gnaEl) gnaEl.textContent = '$' + Math.round(result.gna).toLocaleString('en-US');
@@ -12257,24 +12335,36 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             // Total Cost = Raw Labor + Burden + Expenses (no expenses for escalation)
             const escalationTotalCost = escalationRawLabor + escalationBurden + 0;
 
-            // Update ESCALATION row
-            document.getElementById('escalation-total-mh').textContent = '0';
-            document.getElementById('escalation-avg-rate').textContent = '$0.00';
-            document.getElementById('escalation-total-raw-labor').textContent =
-                '$' + Math.round(escalationRawLabor).toLocaleString('en-US');
-            document.getElementById('escalation-total-burden').textContent =
-                '$' + Math.round(escalationBurden).toLocaleString('en-US');
-            document.getElementById('escalation-total-gna').textContent =
-                '$' + Math.round(escalationGna).toLocaleString('en-US');
+            // Update ESCALATION row — hide detail columns, only show expenses (★) and revenue (like contingency)
+            document.getElementById('escalation-total-mh').textContent = '—';
+            document.getElementById('escalation-avg-rate').textContent = '—';
+            document.getElementById('escalation-total-raw-labor').textContent = '—';
+            document.getElementById('escalation-total-burden').textContent = '—';
+            document.getElementById('escalation-total-gna').textContent = '—';
             const escalationMarginCell = document.getElementById('escalation-total-margin');
             if (escalationMarginCell) {
-                escalationMarginCell.textContent = '$' + Math.round(escalationMarginValue).toLocaleString('en-US');
+                escalationMarginCell.textContent = '—';
             }
             document.getElementById('escalation-total-revenue').textContent =
                 '$' + Math.round(escalationRevenue).toLocaleString('en-US');
-            document.getElementById('escalation-total-expenses').textContent = '$0';
+            // Show escalation revenue in expenses column with a star for breakdown popup
+            const escalationExpensesEl = document.getElementById('escalation-total-expenses');
+            if (escalationExpensesEl) {
+                escalationExpensesEl.innerHTML = '$' + Math.round(escalationRevenue).toLocaleString('en-US') +
+                    ' <span class="escalation-star" onclick="event.stopPropagation(); showEscalationBreakdown()" title="View escalation breakdown" style="color:#ffd700; cursor:pointer; font-size:14px;">★</span>';
+            }
             document.getElementById('escalation-total-cost').textContent =
                 '$' + Math.round(escalationTotalCost).toLocaleString('en-US');
+
+            // Store escalation breakdown data for the popup
+            window._escalationBreakdown = {
+                escalationRawLabor, escalationBurden, escalationGna, escalationMarginValue,
+                escalationRevenue, escalationTotalCost, burdenRate, gnaRate, marginPercent,
+                baseRate: escalationData.baseRate || 5,
+                durationMonths: escalationData.durationMonths || 0,
+                yearlyBreakdown: escalationData.yearlyBreakdown || [],
+                totalHours: escalationData.totalHours || kieLaborMH
+            };
 
             // Calculate CONTINGENCY: contingency% of (Directs + Indirects + ESDC MH) × True Weighted Average Rate
             const contingencyPercentInput = document.getElementById('unified-contingency');
@@ -12308,17 +12398,13 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             // Total Cost = Raw Labor + Burden + Expenses
             const contingencyTotalCosts = contingencyRawLabor + contingencyBurden + 0; // Contingency has no expenses
 
-            // Update CONTINGENCY row
-            document.getElementById('contingency-total-mh').textContent = formatMH(contingencyMH);
-            document.getElementById('contingency-avg-rate').textContent = '$' + contingencyAvgRate.toFixed(2);
-            document.getElementById('contingency-total-raw-labor').textContent = 
-                '$' + Math.round(contingencyRawLabor).toLocaleString('en-US');
-            document.getElementById('contingency-total-burden').textContent = 
-                '$' + Math.round(contingencyBurden).toLocaleString('en-US');
-            document.getElementById('contingency-total-gna').textContent = 
-                '$' + Math.round(contingencyGna).toLocaleString('en-US');
-            document.getElementById('contingency-total-margin').textContent = 
-                '$' + Math.round(contingencyMargin).toLocaleString('en-US');
+            // Update CONTINGENCY row — hide detail columns, only show expenses (★) and revenue
+            document.getElementById('contingency-total-mh').textContent = '—';
+            document.getElementById('contingency-avg-rate').textContent = '—';
+            document.getElementById('contingency-total-raw-labor').textContent = '—';
+            document.getElementById('contingency-total-burden').textContent = '—';
+            document.getElementById('contingency-total-gna').textContent = '—';
+            document.getElementById('contingency-total-margin').textContent = '—';
             document.getElementById('contingency-total-revenue').textContent = 
                 '$' + Math.round(contingencyTotalRevenue).toLocaleString('en-US');
             // Show contingency revenue in expenses column with a star for breakdown popup
@@ -12339,7 +12425,7 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
                 contingencyBaseMH, contingencyBaseRawLabor,
                 contingencyMH, contingencyAvgRate, contingencyRawLabor,
                 contingencyBurden, contingencyGna, contingencyMargin,
-                contingencyTotalRevenue, burdenRate, gnaRate, marginPercent
+                contingencyTotalRevenue, contingencyTotalCosts, burdenRate, gnaRate, marginPercent
             };
 
             // Calculate ESDC and TSCD based on ASSUMED CONSTRUCTION COST
@@ -23614,6 +23700,7 @@ Chunks: ${JSON.stringify(complexFieldsOnly, null, 2)}`;
         window.applyComplexityPopup = applyComplexityPopup;
         window.showCalcInfo = showCalcInfo;
         window.showContingencyBreakdown = showContingencyBreakdown;
+        window.showEscalationBreakdown = showEscalationBreakdown;
         window.syncContingencyFromInline = function(value) {
             const mgmtInput = document.getElementById('unified-contingency');
             const mgmtToggle = document.getElementById('toggle-contingency');
