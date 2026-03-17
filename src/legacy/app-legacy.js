@@ -11163,6 +11163,7 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
                 recalculateAllUnifiedCosts();
             } else if (discId === 'digitalDelivery') {
                 recalculateDigitalDelivery();
+                recalculateUnifiedCosts(discId);
                 updateUnifiedSummary();
             } else {
                 recalculateUnifiedCosts(discId);
