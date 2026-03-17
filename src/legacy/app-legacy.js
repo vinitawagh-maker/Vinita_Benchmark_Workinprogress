@@ -2689,11 +2689,12 @@ let projectData = {
         function calculateMonthlyBellCurve(numMonths) {
             if (numMonths <= 1) return [1];
 
-            // Logistic sigmoid S-curve with k=0.25
-            // Standard design engineering S-curve: ~5% at 20%, ~50% at 50%, ~95% at 80% of duration
+            // Logistic sigmoid S-curve with duration-adaptive k
+            // Standard design engineering S-curve: ~4% at 20%, ~50% at 50%, ~96% at 80% of duration
+            // k = 10/N gives consistent S-curve shape regardless of project duration
             // Monthly distribution is the derivative (incremental spend per month)
             // Normalized so S_norm(0)=0 and S_norm(N)=1 exactly
-            const k = 0.25;
+            const k = 10 / numMonths;
             const tMid = numMonths / 2;
 
             // Raw logistic
@@ -2719,11 +2720,11 @@ let projectData = {
         function calculateBellCurveDistribution(years) {
             if (years === 1) return [1];
 
-            // Scale k=0.25 from monthly to yearly (multiply by 12)
-            const k = 0.25 * 12;
+            // Duration-adaptive k: k=10/N gives consistent S-curve shape
             const numMonths = years * 12;
+            const k = 10 / numMonths;
             const tMid = numMonths / 2;
-            const S = (t) => 1 / (1 + Math.exp(-k / numMonths * (t - tMid)));
+            const S = (t) => 1 / (1 + Math.exp(-k * (t - tMid)));
             const S0 = S(0);
             const SN = S(numMonths);
             const Snorm = (t) => (S(t) - S0) / (SN - S0);
@@ -11004,7 +11005,7 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
                         ${d.yearlyBreakdown.map(y => `
                             <tr style="border-bottom:1px solid #333;">
                                 <td style="padding:5px 8px;">Year ${y.year} (FY${y.fiscalYear || ''})</td>
-                                <td style="text-align:right; padding:5px 8px;">${((y.rate || 0) * 100).toFixed(2)}%</td>
+                                <td style="text-align:right; padding:5px 8px;">${(y.rate || 0).toFixed(2)}%</td>
                                 <td style="text-align:right; padding:5px 8px;">${Math.round(y.hours || 0).toLocaleString()}</td>
                                 <td style="text-align:right; padding:5px 8px;">${fmt$(y.escalationAmount || 0)}</td>
                             </tr>
@@ -11810,8 +11811,8 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             const endDate = new Date(ntpDate);
             endDate.setMonth(endDate.getMonth() + durationMonths);
 
-            // Generate bell curve distribution of hours over months
-            const monthlyDistribution = generateBellCurve(durationMonths);
+            // Generate S-curve distribution of hours over months (logistic sigmoid)
+            const monthlyDistribution = calculateMonthlyBellCurve(durationMonths);
 
             // Calculate average hourly rate
             const avgHourlyRate = totalRawLabor / totalMH;
