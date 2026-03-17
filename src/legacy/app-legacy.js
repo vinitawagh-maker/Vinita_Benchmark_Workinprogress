@@ -12373,10 +12373,14 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             const surveySubsPctForLsSubs = parseFloat(document.getElementById('survey-subs-pct')?.value) || DEFAULT_SURVEY_SUBS_PCT;
             const lsSubsExpenses = assumedConstructionCost * (surveySubsPctForLsSubs / 100);
 
-            // LS Sub margin: markup on lump-sum sub expenses (toggle on/off, editable %)
+            // LS Sub margin: markup on lump-sum sub expenses (toggle on/off)
+            // Reads markup % from Management Override "Sub Markup (%)" field
             const lsSubMarkupOn = document.getElementById('ls-sub-markup-toggle')?.checked !== false;
-            const lsSubMarkupInput = parseFloat(document.getElementById('ls-sub-markup-pct')?.value) || 5;
-            const lsSubMarginPct = lsSubMarkupOn ? lsSubMarkupInput : 0;
+            const lsSubMarkupFromMgmt = parseFloat(document.getElementById('calc-sub-markup')?.value) || 5;
+            const lsSubMarginPct = lsSubMarkupOn ? lsSubMarkupFromMgmt : 0;
+            // Sync the display label
+            const lsSubPctDisplay = document.getElementById('ls-sub-markup-pct-display');
+            if (lsSubPctDisplay) lsSubPctDisplay.textContent = lsSubMarkupFromMgmt + '%';
 
             // Update LS SUBS row — Expenses + 5% margin
             const lsSubsMargin = lsSubsExpenses * (lsSubMarginPct / 100);
@@ -13660,12 +13664,32 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
                     const qtyStr = qty > 0 ? ` at ${qty.toLocaleString('en-US')} ${unit}` : '';
                     method = `A power regression benchmark curve${qtyStr} yields ${fmtMH(mh)} of estimated effort at a weighted hourly rate of ${fmt$(rate)}/hr. Revenue is computed as KIE Labor × KIE multiplier of ${kie.toFixed(2)}.`;
                 }
+                // Check for assumptions / deviations from defaults
+                const assumptions = [];
+                const globalComplexity = getGlobalComplexityPct();
+                const discL4 = (state?.l4Percentage !== undefined && state?.l4Percentage !== null) ? state.l4Percentage : globalComplexity;
+                if (discL4 !== globalComplexity) {
+                    assumptions.push(`Complexity % has been changed from the global default of <strong>${globalComplexity}%</strong> to <strong>${discL4}%</strong>.`);
+                }
+                if (state?.customMH && state.customMH > 0 && !isOverride) {
+                    assumptions.push(`Custom MH entry of <strong>${state.customMH.toLocaleString('en-US')}</strong> has been applied (overrides benchmark curve).`);
+                }
+                if (state?.wideOpenMH && state.wideOpenMH > 0 && !isOverride) {
+                    assumptions.push(`Wide Open MH of <strong>${state.wideOpenMH.toLocaleString('en-US')}</strong> has been entered.`);
+                }
+                if (state?.subsPct && state.subsPct > 0) {
+                    assumptions.push(`Sub-consultant participation: <strong>${state.subsPct}%</strong> of discipline effort allocated to subs.`);
+                }
+                const assumptionsHtml = assumptions.length > 0
+                    ? '<div style="margin-top:4px; font-size:11px; color:#c4632e;">' + assumptions.map(a => '<p style="margin:2px 0;">' + a + '</p>').join('') + '</div>'
+                    : '';
+
                 return `<div style="margin-bottom:14px;">
 <h4 style="margin:0 0 4px 0; font-size:13px; color:#1a1a2e;">${d.label}</h4>
 <table style="width:100%; border-collapse:collapse; font-size:12px; margin-bottom:6px;">
 <tr><td style="width:160px; color:#555;">Estimated Hours</td><td><strong>${mh.toLocaleString('en-US')} MH</strong></td><td style="width:160px; color:#555;">Revenue</td><td><strong>${fmt$(rev)}</strong></td></tr>
 </table>
-<p style="margin:0; font-size:12px; color:#444;">${method}</p></div>`;
+<p style="margin:0; font-size:12px; color:#444;">${method}</p>${assumptionsHtml}</div>`;
             }
 
             const discRows = directDiscs.map(d => discNarrative(d)).filter(Boolean).join('');
@@ -13936,6 +13960,18 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
     <div style="border:1px solid ${KW_BORDER}; border-left:4px solid ${KW_BLACK}; padding:10px 14px; margin-bottom:12px;">
     <p style="margin:0 0 6px 0; font-size:12px;">IPC (In-Place Costs markup) and lump-sum subconsultant agreements for specialty services not performed by Kiewit directly.</p>
     <p style="margin:0; font-size:12px;"><strong>Revenue: ${fmt$(subsTotal)}</strong></p>
+    ${(() => {
+        const lsMarkupToggle = document.getElementById('ls-sub-markup-toggle');
+        const lsMarkupOn = lsMarkupToggle ? lsMarkupToggle.checked : true;
+        const subMarkupVal = domVal('calc-sub-markup', 5);
+        const notes = [];
+        if (!lsMarkupOn) {
+            notes.push('<span style="color:#c44;">LS Sub markup has been disabled (0%).</span>');
+        } else if (subMarkupVal !== 5) {
+            notes.push('LS Sub markup has been changed from the default of <strong>5%</strong> to <strong>' + subMarkupVal + '%</strong>.');
+        }
+        return notes.length > 0 ? '<p style="margin:6px 0 0; font-size:11px; color:#c4632e;">' + notes.join(' ') + '</p>' : '';
+    })()}
     </div>
     ${renderQAForSection('subs')}
 
