@@ -7727,6 +7727,7 @@ ${reasoning}`;
                                             <span style="font-size:11px; font-weight:600; color:#375D80;">Management Override MH</span>
                                         </label>
                                         <span style="font-size:10px; color:#81A1B2;">Bypasses curve — enter MH directly</span>
+                                        <span style="font-size:9px; color:#c4632e; font-style:italic; margin-left:4px;">Requires executive approval</span>
                                     </div>
                                     <div id="benchmark-override-inputs" style="display:${(()=>{ const disc = currentBenchmarkDiscipline || (singleDiscipline || activeDisciplines[0]); return mhEstimateState?.disciplines?.[disc]?.managementOverrideMH != null ? 'flex' : 'none'; })()}; align-items:center; gap:8px; margin-top:6px;">
                                         <label style="font-size:10px; color:#375D80; white-space:nowrap;">Override MH:</label>
@@ -13360,10 +13361,14 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
                 const rate= discRate(d.id);
                 const qty = discQty(d.id);
                 const unit= discUnit(d.id);
+                const state = mhEstimateState.disciplines[d.id];
                 if (mh === 0 && rev === 0) return '';
 
                 let method = '';
-                if (d.id === 'digitalDelivery') {
+                const isOverride = state && state.managementOverrideMH != null && state.managementOverrideMH > 0;
+                if (isOverride) {
+                    method = `<strong style="color:#c4632e;">Management Override applied:</strong> Man-hours are set directly to ${fmtMH(mh)} (benchmark curve bypassed) at a weighted hourly rate of ${fmt$(rate)}/hr. Revenue is computed as KIE Labor × KIE multiplier of ${kie.toFixed(2)}. <em style="color:#c4632e;">Requires executive approval.</em>`;
+                } else if (d.id === 'digitalDelivery') {
                     method = `Revenue is derived from a PRA (Production Rate Analysis) complexity matrix applied to the assumed construction cost and ${duration}-month design duration, yielding ${fmtMH(mh)} of estimated effort.`;
                 } else if (d.id === 'miscStructures') {
                     method = `Misc Structures effort is estimated as a percentage of combined Roadway, Drainage, and Traffic man-hours, producing ${fmtMH(mh)} of effort.`;
@@ -13441,9 +13446,13 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
                 const rate= discRate(d.id);
                 const qty = discQty(d.id);
                 const unit= discUnit(d.id);
+                const state = mhEstimateState.disciplines[d.id];
                 if (mh === 0 && rev === 0) return '';
                 let method;
-                if (d.id === 'digitalDelivery') {
+                const isOverride = state && state.managementOverrideMH != null && state.managementOverrideMH > 0;
+                if (isOverride) {
+                    method = `<strong style="color:#c4632e;">Management Override:</strong> MH set directly to ${mh.toLocaleString('en-US')} (benchmark curve bypassed). Revenue = KIE Labor × KIE ${kie.toFixed(2)}. <em style="color:#c4632e;">Requires executive approval.</em>`;
+                } else if (d.id === 'digitalDelivery') {
                     method = `Revenue derived from PRA complexity matrix applied to assumed construction cost and ${duration}-month design duration → ${mh.toLocaleString('en-US')} MH.`;
                 } else if (d.id === 'miscStructures') {
                     method = `Effort estimated as a percentage of combined Roadway, Drainage, and Traffic man-hours → ${mh.toLocaleString('en-US')} MH.`;
@@ -13604,10 +13613,39 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
     ${renderQAForSection('directs')}
 
     ${h3('3.2 Design Engineering Indirects')}
-    <div style="border:1px solid ${KW_BORDER}; border-left:4px solid ${KW_BLACK}; padding:10px 14px; margin-bottom:12px;">
-    <p style="margin:0 0 6px 0; font-size:12px;">Overhead costs covering project management, QA/QC, administration, and coordination, applied as an overhead factor on direct labor.</p>
-    <p style="margin:0; font-size:12px;"><strong>Revenue: ${fmt$(indirectsTotal)}</strong></p>
-    </div>
+    ${(() => {
+        const fteInput = document.getElementById('indirects-fte');
+        const currentFte = fteInput ? (parseFloat(fteInput.value) || 0) : 0;
+        const indirectsMH = Math.round(currentFte * duration * 173.33);
+        // Determine default FTE based on project value tier
+        let defaultFte = 0;
+        if (assumedCost > 0) {
+            if      (assumedCost <= 250e6)  defaultFte = 5;
+            else if (assumedCost <= 500e6)  defaultFte = 6;
+            else if (assumedCost <= 750e6)  defaultFte = 7;
+            else if (assumedCost < 1000e6)  defaultFte = 8;
+            else                            defaultFte = 9;
+        }
+        const isOverride = currentFte !== defaultFte && defaultFte > 0;
+        const overrideNote = isOverride
+            ? `<p style="margin:6px 0 0 0; font-size:11px; color:#c4632e; font-style:italic;"><strong>Note:</strong> FTE count has been changed from the default of ${defaultFte} FTEs (based on project value tier) to ${currentFte} FTEs. This deviation from the standard staffing model should be documented and approved.</p>`
+            : '';
+        return `<div style="border:1px solid ${KW_BORDER}; border-left:4px solid ${KW_BLACK}; padding:10px 14px; margin-bottom:12px;">
+    <p style="margin:0 0 6px 0; font-size:12px;">Overhead costs covering project management, QA/QC, administration, and coordination.</p>
+    <table style="width:100%; border-collapse:collapse; font-size:11px; margin-bottom:6px;">
+      <tr>
+        <td style="width:130px; color:#555; padding:2px 0;">FTE Count</td><td style="padding:2px 0; font-weight:700;">${currentFte} FTEs</td>
+        <td style="width:130px; color:#555; padding:2px 0;">Duration</td><td style="padding:2px 0; font-weight:700;">${duration} months</td>
+      </tr>
+      <tr>
+        <td style="color:#555; padding:2px 0;">Estimated Hours</td><td style="padding:2px 0; font-weight:700;">${indirectsMH.toLocaleString('en-US')} MH</td>
+        <td style="color:#555; padding:2px 0;">Revenue</td><td style="padding:2px 0; font-weight:700;">${fmt$(indirectsTotal)}</td>
+      </tr>
+    </table>
+    <p style="margin:0; font-size:11px; color:#444;">Calculation: ${currentFte} FTEs × ${duration} months × 173.33 hrs/FTE/month = ${indirectsMH.toLocaleString('en-US')} MH</p>
+    ${overrideNote}
+    </div>`;
+    })()}
     ${renderQAForSection('indirects')}
 
     ${h3('3.3 Subconsultants')}
