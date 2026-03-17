@@ -264,10 +264,11 @@
                         <div class="ribbon ribbon-buttons-row">
                             <button class="btn-step" onclick="openRfpWizard()">📄 RFP Wizard</button>
                             <button class="btn-calculate" onclick="calculateMHEstimates()">⚡ Calculate Estimated Hours</button>
+                            <!-- Dillon buttons hidden for production -->
                             <input type="file" id="dillon-file-input" accept=".xlsx,.xls" style="display: none;" onchange="handleDillonFileUpload(event)">
-                            <button type="button" class="btn-step" onclick="document.getElementById('dillon-file-input').click()" title="Upload Excel with Summary MH tab to fill quantity fields">📁 Dillon Files - Test</button>
+                            <button type="button" class="btn-step" onclick="document.getElementById('dillon-file-input').click()" title="Upload Excel with Summary MH tab to fill quantity fields" style="display:none;">📁 Dillon Files - Test</button>
                             <input type="file" id="dillon-cost-input" accept=".xlsx,.xls,.png,.jpg,.jpeg,.pdf" style="display: none;" onchange="handleDillonCostUpload(event)">
-                            <button type="button" class="btn-step" onclick="document.getElementById('dillon-cost-input').click()" title="Upload Dillon cost file (Excel, PNG, or PDF) to populate Excel Revenue in Check File">💲 Dillon Cost Upload</button>
+                            <button type="button" class="btn-step" onclick="document.getElementById('dillon-cost-input').click()" title="Upload Dillon cost file (Excel, PNG, or PDF) to populate Excel Revenue in Check File" style="display:none;">💲 Dillon Cost Upload</button>
                             <span id="dillon-cost-status" style="font-size:10px; color:#4caf50; font-style:italic;"></span>
                         </div>
 
@@ -1564,7 +1565,7 @@
     </div>
 
     <!-- Chat FAB Button -->
-    <button id="chat-fab" class="chat-fab" onclick="toggleChat()" title="AI Assistant">
+    <button id="chat-fab" class="chat-fab" onclick="toggleChat()" title="AI Assistant" style="display:none;">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
         </svg>
