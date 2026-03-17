@@ -10893,15 +10893,19 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
                 );
             }
 
+            const addCustomRow = `<div onclick="openAddCustomSubModal()" style="padding:6px 10px; font-size:11px; cursor:pointer; display:flex; align-items:center; gap:4px; color:#8b7d3c; font-weight:600; border-top:2px solid #d4c98e; background:#fffef5;" onmouseenter="this.style.background='#f8f4e8'" onmouseleave="this.style.background='#fffef5'">
+                        <span style="font-size:14px; font-weight:bold;">+</span> Add Custom Sub-Consultant
+                    </div>`;
+
             if (filtered.length === 0) {
-                dropdown.innerHTML = '<div style="padding:6px 10px; font-size:11px; color:#999; font-style:italic;">No matches found</div>';
+                dropdown.innerHTML = '<div style="padding:6px 10px; font-size:11px; color:#999; font-style:italic;">No matches found</div>' + addCustomRow;
             } else {
                 dropdown.innerHTML = filtered.map(f =>
                     `<div class="sub-dropdown-item" onclick="selectSubConsultant('${f.code}')" style="padding:5px 10px; font-size:11px; cursor:pointer; border-bottom:1px solid #f0ead0; display:flex; justify-content:space-between; align-items:center;" onmouseenter="this.style.background='#f8f4e8'" onmouseleave="this.style.background='#fff'">
                         <span>${f.name}</span>
                         <span style="color:#8b7d3c; font-size:9px; font-weight:700; letter-spacing:0.5px;">${f.code}</span>
                     </div>`
-                ).join('');
+                ).join('') + addCustomRow;
             }
             dropdown.style.display = 'block';
         }
@@ -10945,8 +10949,53 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             ).join('');
         }
 
+        /** Generate a unique 3-letter code from a firm name, avoiding all existing codes */
+        function generateUniqueSubCode(name) {
+            const usedCodes = new Set([
+                ...subConsultantFirms.map(f => f.code),
+                ...selectedProjectSubs.map(s => s.code)
+            ]);
+            // Clean name: uppercase, letters only
+            const clean = name.toUpperCase().replace(/[^A-Z ]/g, '').trim();
+            const words = clean.split(/\s+/).filter(w => w.length > 0);
+
+            // Strategy 1: first letter of first 3 words (e.g., SMITH ENGINEERING LLC → SEL)
+            if (words.length >= 3) {
+                const c = words[0][0] + words[1][0] + words[2][0];
+                if (!usedCodes.has(c)) return c;
+            }
+            // Strategy 2: first 2 letters of first word + first letter of second (e.g., SM + E → SME)
+            if (words.length >= 2) {
+                const c = words[0].substring(0, 2) + words[1][0];
+                if (!usedCodes.has(c)) return c;
+            }
+            // Strategy 3: first 3 letters of name
+            if (clean.replace(/ /g, '').length >= 3) {
+                const c = clean.replace(/ /g, '').substring(0, 3);
+                if (!usedCodes.has(c)) return c;
+            }
+            // Strategy 4: brute force with incrementing suffix
+            const base = clean.replace(/ /g, '').substring(0, 2) || 'XX';
+            for (let i = 1; i <= 9; i++) {
+                const c = base.substring(0, 2) + i;
+                if (!usedCodes.has(c)) return c;
+            }
+            // Strategy 5: random 3 uppercase letters
+            for (let attempt = 0; attempt < 100; attempt++) {
+                const c = String.fromCharCode(65 + Math.floor(Math.random() * 26)) +
+                          String.fromCharCode(65 + Math.floor(Math.random() * 26)) +
+                          String.fromCharCode(65 + Math.floor(Math.random() * 26));
+                if (!usedCodes.has(c)) return c;
+            }
+            return 'ZZZ';
+        }
+
         /** Open modal to add a custom sub not in the master list */
         function openAddCustomSubModal() {
+            // Close the search dropdown if open
+            const dd = document.getElementById('sub-dropdown');
+            if (dd) dd.style.display = 'none';
+
             const overlay = document.createElement('div');
             overlay.className = 'sub-popup-overlay';
             overlay.id = 'custom-sub-overlay';
@@ -10955,11 +11004,11 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
                     <h3 style="margin:0 0 12px;">Add Custom Sub-Consultant</h3>
                     <div style="margin-bottom:8px;">
                         <label style="font-size:10px; font-weight:600; display:block; margin-bottom:3px;">Firm Name</label>
-                        <input type="text" id="custom-sub-name" placeholder="e.g., Smith Engineering LLC" style="width:100%; padding:6px 8px; font-size:11px; border:1px solid #ccc; border-radius:3px;">
+                        <input type="text" id="custom-sub-name" placeholder="e.g., Smith Engineering LLC" style="width:100%; padding:6px 8px; font-size:11px; border:1px solid #ccc; border-radius:3px;" oninput="previewCustomSubCode()">
                     </div>
                     <div style="margin-bottom:12px;">
-                        <label style="font-size:10px; font-weight:600; display:block; margin-bottom:3px;">3-Letter Code</label>
-                        <input type="text" id="custom-sub-code" placeholder="e.g., SME" maxlength="3" style="width:80px; padding:6px 8px; font-size:11px; border:1px solid #ccc; border-radius:3px; text-transform:uppercase;">
+                        <label style="font-size:10px; font-weight:600; display:block; margin-bottom:3px;">Auto-Generated Code</label>
+                        <span id="custom-sub-code-preview" style="font-size:13px; font-weight:700; color:#8b7d3c; letter-spacing:1px;">---</span>
                     </div>
                     <div style="display:flex; gap:8px; justify-content:flex-end;">
                         <button onclick="document.getElementById('custom-sub-overlay').remove()" style="padding:5px 14px; font-size:11px; border:1px solid #ccc; border-radius:3px; background:#f5f5f5; cursor:pointer;">Cancel</button>
@@ -10971,19 +11020,21 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
         }
 
+        /** Live preview the auto-generated code as user types */
+        function previewCustomSubCode() {
+            const nameInput = document.getElementById('custom-sub-name');
+            const preview = document.getElementById('custom-sub-code-preview');
+            if (!nameInput || !preview) return;
+            const name = nameInput.value.trim();
+            preview.textContent = name.length >= 2 ? generateUniqueSubCode(name) : '---';
+        }
+
         /** Save a custom sub-consultant */
         function saveCustomSub() {
             const nameInput = document.getElementById('custom-sub-name');
-            const codeInput = document.getElementById('custom-sub-code');
             const name = (nameInput?.value || '').trim();
-            let code = (codeInput?.value || '').trim().toUpperCase();
             if (!name) { alert('Please enter a firm name.'); return; }
-            if (code.length !== 3) { alert('Code must be exactly 3 letters.'); return; }
-            // Check for duplicate code
-            if (subConsultantFirms.some(f => f.code === code) || selectedProjectSubs.some(s => s.code === code)) {
-                alert('Code "' + code + '" is already in use. Please pick a different code.');
-                return;
-            }
+            const code = generateUniqueSubCode(name);
             // Add to master list (runtime only) and select it
             subConsultantFirms.push({ code: code, name: name, suppliers: [name], custom: true });
             selectedProjectSubs.push({ code: code, name: name });
@@ -23932,6 +23983,7 @@ Chunks: ${JSON.stringify(complexFieldsOnly, null, 2)}`;
         window.removeSelectedSub = removeSelectedSub;
         window.openAddCustomSubModal = openAddCustomSubModal;
         window.saveCustomSub = saveCustomSub;
+        window.previewCustomSubCode = previewCustomSubCode;
         window.applyComplexityPopup = applyComplexityPopup;
         window.showCalcInfo = showCalcInfo;
         window.showContingencyBreakdown = showContingencyBreakdown;
