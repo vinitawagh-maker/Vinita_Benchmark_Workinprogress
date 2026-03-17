@@ -11147,12 +11147,15 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             if (!input) return;
             const pct = Math.max(0, Math.min(100, parseFloat(input.value) || 30));
 
+            // Capture old value for change log
+            const state = mhEstimateState.disciplines[discId];
+            const oldPct = (state?.l4Percentage !== undefined && state?.l4Percentage !== null) ? state.l4Percentage : getGlobalComplexityPct();
+
             // Update the hidden l4 input so existing logic works
             const l4Input = document.getElementById(`unified-l4-${discId}`);
             if (l4Input) l4Input.value = pct;
 
             // Trigger the existing update logic
-            const state = mhEstimateState.disciplines[discId];
             if (state) state.l4Percentage = pct;
             updateComplexityBreakdown(discId);
 
@@ -11166,6 +11169,20 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
                 updateUnifiedSummary();
             }
             saveToLocalStorage();
+
+            // Log to AI change log if complexity changed
+            if (oldPct !== pct) {
+                const discNames = {
+                    'roadway': 'Roadway', 'drainage': 'Drainage', 'mot': 'MOT', 'traffic': 'Traffic',
+                    'utilities': 'Utilities', 'retainingWalls': 'Retaining Walls', 'noiseWalls': 'Noise Walls',
+                    'structures': 'Structures', 'miscStructures': 'Misc Structures', 'geotechnical': 'Geotechnical',
+                    'pavement': 'Pavement', 'landscaping': 'Landscaping', 'systems': 'Systems', 'track': 'Track',
+                    'environmental': 'Environmental', 'digitalDelivery': 'Digital Delivery',
+                    'esdc': 'ESDC', 'tscd': 'TSCD'
+                };
+                const name = discNames[discId] || discId;
+                logAIChange('unified-complexity', name + ': ' + oldPct + '%', name + ': ' + pct + '%', 'Applied');
+            }
 
             // If Step 2 is active, re-clone the updated table
             if (currentEstimateMode === 'subs-detail') {
@@ -13812,7 +13829,18 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
                     const qtyStr = qty > 0 ? ` at ${qty.toLocaleString('en-US')} ${unit}` : '';
                     method = `Power regression benchmark curve${qtyStr} → ${mh.toLocaleString('en-US')} MH. Revenue = KIE Labor × KIE ${kie.toFixed(2)}.`;
                 }
-                return discCard(d.label, mh, rev, rate, qty, unit, method);
+                // Per-discipline override notes
+                const notes = [];
+                const globalPct = getGlobalComplexityPct();
+                const discL4 = (state?.l4Percentage !== undefined && state?.l4Percentage !== null) ? state.l4Percentage : globalPct;
+                if (discL4 !== globalPct) notes.push(`Complexity changed from global ${globalPct}% to <strong>${discL4}%</strong>.`);
+                if (state?.customMH && state.customMH > 0 && !isOverride) notes.push(`Custom MH: <strong>${state.customMH.toLocaleString('en-US')}</strong>.`);
+                if (state?.wideOpenMH && state.wideOpenMH > 0 && !isOverride) notes.push(`Wide Open MH: <strong>${state.wideOpenMH.toLocaleString('en-US')}</strong>.`);
+                if (state?.subsPct && state.subsPct > 0) notes.push(`Sub participation: <strong>${state.subsPct}%</strong>.`);
+                const notesHtml = notes.length > 0
+                    ? `<div style="margin-top:4px; font-size:10px; color:#c4632e; font-style:italic;">${notes.join(' ')}</div>`
+                    : '';
+                return discCard(d.label, mh, rev, rate, qty, unit, method + notesHtml);
             }
             const discCards = directDiscs.map(d => discCard2(d)).filter(Boolean).join('');
 
