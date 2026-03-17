@@ -13518,6 +13518,12 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             const mgmtField = document.getElementById('calc-sub-markup');
             if (lsInput && mgmtField) {
                 mgmtField.value = lsInput.value;
+                // Enable the Design Metrics field + toggle so the change stands out
+                const toggle = document.getElementById('toggle-sub-markup');
+                if (toggle && !toggle.checked) {
+                    toggle.checked = true;
+                    toggleFieldEdit('calc-sub-markup', true);
+                }
             }
             updateUnifiedSummary();
             saveToLocalStorage();
