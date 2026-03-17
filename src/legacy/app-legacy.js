@@ -11146,11 +11146,19 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
 
             if (discId === 'esdc' || discId === 'tscd') {
                 recalculateAllUnifiedCosts();
+            } else if (discId === 'digitalDelivery') {
+                recalculateDigitalDelivery();
+                updateUnifiedSummary();
             } else {
                 recalculateUnifiedCosts(discId);
                 updateUnifiedSummary();
             }
             saveToLocalStorage();
+
+            // If Step 2 is active, re-clone the updated table
+            if (currentEstimateMode === 'subs-detail') {
+                populateSubsDetailTable();
+            }
 
             // Close popup
             document.querySelector('.complexity-popup-overlay')?.remove();
@@ -12004,6 +12012,13 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             
             if (mhEl) mhEl.textContent = formatMH(result.mh);
             if (rateEl) rateEl.textContent = '$' + _rwWeightedRate.toFixed(2);
+            // Update the Weighted Rate column (hourly rate display) for Digital Delivery
+            const ddHourlyRateEl = document.getElementById('unified-hourly-rate-digitalDelivery');
+            if (ddHourlyRateEl) {
+                const _rwLowPct = (100 - _rwL4) / 100;
+                const _rwHighPct = _rwL4 / 100;
+                ddHourlyRateEl.innerHTML = `$${_rwWeightedRate.toFixed(2)}<br><span style="font-size: 8px; color: #666;">${Math.round(_rwLowPct * 100)}% ${_rwRes.lowCode} ($${_rwRes.lowRate.toFixed(2)}) + ${Math.round(_rwHighPct * 100)}% ${_rwRes.highCode} ($${_rwRes.highRate.toFixed(2)})</span>`;
+            }
             if (qtyEl) qtyEl.value = projectValueM > 0 ? '$' + Math.round(initialProjectValue / 1000).toLocaleString('en-US') : '0';
             if (rawLaborEl) rawLaborEl.textContent = '$' + Math.round(result.rawLabor).toLocaleString('en-US');
             if (burdenEl) burdenEl.textContent = '$' + Math.round(result.burden).toLocaleString('en-US');
