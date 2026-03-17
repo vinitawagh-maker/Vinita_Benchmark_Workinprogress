@@ -12373,8 +12373,10 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             const surveySubsPctForLsSubs = parseFloat(document.getElementById('survey-subs-pct')?.value) || DEFAULT_SURVEY_SUBS_PCT;
             const lsSubsExpenses = assumedConstructionCost * (surveySubsPctForLsSubs / 100);
 
-            // LS Sub margin: 5% markup on lump-sum sub expenses
-            const lsSubMarginPct = 5;
+            // LS Sub margin: markup on lump-sum sub expenses (toggle on/off, editable %)
+            const lsSubMarkupOn = document.getElementById('ls-sub-markup-toggle')?.checked !== false;
+            const lsSubMarkupInput = parseFloat(document.getElementById('ls-sub-markup-pct')?.value) || 5;
+            const lsSubMarginPct = lsSubMarkupOn ? lsSubMarkupInput : 0;
 
             // Update LS SUBS row — Expenses + 5% margin
             const lsSubsMargin = lsSubsExpenses * (lsSubMarginPct / 100);
@@ -13495,6 +13497,12 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             }
         }
 
+        /** Toggle 5% markup on LS sub expenses and recalculate */
+        function toggleLsSubMarkup() {
+            updateUnifiedSummary();
+            saveToLocalStorage();
+        }
+
         function toggleExpensesSection() {
             const ipcSection = document.getElementById('ipc-section');
             const ipcTbody = document.getElementById('ipc-tbody');
@@ -14030,6 +14038,7 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
         window.updateIndirectsFTEInput = updateIndirectsFTEInput;
         window.toggleKieLaborSection = toggleKieLaborSection;
         window.toggleSubsSection = toggleSubsSection;
+        window.toggleLsSubMarkup = toggleLsSubMarkup;
         window.toggleExpensesSection = toggleExpensesSection;
         window.applyUnifiedEstimate = applyUnifiedEstimate;
         window.resetUnifiedEstimate = resetUnifiedEstimate;

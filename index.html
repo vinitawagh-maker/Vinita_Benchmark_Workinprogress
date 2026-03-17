@@ -444,6 +444,16 @@
                                     <tr class="section-header-row clickable-row" onclick="toggleSubsSection()">
                                         <td class="frozen-col section-header">
                                             <span id="subs-section-toggle-icon">▼</span> LS CONSULTANTS <span style="font-size:9px;font-weight:400;color:#aaa;">(% of assumed const. cost)</span>
+                                            <label onclick="event.stopPropagation();" style="display:inline-flex; align-items:center; gap:3px; margin-left:8px; font-size:9px; font-weight:400; color:#666; cursor:pointer;" title="Apply markup on LS sub expenses">
+                                                Markup
+                                                <label class="toggle-switch" title="Toggle markup on/off">
+                                                    <input type="checkbox" id="ls-sub-markup-toggle" checked onchange="toggleLsSubMarkup()">
+                                                    <span class="toggle-slider"></span>
+                                                </label>
+                                                <input type="number" id="ls-sub-markup-pct" value="5" min="0" max="100" step="0.5"
+                                                    onclick="event.stopPropagation();" onchange="toggleLsSubMarkup()"
+                                                    style="width:40px; font-size:9px; padding:1px 3px; border:1px solid #d4c98e; border-radius:2px; background:#fffef5; text-align:center;">%
+                                            </label>
                                         </td>
                                         <td class="mh-col section-header account-code-col"></td><td class="mh-col section-header"></td><td class="mh-col section-header"></td><td class="mh-col section-header"></td><td class="mh-col section-header subs-pct-col"></td><td class="mh-col section-header col-all-rate"></td><td class="mh-col section-header col-selected-rate"></td><td class="mh-col section-header"></td><td class="mh-col section-header"></td><td class="mh-col section-header complexity-col"></td>
                                         <td class="mh-col mh-col-keep section-header numeric" id="subs-section-total-mh">0</td>
