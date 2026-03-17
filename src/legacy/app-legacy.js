@@ -7364,18 +7364,10 @@ ${reasoning}`;
          * Update Digital Delivery MH when its per-row complexity dropdown changes
          */
         function updateDDComplexity() {
-            const complexity = document.getElementById('mh-dd-complexity')?.value || 'Med';
-            const ddState = mhEstimateState.disciplines.digitalDelivery;
-            if (!ddState) return;
-            ddState.complexity = complexity;
-            if (ddState.active && mhEstimateState.projectCost > 0) {
-                const costK = mhEstimateState.projectCost / 1000;
-                const ddResult = calculateDigitalDeliveryMH(costK, mhEstimateState.designDuration, complexity);
-                ddState.mh = ddResult.mh;
-                ddState.rate = costK > 0 ? ddResult.mh / costK : 0;
-                updateMHRowDisplay('digitalDelivery', ddState);
-                recalculateTotalMH();
-            }
+            recalculateDigitalDelivery();
+            recalculateUnifiedCosts('digitalDelivery');
+            updateUnifiedSummary();
+            saveToLocalStorage();
         }
 
         /**
@@ -11727,7 +11719,8 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             }
 
             // Calculate Digital Delivery MH using 3-step process
-            const result = calculateDigitalDeliveryMH(projectValueM, durationMonths, 'Med');
+            const ddComplexity = document.getElementById('mh-dd-complexity')?.value || 'Med';
+            const result = calculateDigitalDeliveryMH(projectValueM, durationMonths, ddComplexity);
 
             // Update state
             state.active = projectValueM > 0;
