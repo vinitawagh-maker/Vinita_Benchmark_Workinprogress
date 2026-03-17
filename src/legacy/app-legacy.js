@@ -8085,14 +8085,18 @@ ${reasoning}`;
                         if (unifiedRateAllElem) {
                             if (state.allRate != null) unifiedRateAllElem.textContent = formatRate(state.allRate, unit);
                         }
-                        const wideOpenRate = (state.allRate != null ? state.allRate : allMean);
-                        const wideOpenMH = Math.round(qty * wideOpenRate);
-                        const unifiedWideOpenEl = document.getElementById(`unified-wide-open-mh-${discId}`);
-                        const unifiedCustomMHEl = document.getElementById(`unified-custom-mh-${discId}`);
-                        if (unifiedWideOpenEl) unifiedWideOpenEl.textContent = formatMH(wideOpenMH);
-                        // Always show curve-calculated MH in Custom MH so user can compare against override
-                        if (unifiedCustomMHEl) {
-                            unifiedCustomMHEl.textContent = formatMH(state.curveMH ?? state.mh);
+                        // Skip Wide Open / Custom MH for matrix-based disciplines (Digital Delivery)
+                        const _cfg = DISCIPLINE_CONFIG[discId];
+                        if (!_cfg || _cfg.calculationType !== 'matrix') {
+                            const wideOpenRate = (state.allRate != null ? state.allRate : allMean);
+                            const wideOpenMH = Math.round(qty * wideOpenRate);
+                            const unifiedWideOpenEl = document.getElementById(`unified-wide-open-mh-${discId}`);
+                            const unifiedCustomMHEl = document.getElementById(`unified-custom-mh-${discId}`);
+                            if (unifiedWideOpenEl) unifiedWideOpenEl.textContent = formatMH(wideOpenMH);
+                            // Always show curve-calculated MH in Custom MH so user can compare against override
+                            if (unifiedCustomMHEl) {
+                                unifiedCustomMHEl.textContent = formatMH(state.curveMH ?? state.mh);
+                            }
                         }
 
                         // Recalculate costs for unified table
@@ -11984,10 +11988,9 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             state.active = projectValueM > 0;
             state.quantity = projectValueM;
             state.mh = result.mh;
-            // Mirror Roadway's weighted rate (same complexity %)
+            // Use DD's own complexity % for weighted rate (maps to Roadway resource codes)
             const _rwRes = getDisciplineResources('roadway');
-            const _rwState = mhEstimateState?.disciplines?.roadway;
-            const _rwL4 = (_rwState?.l4Percentage !== undefined && _rwState?.l4Percentage !== null) ? _rwState.l4Percentage : getGlobalComplexityPct();
+            const _rwL4 = (state?.l4Percentage !== undefined && state?.l4Percentage !== null) ? state.l4Percentage : getGlobalComplexityPct();
             const _rwWeightedRate = (_rwRes.lowRate * ((100 - _rwL4) / 100)) + (_rwRes.highRate * (_rwL4 / 100));
             state.rate = _rwWeightedRate;
             state.rawLabor = result.rawLabor;
