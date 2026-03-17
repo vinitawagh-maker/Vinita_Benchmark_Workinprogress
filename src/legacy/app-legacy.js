@@ -12373,17 +12373,23 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             const surveySubsPctForLsSubs = parseFloat(document.getElementById('survey-subs-pct')?.value) || DEFAULT_SURVEY_SUBS_PCT;
             const lsSubsExpenses = assumedConstructionCost * (surveySubsPctForLsSubs / 100);
 
-            // Update LS SUBS row — in benchmark mode show under Expenses; in detailed mode use LS Sub Expenses column
+            // LS Sub margin: 5% markup on lump-sum sub expenses
+            const lsSubMarginPct = 5;
+
+            // Update LS SUBS row — Expenses + 5% margin
+            const lsSubsMargin = lsSubsExpenses * (lsSubMarginPct / 100);
+            const lsSubsRevenue = lsSubsExpenses + lsSubsMargin;
             document.getElementById('ls-subs-total-mh').textContent = '0';
             document.getElementById('ls-subs-avg-rate').textContent = '$0.00';
             document.getElementById('ls-subs-total-raw-labor').textContent = '$0';
             document.getElementById('ls-subs-total-burden').textContent = '$0';
             document.getElementById('ls-subs-total-gna').textContent = '$0';
-            document.getElementById('ls-subs-total-margin').textContent = '$0';
+            document.getElementById('ls-subs-total-margin').textContent =
+                '$' + Math.round(lsSubsMargin).toLocaleString('en-US');
             document.getElementById('ls-subs-total-expenses').textContent =
                 '$' + Math.round(lsSubsExpenses).toLocaleString('en-US');
             document.getElementById('ls-subs-total-revenue').textContent =
-                '$' + Math.round(lsSubsExpenses).toLocaleString('en-US');
+                '$' + Math.round(lsSubsRevenue).toLocaleString('en-US');
             document.getElementById('ls-subs-total-cost').textContent = '$0';
             // LS Sub Expenses column
             const lsSubsSeEl = document.getElementById('ls-subs-sub-expenses');
@@ -12395,17 +12401,20 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             const subsurfaceUtilitySubsPct = parseFloat(document.getElementById('subsurface-utility-subs-pct')?.value) || DEFAULT_SUBSURFACE_UTILITY_SUBS_PCT;
             const surveyExpenses = assumedConstructionCost * (subsurfaceUtilitySubsPct / 100);
 
-            // Update SURVEY row — show under Expenses column
+            // Update SURVEY row — Expenses + 5% margin
+            const surveyMargin = surveyExpenses * (lsSubMarginPct / 100);
+            const surveyRevenue = surveyExpenses + surveyMargin;
             document.getElementById('survey-total-mh').textContent = '0';
             document.getElementById('survey-avg-rate').textContent = '$0.00';
             document.getElementById('survey-total-raw-labor').textContent = '$0';
             document.getElementById('survey-total-burden').textContent = '$0';
             document.getElementById('survey-total-gna').textContent = '$0';
-            document.getElementById('survey-total-margin').textContent = '$0';
+            document.getElementById('survey-total-margin').textContent =
+                '$' + Math.round(surveyMargin).toLocaleString('en-US');
             document.getElementById('survey-total-expenses').textContent =
                 '$' + Math.round(surveyExpenses).toLocaleString('en-US');
             document.getElementById('survey-total-revenue').textContent =
-                '$' + Math.round(surveyExpenses).toLocaleString('en-US');
+                '$' + Math.round(surveyRevenue).toLocaleString('en-US');
             document.getElementById('survey-total-cost').textContent = '$0';
             // LS Sub Expenses column
             const surveySeEl = document.getElementById('survey-sub-expenses');
@@ -12417,17 +12426,20 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             const geotechSubsPct = parseFloat(document.getElementById('geotech-subs-pct')?.value) || DEFAULT_GEOTECH_SUBS_PCT;
             const subsurfaceUtilityExpenses = assumedConstructionCost * (geotechSubsPct / 100);
 
-            // Update SUBSURFACE UTILITY SUBS row — show under Expenses column
+            // Update SUBSURFACE UTILITY SUBS row — Expenses + 5% margin
+            const subsurfaceMargin = subsurfaceUtilityExpenses * (lsSubMarginPct / 100);
+            const subsurfaceRevenue = subsurfaceUtilityExpenses + subsurfaceMargin;
             document.getElementById('subsurface-utility-total-mh').textContent = '0';
             document.getElementById('subsurface-utility-avg-rate').textContent = '$0.00';
             document.getElementById('subsurface-utility-total-raw-labor').textContent = '$0';
             document.getElementById('subsurface-utility-total-burden').textContent = '$0';
             document.getElementById('subsurface-utility-total-gna').textContent = '$0';
-            document.getElementById('subsurface-utility-total-margin').textContent = '$0';
+            document.getElementById('subsurface-utility-total-margin').textContent =
+                '$' + Math.round(subsurfaceMargin).toLocaleString('en-US');
             document.getElementById('subsurface-utility-total-expenses').textContent =
                 '$' + Math.round(subsurfaceUtilityExpenses).toLocaleString('en-US');
             document.getElementById('subsurface-utility-total-revenue').textContent =
-                '$' + Math.round(subsurfaceUtilityExpenses).toLocaleString('en-US');
+                '$' + Math.round(subsurfaceRevenue).toLocaleString('en-US');
             document.getElementById('subsurface-utility-total-cost').textContent = '$0';
             // LS Sub Expenses column
             const suSeEl = document.getElementById('subsurface-utility-sub-expenses');
@@ -12468,11 +12480,15 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             const subsGna = subsRawLabor * (gnaRate / 100);
             // Sub multiplier is the all-in multiplier (like KIE multiplier but for subs)
             // Margin absorbs the difference: total labor = rawLabor × subMultiplier
-            const subsMargin = (subsRawLabor * subMultiplier) - subsRawLabor - subsBurden - subsGna;
+            const subsLaborMargin = (subsRawLabor * subMultiplier) - subsRawLabor - subsBurden - subsGna;
             const subsTotalLabor = subsRawLabor * subMultiplier;
             // Apply sub markup percentage on top of labor revenue
             const subsMarkupAmount = subsTotalLabor * (subMarkupPct / 100);
             const subsExpenses = lsSubsExpenses + surveyExpenses + subsurfaceUtilityExpenses;
+            // LS sub margins (5% on each LS sub expense line)
+            const totalLsSubMargin = lsSubsMargin + surveyMargin + subsurfaceMargin;
+            // Total margin = labor margin + LS sub margins
+            const subsMargin = subsLaborMargin + totalLsSubMargin;
             // Total Cost = Raw Labor + Burden + Expenses
             const subsTotalCosts = subsRawLabor + subsBurden + subsExpenses;
             const subsAvgRate = subsMH > 0 ? subsRawLabor / subsMH : 0;
@@ -12488,8 +12504,8 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
                 '$' + Math.round(subsGna).toLocaleString('en-US');
             document.getElementById('subs-section-total-margin').textContent =
                 '$' + Math.round(subsMargin).toLocaleString('en-US');
-            // Total Revenue = sub labor (rawLabor × subMultiplier) + sub markup + expenses
-            const subsRevenue = subsTotalLabor + subsMarkupAmount + subsExpenses;
+            // Total Revenue = sub labor (rawLabor × subMultiplier) + sub markup + expenses + LS sub margins
+            const subsRevenue = subsTotalLabor + subsMarkupAmount + subsExpenses + totalLsSubMargin;
             document.getElementById('subs-section-total-revenue').textContent =
                 '$' + Math.round(subsRevenue).toLocaleString('en-US');
             document.getElementById('subs-section-total-expenses').textContent =
