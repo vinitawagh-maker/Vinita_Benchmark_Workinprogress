@@ -484,9 +484,8 @@ let projectData = {
             try {
                 showAutosaveIndicator('saving');
                 
-                // Sync subbing philosophy from textarea
-                const subbingEl = document.getElementById('subbing-philosophy');
-                if (subbingEl) projectData.subbingPhilosophy = subbingEl.value;
+                // Save selected project sub-consultants
+                projectData.selectedProjectSubs = selectedProjectSubs;
 
                 const saveData = {
                     version: STORAGE_VERSION,
@@ -3330,10 +3329,10 @@ let projectData = {
                 initDisciplines();
             }
             
-            // Restore subbing philosophy textarea
-            const subbingEl = document.getElementById('subbing-philosophy');
-            if (subbingEl && projectData.subbingPhilosophy) {
-                subbingEl.value = projectData.subbingPhilosophy;
+            // Restore selected project sub-consultants
+            if (projectData.selectedProjectSubs && Array.isArray(projectData.selectedProjectSubs)) {
+                selectedProjectSubs = projectData.selectedProjectSubs;
+                renderSelectedSubs();
             }
 
             // Navigate to saved step (default to Benchmarking if not saved)
@@ -10565,22 +10564,35 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             }
         }
 
+        function buildSubNameDropdown(id, selectedValue) {
+            const options = getProjectSubOptions();
+            let html = `<select id="${id}" style="width:100%; font-size:11px; padding:4px; border:1px solid #ccc; border-radius:3px;">`;
+            html += `<option value="">-- Select Sub --</option>`;
+            for (const opt of options) {
+                const sel = opt.name === selectedValue ? ' selected' : '';
+                html += `<option value="${opt.name}" data-code="${opt.code}"${sel}>${opt.code} — ${opt.name}</option>`;
+            }
+            html += `</select>`;
+            return html;
+        }
+
         function openAddSubPopup(discId) {
             const config = DISCIPLINE_CONFIG[discId];
             const disciplineName = config ? config.name : discId;
             const existing = disciplineSubs[discId] || [];
-            // Start with existing subs or one empty row
             const defaultMultiplier = parseFloat(document.getElementById('calc-sub-multiplier')?.value) || 3.0;
-            // Get KIE rates for this discipline as default sub rates
             const resources = getDisciplineResources(config ? config.name : 'Roadway');
             const defaultJrRate = resources.lowRate;
             const defaultSrRate = resources.highRate;
-            const subs = existing.length > 0 ? existing.map(s => ({...s})) : [{name: '', pctWork: '', multiplier: defaultMultiplier, fixedExpenses: '', jrRate: defaultJrRate, srRate: defaultSrRate}];
+            const subs = existing.length > 0 ? existing.map(s => ({...s})) : [{name: '', code: '', pctWork: '', multiplier: defaultMultiplier, fixedExpenses: '', jrRate: defaultJrRate, srRate: defaultSrRate}];
+
+            const projectSubsAvailable = getProjectSubOptions().length > 0;
+            const noSubsMsg = !projectSubsAvailable ? '<p style="font-size:10px;color:#c44;margin:0 0 8px;">No subs selected for this project yet. Use the "Anticipated Sub-Consultants" picker above the table first.</p>' : '';
 
             function renderRows() {
                 return subs.map((s, i) => `
                     <tr>
-                        <td><input type="text" id="sub-name-${i}" value="${s.name}" placeholder="Sub name"></td>
+                        <td>${buildSubNameDropdown('sub-name-' + i, s.name)}</td>
                         <td><input type="number" id="sub-pct-${i}" value="${s.pctWork}" placeholder="0" min="0" max="100" step="1" style="width:60px;"></td>
                         <td><input type="number" id="sub-mult-${i}" value="${s.multiplier ?? defaultMultiplier}" placeholder="${defaultMultiplier}" min="0" max="10" step="0.1" style="width:60px;"></td>
                         <td><input type="number" id="sub-jr-${i}" value="${s.jrRate ?? defaultJrRate}" placeholder="${defaultJrRate}" min="0" step="0.01" style="width:70px;"></td>
@@ -10598,6 +10610,7 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
                 <div class="sub-popup">
                     <h3>Sub-Consultants — ${disciplineName}</h3>
                     <p style="font-size:10px;color:#888;margin:0 0 8px;">Multiplier default from Design Metrics: ${defaultMultiplier.toFixed(2)}x</p>
+                    ${noSubsMsg}
                     <table class="sub-popup-table">
                         <thead>
                             <tr>
@@ -10636,7 +10649,7 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             const resources = getDisciplineResources(config ? config.name : 'Roadway');
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td><input type="text" id="sub-name-${idx}" value="" placeholder="Sub name"></td>
+                <td>${buildSubNameDropdown('sub-name-' + idx, '')}</td>
                 <td><input type="number" id="sub-pct-${idx}" value="" placeholder="0" min="0" max="100" step="1" style="width:60px;"></td>
                 <td><input type="number" id="sub-mult-${idx}" value="${defaultMult}" placeholder="${defaultMult}" min="0" max="10" step="0.1" style="width:60px;"></td>
                 <td><input type="number" id="sub-jr-${idx}" value="${resources.lowRate}" placeholder="${resources.lowRate}" min="0" step="0.01" style="width:70px;"></td>
@@ -10663,16 +10676,17 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             if (!tbody) return;
             const subs = [];
             for (let i = 0; i < tbody.rows.length; i++) {
-                const nameInput = tbody.rows[i].querySelector('input[type="text"]');
+                const selectEl = tbody.rows[i].querySelector('select');
                 const numInputs = tbody.rows[i].querySelectorAll('input[type="number"]');
-                const name = (nameInput?.value || '').trim();
+                const name = (selectEl?.value || '').trim();
+                const code = selectEl?.selectedOptions[0]?.dataset?.code || '';
                 const pctWork = parseFloat(numInputs[0]?.value) || 0;
                 const multiplier = parseFloat(numInputs[1]?.value) || 3.0;
                 const jrRate = parseFloat(numInputs[2]?.value) || 0;
                 const srRate = parseFloat(numInputs[3]?.value) || 0;
                 const fixedExpenses = parseFloat(numInputs[4]?.value) || 0;
                 if (name) {
-                    subs.push({ name, pctWork, multiplier, jrRate, srRate, fixedExpenses });
+                    subs.push({ name, code, pctWork, multiplier, jrRate, srRate, fixedExpenses });
                 }
             }
             disciplineSubs[discId] = subs;
@@ -10805,6 +10819,176 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
                 scope.querySelectorAll(`.sub-row-${discId}`).forEach(r => r.style.display = 'none');
             }
         }
+
+        // ============================================
+        // ANTICIPATED SUB-CONSULTANT PICKER
+        // ============================================
+
+        /** Master list of sub-consultant firms loaded from JSON */
+        let subConsultantFirms = [];
+        /** Firms selected for this project — each has { code, name } */
+        let selectedProjectSubs = [];
+
+        /** Load sub-consultant firms from JSON data file */
+        async function loadSubConsultantFirms() {
+            try {
+                const resp = await fetch('./data/sub-consultants.json');
+                const data = await resp.json();
+                subConsultantFirms = data.firms || [];
+            } catch (e) {
+                console.warn('Could not load sub-consultants.json:', e);
+                subConsultantFirms = [];
+            }
+        }
+
+        /** Show the dropdown list filtered by current search text */
+        function showSubDropdown() {
+            const dropdown = document.getElementById('sub-dropdown');
+            if (!dropdown) return;
+            filterSubConsultants();
+            dropdown.style.display = 'block';
+            // Close on outside click
+            setTimeout(() => {
+                document.addEventListener('click', closeSubDropdownOnOutside);
+            }, 0);
+        }
+
+        function closeSubDropdownOnOutside(e) {
+            const input = document.getElementById('sub-search-input');
+            const dropdown = document.getElementById('sub-dropdown');
+            if (input && !input.contains(e.target) && dropdown && !dropdown.contains(e.target)) {
+                dropdown.style.display = 'none';
+                document.removeEventListener('click', closeSubDropdownOnOutside);
+            }
+        }
+
+        /** Filter the dropdown based on search input */
+        function filterSubConsultants() {
+            const input = document.getElementById('sub-search-input');
+            const dropdown = document.getElementById('sub-dropdown');
+            if (!input || !dropdown) return;
+
+            const query = input.value.trim().toLowerCase();
+            const selectedCodes = new Set(selectedProjectSubs.map(s => s.code));
+
+            // Filter out already-selected firms
+            let filtered = subConsultantFirms.filter(f => !selectedCodes.has(f.code));
+
+            // Apply search filter
+            if (query) {
+                filtered = filtered.filter(f =>
+                    f.name.toLowerCase().includes(query) ||
+                    f.code.toLowerCase().includes(query) ||
+                    (f.suppliers && f.suppliers.some(s => s.toLowerCase().includes(query)))
+                );
+            }
+
+            if (filtered.length === 0) {
+                dropdown.innerHTML = '<div style="padding:6px 10px; font-size:11px; color:#999; font-style:italic;">No matches found</div>';
+            } else {
+                dropdown.innerHTML = filtered.map(f =>
+                    `<div class="sub-dropdown-item" onclick="selectSubConsultant('${f.code}')" style="padding:5px 10px; font-size:11px; cursor:pointer; border-bottom:1px solid #f0ead0; display:flex; justify-content:space-between; align-items:center;" onmouseenter="this.style.background='#f8f4e8'" onmouseleave="this.style.background='#fff'">
+                        <span>${f.name}</span>
+                        <span style="color:#8b7d3c; font-size:9px; font-weight:700; letter-spacing:0.5px;">${f.code}</span>
+                    </div>`
+                ).join('');
+            }
+            dropdown.style.display = 'block';
+        }
+
+        /** Select a sub-consultant firm for this project */
+        function selectSubConsultant(code) {
+            const firm = subConsultantFirms.find(f => f.code === code);
+            if (!firm) return;
+            // Avoid duplicates
+            if (selectedProjectSubs.some(s => s.code === code)) return;
+            selectedProjectSubs.push({ code: firm.code, name: firm.name });
+            renderSelectedSubs();
+            // Clear search and close dropdown
+            const input = document.getElementById('sub-search-input');
+            if (input) input.value = '';
+            const dropdown = document.getElementById('sub-dropdown');
+            if (dropdown) dropdown.style.display = 'none';
+            saveToLocalStorage();
+        }
+
+        /** Remove a selected sub-consultant */
+        function removeSelectedSub(code) {
+            selectedProjectSubs = selectedProjectSubs.filter(s => s.code !== code);
+            renderSelectedSubs();
+            saveToLocalStorage();
+        }
+
+        /** Render the selected sub tags */
+        function renderSelectedSubs() {
+            const container = document.getElementById('selected-subs-list');
+            if (!container) return;
+            if (selectedProjectSubs.length === 0) {
+                container.innerHTML = '<span style="font-size:10px; color:#aaa; font-style:italic;">No subs selected yet</span>';
+                return;
+            }
+            container.innerHTML = selectedProjectSubs.map(s =>
+                `<span style="display:inline-flex; align-items:center; gap:3px; background:#e8e0c0; border:1px solid #d4c98e; border-radius:3px; padding:2px 6px; font-size:10px; color:#333;">
+                    <strong style="color:#8b7d3c;">${s.code}</strong> ${s.name}
+                    <span onclick="removeSelectedSub('${s.code}')" style="cursor:pointer; color:#c00; font-weight:bold; margin-left:2px;" title="Remove">&times;</span>
+                </span>`
+            ).join('');
+        }
+
+        /** Open modal to add a custom sub not in the master list */
+        function openAddCustomSubModal() {
+            const overlay = document.createElement('div');
+            overlay.className = 'sub-popup-overlay';
+            overlay.id = 'custom-sub-overlay';
+            overlay.innerHTML = `
+                <div class="sub-popup" style="max-width:360px;">
+                    <h3 style="margin:0 0 12px;">Add Custom Sub-Consultant</h3>
+                    <div style="margin-bottom:8px;">
+                        <label style="font-size:10px; font-weight:600; display:block; margin-bottom:3px;">Firm Name</label>
+                        <input type="text" id="custom-sub-name" placeholder="e.g., Smith Engineering LLC" style="width:100%; padding:6px 8px; font-size:11px; border:1px solid #ccc; border-radius:3px;">
+                    </div>
+                    <div style="margin-bottom:12px;">
+                        <label style="font-size:10px; font-weight:600; display:block; margin-bottom:3px;">3-Letter Code</label>
+                        <input type="text" id="custom-sub-code" placeholder="e.g., SME" maxlength="3" style="width:80px; padding:6px 8px; font-size:11px; border:1px solid #ccc; border-radius:3px; text-transform:uppercase;">
+                    </div>
+                    <div style="display:flex; gap:8px; justify-content:flex-end;">
+                        <button onclick="document.getElementById('custom-sub-overlay').remove()" style="padding:5px 14px; font-size:11px; border:1px solid #ccc; border-radius:3px; background:#f5f5f5; cursor:pointer;">Cancel</button>
+                        <button onclick="saveCustomSub()" style="padding:5px 14px; font-size:11px; border:none; border-radius:3px; background:#8b7d3c; color:#fff; cursor:pointer; font-weight:600;">Add</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+            overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+        }
+
+        /** Save a custom sub-consultant */
+        function saveCustomSub() {
+            const nameInput = document.getElementById('custom-sub-name');
+            const codeInput = document.getElementById('custom-sub-code');
+            const name = (nameInput?.value || '').trim();
+            let code = (codeInput?.value || '').trim().toUpperCase();
+            if (!name) { alert('Please enter a firm name.'); return; }
+            if (code.length !== 3) { alert('Code must be exactly 3 letters.'); return; }
+            // Check for duplicate code
+            if (subConsultantFirms.some(f => f.code === code) || selectedProjectSubs.some(s => s.code === code)) {
+                alert('Code "' + code + '" is already in use. Please pick a different code.');
+                return;
+            }
+            // Add to master list (runtime only) and select it
+            subConsultantFirms.push({ code: code, name: name, suppliers: [name], custom: true });
+            selectedProjectSubs.push({ code: code, name: name });
+            renderSelectedSubs();
+            document.getElementById('custom-sub-overlay')?.remove();
+            saveToLocalStorage();
+        }
+
+        /** Get available project subs for the discipline sub popup dropdown */
+        function getProjectSubOptions() {
+            return selectedProjectSubs.map(s => ({ code: s.code, name: s.name }));
+        }
+
+        // Load on startup
+        loadSubConsultantFirms();
 
         /**
          * Open a popup to adjust complexity % for a discipline (used in benchmark mode)
@@ -23732,6 +23916,12 @@ Chunks: ${JSON.stringify(complexFieldsOnly, null, 2)}`;
         window.removeSubRow = removeSubRow;
         window.closeSubPopup = closeSubPopup;
         window.saveSubPopup = saveSubPopup;
+        window.filterSubConsultants = filterSubConsultants;
+        window.showSubDropdown = showSubDropdown;
+        window.selectSubConsultant = selectSubConsultant;
+        window.removeSelectedSub = removeSelectedSub;
+        window.openAddCustomSubModal = openAddCustomSubModal;
+        window.saveCustomSub = saveCustomSub;
         window.applyComplexityPopup = applyComplexityPopup;
         window.showCalcInfo = showCalcInfo;
         window.showContingencyBreakdown = showContingencyBreakdown;

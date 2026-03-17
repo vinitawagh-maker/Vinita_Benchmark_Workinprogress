@@ -256,8 +256,20 @@
 
                         <!-- Sub Plan for Step 2 -->
                         <div class="ribbon" style="background:#f8f4e8; border:1px solid #d4c98e; border-radius:4px; padding:10px 14px; margin-bottom:6px;">
-                            <label style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:#8b7d3c; margin-bottom:4px; display:block;">Anticipated Sub-Consultants by Discipline — Detailed in Step 2</label>
-                            <textarea id="subbing-philosophy" rows="3" placeholder="e.g., Drainage: 2 subs (20% each), Structures: 1 sub (30%), Geotechnical: 1 sub (50%)..." style="width:100%; font-size:11px; font-family:inherit; padding:6px 8px; border:1px solid #d4c98e; border-radius:3px; background:#fffef5; color:#333; resize:vertical;" oninput="triggerAutosave()"></textarea>
+                            <label style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:#8b7d3c; margin-bottom:4px; display:block;">Anticipated Sub-Consultants — Select for this Project</label>
+                            <div style="display:flex; gap:6px; align-items:center; margin-bottom:6px;">
+                                <div style="position:relative; flex:1;">
+                                    <input type="text" id="sub-search-input" placeholder="Search sub-consultants..." autocomplete="off"
+                                        style="width:100%; font-size:11px; padding:6px 8px; border:1px solid #d4c98e; border-radius:3px; background:#fffef5; color:#333; font-family:inherit;"
+                                        oninput="filterSubConsultants()" onfocus="showSubDropdown()">
+                                    <div id="sub-dropdown" style="display:none; position:absolute; top:100%; left:0; right:0; max-height:200px; overflow-y:auto; background:#fff; border:1px solid #d4c98e; border-top:none; border-radius:0 0 3px 3px; z-index:100; box-shadow:0 4px 8px rgba(0,0,0,0.15);"></div>
+                                </div>
+                                <button type="button" onclick="openAddCustomSubModal()" title="Add a sub not in the list"
+                                    style="background:#8b7d3c; color:#fff; border:none; border-radius:3px; width:28px; height:28px; font-size:16px; cursor:pointer; font-weight:bold; line-height:1;">+</button>
+                            </div>
+                            <div id="selected-subs-list" style="display:flex; flex-wrap:wrap; gap:4px; min-height:20px;">
+                                <!-- Selected sub tags appear here -->
+                            </div>
                         </div>
 
                         <!-- Ribbon 3: Action Buttons -->
