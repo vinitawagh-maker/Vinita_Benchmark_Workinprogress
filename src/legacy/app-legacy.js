@@ -3211,7 +3211,15 @@ let projectData = {
             const baseRate = parseFloat(document.getElementById('escalation-base-rate')?.value) || 5;
             const escalationRateInput = document.getElementById('unified-escalation');
             if (escalationRateInput) {
+                const oldVal = escalationRateInput.value;
                 escalationRateInput.value = baseRate;
+                // Auto-enable the Design Metrics toggle so the override is visible
+                const toggle = document.getElementById('toggle-escalation');
+                if (toggle && !toggle.checked) {
+                    toggle.checked = true;
+                    toggleFieldEdit('unified-escalation', true);
+                }
+                if (oldVal !== String(baseRate)) logAIChange('unified-escalation', oldVal + '%', baseRate + '%', 'Applied');
             }
 
             // Sync NTP date and duration back to main form so calculateEscalation can find them
@@ -11574,6 +11582,16 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
 
             const complexity = complexitySelect.value;
 
+            // Auto-enable the Design Metrics toggle so the override is visible
+            if (complexity !== 'Low') {
+                const toggle = document.getElementById('toggle-complexity');
+                if (toggle && !toggle.checked) {
+                    toggle.checked = true;
+                    toggleComplexityEdit(true);
+                }
+                logAIChange('unified-complexity', 'Low (30%)', complexity + ' (' + getGlobalComplexityPct() + '%)', 'Applied');
+            }
+
             // Show/hide custom input
             const customInput = document.getElementById('custom-complexity-pct');
             if (customInput) {
@@ -13371,23 +13389,25 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             const ipcTbody = document.getElementById('ipc-tbody');
 
             if (ipcSection) {
-                if (isEnabled) {
-                    ipcSection.style.opacity = '1';
-                } else {
-                    ipcSection.style.opacity = '0.5';
-                }
+                ipcSection.style.opacity = isEnabled ? '1' : '0.5';
             }
             if (ipcTbody) {
-                if (isEnabled) {
-                    ipcTbody.style.opacity = '1';
-                } else {
-                    ipcTbody.style.opacity = '0.5';
-                }
+                ipcTbody.style.opacity = isEnabled ? '1' : '0.5';
             }
 
             // Show/hide "ON" label
             const onLabel = document.getElementById('ipc-on-label');
             if (onLabel) onLabel.style.display = isEnabled ? 'inline' : 'none';
+
+            // Auto-enable Design Metrics IPC toggle if IPC is toggled off (override from default)
+            if (!isEnabled) {
+                const toggle = document.getElementById('toggle-ipc-fee');
+                if (toggle && !toggle.checked) {
+                    toggle.checked = true;
+                    toggleFieldEdit('unified-ipc-fee', true);
+                }
+                logAIChange('unified-ipc-fee', '$6/MH', 'Disabled ($0)', 'Applied');
+            }
 
             // Recalculate unified costs
             recalculateAllUnifiedCosts();
@@ -13517,6 +13537,7 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             const lsInput = document.getElementById('ls-sub-markup-pct-input');
             const mgmtField = document.getElementById('calc-sub-markup');
             if (lsInput && mgmtField) {
+                const oldVal = mgmtField.value;
                 mgmtField.value = lsInput.value;
                 // Enable the Design Metrics field + toggle so the change stands out
                 const toggle = document.getElementById('toggle-sub-markup');
@@ -13524,6 +13545,7 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
                     toggle.checked = true;
                     toggleFieldEdit('calc-sub-markup', true);
                 }
+                if (oldVal !== lsInput.value) logAIChange('calc-sub-markup', oldVal + '%', lsInput.value + '%', 'Applied');
             }
             updateUnifiedSummary();
             saveToLocalStorage();
@@ -13933,6 +13955,36 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
         <tr style="background:${KW_GRAY};"><td style="padding:7px 12px;">TSCD Methodology</td><td style="padding:7px 12px;">${tscdUsesPct ? `<strong>% Override:</strong> ${tscdPct}% of assumed construction cost` : '<strong>Benchmark:</strong> power curve production rate × assumed construction cost'}</td></tr>
       </tbody>
     </table>
+
+    ${(() => {
+        const overrides = [];
+        const ipcFee = domVal('unified-ipc-fee', 6);
+        const contingencyPct = domVal('unified-contingency', 5);
+        const escalationPct = domVal('unified-escalation', 5);
+        const subMarkup = domVal('calc-sub-markup', 5);
+        const ipcEnabled = document.getElementById('ipc-enabled-toggle')?.checked !== false;
+        const complexityVal = document.getElementById('unified-complexity')?.value || 'Low';
+
+        if (burden !== 66) overrides.push('Burden Rate changed from default <strong>66%</strong> to <strong>' + burden.toFixed(1) + '%</strong>.');
+        if (gna !== 104) overrides.push('G&A Rate changed from default <strong>104%</strong> to <strong>' + gna.toFixed(1) + '%</strong>.');
+        if (kie !== 2.85) overrides.push('KIE Multiplier changed from default <strong>2.85</strong> to <strong>' + kie.toFixed(2) + '</strong>.');
+        if (contingencyPct !== 5) overrides.push('Contingency changed from default <strong>5%</strong> to <strong>' + contingencyPct + '%</strong>.');
+        if (ipcFee !== 6) overrides.push('IPC Fee changed from default <strong>$6/MH</strong> to <strong>$' + ipcFee.toFixed(2) + '/MH</strong>.');
+        if (!ipcEnabled) overrides.push('IPC Fee has been <strong>disabled</strong> (set to $0).');
+        if (escalationPct !== 5) overrides.push('Escalation Rate changed from default <strong>5%</strong> to <strong>' + escalationPct + '%</strong>.');
+        if (subMarkup !== 5) overrides.push('Sub Markup changed from default <strong>5%</strong> to <strong>' + subMarkup + '%</strong>.');
+        if (complexityVal !== 'Low') overrides.push('Global Complexity changed from default <strong>Low (30%)</strong> to <strong>' + complexityVal + ' (' + getGlobalComplexityPct() + '%)</strong>.');
+
+        if (overrides.length === 0) return '';
+        return `
+    <div style="margin:16px 0; border:1px solid #e8c94a; border-left:4px solid ${KW_YELLOW}; background:#FFFDE7; padding:12px 16px;">
+      <div style="font-family:${FONT_HEAD}; font-size:11px; font-weight:900; color:${KW_BLACK}; margin-bottom:6px; text-transform:uppercase;">Design Metrics Overrides</div>
+      <p style="font-size:11px; color:#555; margin:0 0 6px 0;">The following parameters have been modified from their standard defaults:</p>
+      <ul style="margin:0; padding-left:18px; font-size:11px; color:#333;">
+        ${overrides.map(o => '<li style="margin:3px 0;">' + o + '</li>').join('')}
+      </ul>
+    </div>`;
+    })()}
 
     ${h2('3. Discipline & Category Revenue Detail')}
     <p style="font-size:13px;">The following section details each discipline and cost category, including estimated man-hours, total revenue, and the methodology used to derive each figure.</p>
@@ -18786,6 +18838,7 @@ Be helpful, friendly, and context-aware. When users are on the Results page, you
             'calc-kie-multiplier': 'KIE Multiplier',
             'calc-sub-multiplier': 'Sub Multiplier',
             'calc-sub-markup': 'Sub Markup (%)',
+            'unified-complexity': 'Complexity',
             'calc-design-duration': 'Design Duration (months)',
             'indirects-fte': 'Indirects FTEs',
             'calc-esdc-pct': 'ESDC %',
@@ -24091,12 +24144,14 @@ Chunks: ${JSON.stringify(complexFieldsOnly, null, 2)}`;
             const mgmtInput = document.getElementById('unified-contingency');
             const mgmtToggle = document.getElementById('toggle-contingency');
             if (mgmtInput) {
+                const oldVal = mgmtInput.value;
                 // Enable the Management Override field if not already
                 if (mgmtToggle && !mgmtToggle.checked) {
                     mgmtToggle.checked = true;
                     toggleFieldEdit('unified-contingency', true);
                 }
                 mgmtInput.value = value;
+                if (oldVal !== String(value)) logAIChange('unified-contingency', oldVal + '%', value + '%', 'Applied');
             }
             recalculateAllUnifiedCosts();
         };
