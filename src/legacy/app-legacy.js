@@ -484,6 +484,10 @@ let projectData = {
             try {
                 showAutosaveIndicator('saving');
                 
+                // Sync subbing philosophy from textarea
+                const subbingEl = document.getElementById('subbing-philosophy');
+                if (subbingEl) projectData.subbingPhilosophy = subbingEl.value;
+
                 // Save selected project sub-consultants
                 projectData.selectedProjectSubs = selectedProjectSubs;
 
@@ -3329,6 +3333,12 @@ let projectData = {
                 initDisciplines();
             }
             
+            // Restore subbing philosophy textarea
+            const subbingEl = document.getElementById('subbing-philosophy');
+            if (subbingEl && projectData.subbingPhilosophy) {
+                subbingEl.value = projectData.subbingPhilosophy;
+            }
+
             // Restore selected project sub-consultants
             if (projectData.selectedProjectSubs && Array.isArray(projectData.selectedProjectSubs)) {
                 selectedProjectSubs = projectData.selectedProjectSubs;
