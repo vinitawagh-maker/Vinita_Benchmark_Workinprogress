@@ -2633,7 +2633,8 @@ tbody.hidden {
     background: #1a1a1a;
     border: 1px solid #444;
     border-radius: 8px;
-    width: 560px;
+    width: 820px;
+    max-width: 95vw;
     max-height: 80vh;
     overflow-y: auto;
     padding: 20px;
@@ -2720,11 +2721,14 @@ tbody.hidden {
     padding: 2px 6px;
 }
 
-/* Sub-consultant rows in the table */
+/* Sub-consultant rows in the table — 30% taller than normal rows */
 .sub-consultant-row td {
     font-size: 10px !important;
     background: #f8f4e8 !important;
     color: #333 !important;
+    padding-top: 5px !important;
+    padding-bottom: 5px !important;
+    line-height: 1.5 !important;
 }
 .sub-consultant-row td.frozen-col {
     padding-left: 24px !important;
@@ -2734,6 +2738,9 @@ tbody.hidden {
     font-size: 10px !important;
     background: #eef6ff !important;
     color: #333 !important;
+    padding-top: 5px !important;
+    padding-bottom: 5px !important;
+    line-height: 1.5 !important;
 }
 .kie-split-row td.frozen-col {
     padding-left: 24px !important;

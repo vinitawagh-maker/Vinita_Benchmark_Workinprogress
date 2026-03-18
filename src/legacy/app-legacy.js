@@ -677,12 +677,21 @@ let projectData = {
             if (table) {
                 table.classList.toggle('revenue-details-visible');
             }
+            // Also toggle on Step 2 subs-detail table
+            const subsTable = document.getElementById('subs-detail-table');
+            if (subsTable) {
+                subsTable.classList.toggle('revenue-details-visible');
+            }
         }
 
         function toggleMHDetails() {
             const table = document.getElementById('unified-estimate-table');
             if (table) {
                 table.classList.toggle('mh-details-visible');
+            }
+            const subsTable = document.getElementById('subs-detail-table');
+            if (subsTable) {
+                subsTable.classList.toggle('mh-details-visible');
             }
         }
 
@@ -832,8 +841,8 @@ let projectData = {
                         addBtn.title = 'Add sub-consultants';
                         addBtn.onclick = function(e) { e.stopPropagation(); openAddSubPopup(did); };
 
-                        const br = document.createElement('br');
-                        firstCell.appendChild(br);
+                        // Add inline (no line break) — toggle + button next to discipline name
+                        firstCell.appendChild(document.createTextNode(' '));
                         firstCell.appendChild(toggle);
                         firstCell.appendChild(addBtn);
                     }
@@ -845,6 +854,22 @@ let projectData = {
                         renderSubRows(did);
                     }
                 }
+
+                // Enable column resizing on Step 2 table
+                enableColumnResizingForTable(clone);
+
+                // If Step 1 has revenue-details-visible, carry it over
+                if (sourceTable.classList.contains('revenue-details-visible')) {
+                    clone.classList.add('revenue-details-visible');
+                }
+                if (sourceTable.classList.contains('mh-details-visible')) {
+                    clone.classList.add('mh-details-visible');
+                }
+
+                // Make clickable-revenue cells toggle revenue details in Step 2
+                clone.querySelectorAll('.clickable-revenue').forEach(cell => {
+                    cell.onclick = function(e) { e.stopPropagation(); toggleRevenueDetails(); };
+                });
             }
         }
 
@@ -956,8 +981,14 @@ let projectData = {
             const pct = parseFloat(document.getElementById('pursuit-pct-input')?.value) || 0.25;
             const ipv = parseFloat(String(document.getElementById('calc-est-construction-cost')?.value || '').replace(/[$,]/g, '')) || 0;
             const total = ipv * (pct / 100);
+            const fmt = '$' + Math.round(total).toLocaleString('en-US');
             const revenueEl = document.getElementById('pursuit-total-revenue');
-            if (revenueEl) revenueEl.textContent = '$' + Math.round(total).toLocaleString('en-US');
+            if (revenueEl) revenueEl.textContent = fmt;
+            // Pursuit is an expense/fee line — show in Expenses and Total Cost columns
+            const expensesEl = document.getElementById('pursuit-total-expenses');
+            if (expensesEl) expensesEl.textContent = fmt;
+            const costEl = document.getElementById('pursuit-total-cost');
+            if (costEl) costEl.textContent = fmt;
             recalculateAllUnifiedCosts();
         }
 
@@ -6808,9 +6839,14 @@ ${reasoning}`;
                     if (allRateEl && result.allRate != null) allRateEl.textContent = formatRate(result.allRate, unit);
                     const wideOpenEl = document.getElementById(`unified-wide-open-mh-${discId}`);
                     const customMHEl = document.getElementById(`unified-custom-mh-${discId}`);
-                    const wideOpenRate = (state.allRate != null ? state.allRate : result.allRate || 0);
-                    if (wideOpenEl) wideOpenEl.textContent = formatMH(Math.round(state.quantity * wideOpenRate));
-                    if (customMHEl) customMHEl.textContent = formatMH(result.mh);
+                    if (DISCIPLINE_CONFIG[discId]?.calculationType !== 'matrix') {
+                        const wideOpenRate = (state.allRate != null ? state.allRate : result.allRate || 0);
+                        if (wideOpenEl) wideOpenEl.textContent = formatMH(Math.round(state.quantity * wideOpenRate));
+                        if (customMHEl) customMHEl.textContent = formatMH(result.mh);
+                    } else {
+                        if (wideOpenEl) wideOpenEl.textContent = '—';
+                        if (customMHEl) customMHEl.textContent = '—';
+                    }
 
                     // Recalculate costs
                     recalculateUnifiedCosts(discId);
@@ -8669,12 +8705,17 @@ ${reasoning}`;
                                 const otherAllRateElem = document.getElementById(`unified-rate-all-${otherDiscId}`);
                                 const otherWideOpenEl = document.getElementById(`unified-wide-open-mh-${otherDiscId}`);
                                 const otherCustomMHEl = document.getElementById(`unified-custom-mh-${otherDiscId}`);
-                                
+
                                 if (otherMhElem) otherMhElem.textContent = formatMH(otherState.mh);
                                 if (otherRateElem) otherRateElem.textContent = formatRate(state.rate, otherUnit);
                                 if (otherAllRateElem) otherAllRateElem.textContent = formatRate(state.allRate, otherUnit);
-                                if (otherWideOpenEl) otherWideOpenEl.textContent = formatMH(Math.round(otherState.quantity * state.allRate));
-                                if (otherCustomMHEl) otherCustomMHEl.textContent = formatMH(otherState.mh);
+                                if (DISCIPLINE_CONFIG[otherDiscId]?.calculationType !== 'matrix') {
+                                    if (otherWideOpenEl) otherWideOpenEl.textContent = formatMH(Math.round(otherState.quantity * state.allRate));
+                                    if (otherCustomMHEl) otherCustomMHEl.textContent = formatMH(otherState.mh);
+                                } else {
+                                    if (otherWideOpenEl) otherWideOpenEl.textContent = '—';
+                                    if (otherCustomMHEl) otherCustomMHEl.textContent = '—';
+                                }
                                 
                                 // Recalculate costs for other discipline
                                 recalculateUnifiedCosts(otherDiscId);
@@ -8737,8 +8778,13 @@ ${reasoning}`;
             const customMH = result.mh;
             const wideOpenEl = document.getElementById(`unified-wide-open-mh-${discId}`);
             const customMHEl = document.getElementById(`unified-custom-mh-${discId}`);
-            if (wideOpenEl) wideOpenEl.textContent = formatMH(wideOpenMH);
-            if (customMHEl) customMHEl.textContent = formatMH(customMH);
+            if (DISCIPLINE_CONFIG[discId]?.calculationType !== 'matrix') {
+                if (wideOpenEl) wideOpenEl.textContent = formatMH(wideOpenMH);
+                if (customMHEl) customMHEl.textContent = formatMH(customMH);
+            } else {
+                if (wideOpenEl) wideOpenEl.textContent = '—';
+                if (customMHEl) customMHEl.textContent = '—';
+            }
 
             // Format quantity input with commas
             qtyInput.value = quantity.toLocaleString('en-US');
@@ -10563,6 +10609,414 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
         }
 
         // ============================================
+        // CONFORM ESTIMATE
+        // ============================================
+
+        /**
+         * Opens the Conform Estimate breakdown — shows KIE and each sub-consultant
+         * broken out by discipline with Hours, Raw Labor + Burden, Expenses, Total Cost,
+         * then summary lines for Contingency, G&A, Escalation, Margin, Revenue.
+         */
+        function openConformEstimate() {
+            // Remove any existing overlay
+            const existingOverlay = document.getElementById('conform-estimate-overlay');
+            if (existingOverlay) { existingOverlay.remove(); return; }
+
+            function parseDollar(el) {
+                if (!el) return 0;
+                return parseFloat(String(el.textContent || '').replace(/[$,\s]/g, '')) || 0;
+            }
+            function fmtD(v) { return '$' + Math.round(v).toLocaleString('en-US'); }
+            function fmtMH(v) { return Math.round(v).toLocaleString('en-US'); }
+
+            // Collect discipline list (only those with MH > 0)
+            const activeDisciplines = [];
+            for (const [discId, cfg] of Object.entries(DISCIPLINE_CONFIG)) {
+                const state = mhEstimateState.disciplines[discId];
+                if (state && state.mh > 0) {
+                    activeDisciplines.push({ discId, name: cfg.name, state });
+                }
+            }
+
+            // Global parameters
+            const burdenRate = (parseFloat(document.getElementById('unified-burden')?.value) || 66) / 100;
+            const gnaRate = (parseFloat(document.getElementById('unified-gna')?.value) || 104) / 100;
+            const kieMultiplier = parseFloat(document.getElementById('calc-kie-multiplier')?.value) || 2.85;
+            const globalSubMarkupPct = parseFloat(document.getElementById('calc-sub-markup')?.value) || 5;
+
+            // Collect all unique sub names across disciplines
+            const allSubNames = new Map();
+            for (const { discId } of activeDisciplines) {
+                const subs = disciplineSubs[discId] || [];
+                for (const sub of subs) {
+                    if (sub.name && !allSubNames.has(sub.code || sub.name)) {
+                        allSubNames.set(sub.code || sub.name, sub.name);
+                    }
+                }
+            }
+
+            // ==================== STYLES ====================
+            const thStyle = 'padding:6px 10px; font-size:11px; font-weight:700; border-bottom:2px solid #ffd700; color:#ffd700; text-align:right; white-space:nowrap;';
+            const tdStyle = 'padding:5px 10px; font-size:12px; text-align:right; border-bottom:1px solid #444; white-space:nowrap; color:#e0e0e0;';
+            const labelStyle = 'padding:5px 10px; font-size:12px; border-bottom:1px solid #444; white-space:nowrap; color:#e0e0e0; padding-left:20px;';
+            const sectionStyle = 'padding:6px 10px; font-size:12px; font-weight:700; color:#ffd700; background:#1a1a1a; border-bottom:1px solid #ffd700;';
+            const totalRowStyle = 'padding:5px 10px; font-size:12px; text-align:right; border-bottom:2px solid #555; white-space:nowrap; font-weight:700; color:#00ff00;';
+            const totalLabelStyle = 'padding:5px 10px; font-size:12px; border-bottom:2px solid #555; white-space:nowrap; font-weight:700; color:#00ff00; padding-left:20px;';
+            const summaryLabelStyle = 'padding:6px 10px; font-size:12px; font-weight:600; border-bottom:1px solid #555; color:#ccc;';
+            const summaryValStyle = 'padding:6px 10px; font-size:12px; text-align:right; border-bottom:1px solid #555; white-space:nowrap; font-weight:600; color:#ccc;';
+
+            // Columns: Discipline | Hours | Raw Labor | Burden | Expenses | Total Cost
+            const colCount = 6;
+
+            let html = '<table style="width:100%; border-collapse:collapse;">';
+
+            // ==================== KIE SECTION ====================
+            // Header
+            html += `<thead><tr>
+                <th style="${thStyle} text-align:left;">KIE</th>
+                <th style="${thStyle}">Hours</th>
+                <th style="${thStyle}">Raw Labor</th>
+                <th style="${thStyle}">Burden</th>
+                <th style="${thStyle}">Expenses</th>
+                <th style="${thStyle}">Total Cost</th>
+            </tr></thead><tbody>`;
+
+            let kieTotalHours = 0, kieTotalRawLabor = 0, kieTotalBurden = 0;
+            let kieTotalExpenses = 0, kieTotalCost = 0, kieTotalRevenue = 0;
+            let kieTotalGna = 0, kieTotalMargin = 0;
+
+            const kieDiscData = activeDisciplines.map(({ discId, state }) => {
+                const subs = disciplineSubs[discId] || [];
+                const totalSubPct = subs.reduce((s, sub) => s + (sub.pctWork || 0), 0);
+                const kiePct = Math.max(0, 100 - totalSubPct) / 100;
+                const kieMh = Math.round((state.mh || 0) * kiePct);
+                const rawLabor = state.laborCost ? state.laborCost * kiePct : kieMh * (state.weightedRate || 0);
+                const burden = rawLabor * burdenRate;
+                const expenses = 0;
+                const cost = rawLabor + burden + expenses;
+                const gna = rawLabor * gnaRate;
+                const revenue = rawLabor * kieMultiplier;
+                const margin = revenue - gna - cost;
+                kieTotalHours += kieMh;
+                kieTotalRawLabor += rawLabor;
+                kieTotalBurden += burden;
+                kieTotalExpenses += expenses;
+                kieTotalCost += cost;
+                kieTotalRevenue += revenue;
+                kieTotalGna += gna;
+                kieTotalMargin += margin;
+                return { kieMh, rawLabor, burden, expenses, cost };
+            });
+
+            // One row per discipline
+            activeDisciplines.forEach((d, i) => {
+                const k = kieDiscData[i];
+                html += `<tr>
+                    <td style="${labelStyle}">${d.name}</td>
+                    <td style="${tdStyle}">${fmtMH(k.kieMh)}</td>
+                    <td style="${tdStyle}">${fmtD(k.rawLabor)}</td>
+                    <td style="${tdStyle}">${fmtD(k.burden)}</td>
+                    <td style="${tdStyle}">${fmtD(k.expenses)}</td>
+                    <td style="${tdStyle}">${fmtD(k.cost)}</td>
+                </tr>`;
+            });
+
+            // KIE Total row
+            html += `<tr>
+                <td style="${totalLabelStyle}">KIE Total</td>
+                <td style="${totalRowStyle}">${fmtMH(kieTotalHours)}</td>
+                <td style="${totalRowStyle}">${fmtD(kieTotalRawLabor)}</td>
+                <td style="${totalRowStyle}">${fmtD(kieTotalBurden)}</td>
+                <td style="${totalRowStyle}">${fmtD(kieTotalExpenses)}</td>
+                <td style="${totalRowStyle}">${fmtD(kieTotalCost)}</td>
+            </tr>`;
+
+            // ==================== SUB SECTIONS ====================
+            let grandSubTotalHours = 0, grandSubTotalRawLabor = 0;
+            let grandSubTotalExpenses = 0, grandSubTotalCost = 0;
+            let grandSubTotalMargin = 0, grandSubTotalRevenue = 0;
+
+            for (const [subKey, subName] of allSubNames) {
+                // Sub header row (columns: Sub Name | Hours | Raw Labor | Sub Cost | Expenses | Revenue)
+                html += `<tr><td colspan="${colCount}" style="padding:4px;"></td></tr>`;
+                html += `<tr>
+                    <th style="${thStyle} text-align:left;">${subName}</th>
+                    <th style="${thStyle}">Hours</th>
+                    <th style="${thStyle}">Raw Labor</th>
+                    <th style="${thStyle}">Sub Cost</th>
+                    <th style="${thStyle}">Expenses</th>
+                    <th style="${thStyle}">Revenue</th>
+                </tr>`;
+
+                let subTotalHours = 0, subTotalRawLabor = 0;
+                let subTotalExpenses = 0, subTotalCost = 0;
+                let subTotalMargin = 0, subTotalRevenue = 0;
+
+                activeDisciplines.forEach(({ discId, state, name }) => {
+                    const subs = disciplineSubs[discId] || [];
+                    const sub = subs.find(s => (s.code || s.name) === subKey);
+                    if (!sub) return;
+
+                    const totalMh = state.mh || 0;
+                    const resources = getDisciplineResources(DISCIPLINE_CONFIG[discId]?.name || 'Roadway');
+                    const l4Pct = (state.l4Percentage !== undefined && state.l4Percentage !== null) ? state.l4Percentage : getGlobalComplexityPct();
+                    const lowPct = (100 - l4Pct) / 100;
+                    const highPct = l4Pct / 100;
+
+                    const subMh = Math.round(totalMh * sub.pctWork / 100);
+                    const subJrRate = sub.jrRate || resources.lowRate;
+                    const subSrRate = sub.srRate || resources.highRate;
+                    const rawLabor = subMh * lowPct * subJrRate + subMh * highPct * subSrRate;
+                    const mult = sub.multiplier || 3.0;
+                    const cost = rawLabor * mult;
+                    const expenses = sub.fixedExpenses || 0;
+                    const thisMarginPct = (sub.marginPct !== undefined && sub.marginPct !== null) ? sub.marginPct : globalSubMarkupPct;
+                    const marginBase = sub.expenseMarkup ? (cost + expenses) : cost;
+                    const margin = marginBase * (thisMarginPct / 100);
+                    const revenue = cost + margin + expenses;
+
+                    subTotalHours += subMh;
+                    subTotalRawLabor += rawLabor;
+                    subTotalExpenses += expenses;
+                    subTotalCost += cost;
+                    subTotalMargin += margin;
+                    subTotalRevenue += revenue;
+
+                    html += `<tr>
+                        <td style="${labelStyle}">${name}</td>
+                        <td style="${tdStyle}">${fmtMH(subMh)}</td>
+                        <td style="${tdStyle}">${fmtD(rawLabor)}</td>
+                        <td style="${tdStyle}">${fmtD(cost)}</td>
+                        <td style="${tdStyle}">${fmtD(expenses)}</td>
+                        <td style="${tdStyle}">${fmtD(revenue)}</td>
+                    </tr>`;
+                });
+
+                // Sub total row
+                html += `<tr>
+                    <td style="${totalLabelStyle}">${subName} Total</td>
+                    <td style="${totalRowStyle}">${fmtMH(subTotalHours)}</td>
+                    <td style="${totalRowStyle}">${fmtD(subTotalRawLabor)}</td>
+                    <td style="${totalRowStyle}">${fmtD(subTotalCost)}</td>
+                    <td style="${totalRowStyle}">${fmtD(subTotalExpenses)}</td>
+                    <td style="${totalRowStyle}">${fmtD(subTotalRevenue)}</td>
+                </tr>`;
+
+                grandSubTotalHours += subTotalHours;
+                grandSubTotalRawLabor += subTotalRawLabor;
+                grandSubTotalExpenses += subTotalExpenses;
+                grandSubTotalCost += subTotalCost;
+                grandSubTotalMargin += subTotalMargin;
+                grandSubTotalRevenue += subTotalRevenue;
+            }
+
+            // ==================== SUMMARY SECTION ====================
+            html += `<tr><td colspan="${colCount}" style="padding:6px;"></td></tr>`;
+            html += `<tr><td colspan="${colCount}" style="${sectionStyle}">SUMMARY</td></tr>`;
+
+            function summaryRow(label, value, highlight) {
+                const vs = highlight
+                    ? `${summaryValStyle} color:#00ff00; font-weight:700; font-size:13px;`
+                    : summaryValStyle;
+                const ls = highlight
+                    ? `${summaryLabelStyle} color:#00ff00; font-weight:700; font-size:13px;`
+                    : summaryLabelStyle;
+                return `<tr>
+                    <td style="${ls}">${label}</td>
+                    <td colspan="4" style="${summaryValStyle}"></td>
+                    <td style="${vs}">${fmtD(value)}</td>
+                </tr>`;
+            }
+
+            html += summaryRow('KIE Total Cost', kieTotalCost);
+            html += summaryRow('KIE G&A', kieTotalGna);
+            html += summaryRow('KIE Revenue', kieTotalRevenue);
+            html += summaryRow('KIE Margin', kieTotalMargin);
+
+            if (grandSubTotalRevenue > 0) {
+                html += summaryRow('Sub Revenue', grandSubTotalRevenue);
+                html += summaryRow('Sub Margin', grandSubTotalMargin);
+            }
+
+            const contingencyRevenue = parseDollar(document.getElementById('contingency-total-revenue'));
+            const escalationRevenue = parseDollar(document.getElementById('escalation-total-revenue'));
+            if (contingencyRevenue > 0) html += summaryRow('Contingency', contingencyRevenue);
+            if (escalationRevenue > 0) html += summaryRow('Escalation', escalationRevenue);
+
+            const grandRevenue = kieTotalRevenue + grandSubTotalRevenue + contingencyRevenue + escalationRevenue;
+            html += `<tr style="border-top:2px solid #00ff00;">`;
+            html += summaryRow('TOTAL REVENUE', grandRevenue, true);
+
+            html += '</tbody></table>';
+
+            // ==================== RENDER AS MODAL POPUP ====================
+            const overlay = document.createElement('div');
+            overlay.id = 'conform-estimate-overlay';
+            overlay.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:10000; display:flex; justify-content:center; align-items:center;';
+            overlay.innerHTML = `
+                <div style="background:#1a1a1a; border:2px solid #ffd700; border-radius:8px; padding:20px; max-width:900px; width:95%; max-height:85vh; overflow-y:auto; color:#e0e0e0; box-shadow:0 8px 32px rgba(0,0,0,0.6);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                        <h3 style="margin:0; font-size:16px; color:#ffd700; letter-spacing:1px;">CONFORM ESTIMATE BREAKDOWN</h3>
+                        <button onclick="document.getElementById('conform-estimate-overlay').remove()" style="background:none; border:1px solid #ffd700; color:#ffd700; padding:4px 12px; border-radius:4px; cursor:pointer; font-size:12px; font-weight:700;">✕ Close</button>
+                    </div>
+                    ${html}
+                </div>
+            `;
+            document.body.appendChild(overlay);
+            overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+        }
+
+        // ============================================
+        // COMMENTS / FEEDBACK FORM
+        // ============================================
+
+        const COMMENTS_STORAGE_KEY = 'wbs_estimate_comments';
+
+        function getStoredComments() {
+            try {
+                return JSON.parse(localStorage.getItem(COMMENTS_STORAGE_KEY) || '[]');
+            } catch { return []; }
+        }
+
+        function saveComments(comments) {
+            localStorage.setItem(COMMENTS_STORAGE_KEY, JSON.stringify(comments));
+        }
+
+        function toggleCommentPanel() {
+            const panel = document.getElementById('comment-panel');
+            if (!panel) return;
+            if (panel.style.display !== 'none') {
+                panel.style.display = 'none';
+                return;
+            }
+            renderCommentPanel();
+            panel.style.display = 'block';
+        }
+
+        function renderCommentPanel() {
+            const panel = document.getElementById('comment-panel');
+            if (!panel) return;
+
+            const projectName = projectData.projectInfo?.projectName || 'Untitled Project';
+            const currentTab = currentEstimateMode === 'benchmark' ? 'Step 1: Benchmark Estimate'
+                : currentEstimateMode === 'subs-detail' ? 'Step 2: Detailed Estimate with Subs'
+                : 'Step 3: Detailed Estimate';
+
+            const comments = getStoredComments();
+            const historyHtml = comments.length > 0
+                ? comments.map((c, i) => `
+                    <div style="background:#f9f9f5; border:1px solid #d4c98e; border-radius:4px; padding:8px 10px; margin-bottom:6px; position:relative;">
+                        <div style="font-size:10px; color:#888; margin-bottom:4px;">${c.date} | ${c.step} | by ${escapeHtml(c.name)}</div>
+                        <div style="font-size:12px; color:#333;">${escapeHtml(c.text)}</div>
+                        <span style="position:absolute; top:4px; right:8px; cursor:pointer; color:#999; font-size:11px;" onclick="deleteComment(${i})" title="Delete">x</span>
+                        <span style="font-size:9px; color:${c.sent ? '#2e7d32' : '#e65100'}; margin-top:4px; display:block;">${c.sent ? 'Sent' : 'Saved locally'}</span>
+                    </div>
+                `).join('')
+                : '<p style="color:#999; font-size:11px; font-style:italic;">No comments yet.</p>';
+
+            panel.innerHTML = `
+                <div style="background:#fffef5; border:1px solid #d4c98e; border-radius:6px; padding:14px; color:#333;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <h4 style="margin:0; font-size:13px; color:#8b7d3c; letter-spacing:0.5px;">COMMENTS</h4>
+                        <span style="font-size:10px; color:#999;">Project: ${escapeHtml(projectName)} | ${currentTab}</span>
+                    </div>
+
+                    <div style="display:flex; gap:10px; margin-bottom:8px;">
+                        <div style="flex:1;">
+                            <label style="font-size:10px; color:#8b7d3c; font-weight:700; display:block; margin-bottom:3px;">YOUR NAME</label>
+                            <input type="text" id="comment-author" placeholder="Enter your name" style="width:100%; padding:5px 8px; font-size:11px; background:#fff; color:#333; border:1px solid #d4c98e; border-radius:3px; box-sizing:border-box;">
+                        </div>
+                        <div style="flex:1;">
+                            <label style="font-size:10px; color:#8b7d3c; font-weight:700; display:block; margin-bottom:3px;">STEP / SECTION</label>
+                            <select id="comment-step" style="width:100%; padding:5px 8px; font-size:11px; background:#fff; color:#333; border:1px solid #d4c98e; border-radius:3px;">
+                                <option value="Step 1: Benchmark Estimate" ${currentEstimateMode === 'benchmark' ? 'selected' : ''}>Step 1: Benchmark Estimate</option>
+                                <option value="Step 2: Detailed Estimate with Subs" ${currentEstimateMode === 'subs-detail' ? 'selected' : ''}>Step 2: Detailed Estimate with Subs</option>
+                                <option value="Step 3: Detailed Estimate" ${currentEstimateMode === 'detailed' ? 'selected' : ''}>Step 3: Detailed Estimate</option>
+                                <option value="General">General</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="margin-bottom:8px;">
+                        <label style="font-size:10px; color:#8b7d3c; font-weight:700; display:block; margin-bottom:3px;">COMMENT</label>
+                        <textarea id="comment-text" rows="3" placeholder="Enter your comment, question, or feedback..." style="width:100%; padding:5px 8px; font-size:11px; background:#fff; color:#333; border:1px solid #d4c98e; border-radius:3px; resize:vertical; box-sizing:border-box; font-family:inherit;"></textarea>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <button onclick="submitComment()" style="background:#ffd700; color:#000; border:none; padding:6px 16px; border-radius:4px; cursor:pointer; font-size:11px; font-weight:700;">Send Comment</button>
+                        <span id="comment-status" style="font-size:10px;"></span>
+                    </div>
+
+                    ${comments.length > 0 ? `
+                        <div style="margin-top:12px; border-top:1px solid #d4c98e; padding-top:8px;">
+                            <h5 style="font-size:11px; color:#8b7d3c; margin:0 0 6px;">Comment History</h5>
+                            <div id="comment-history" style="max-height:200px; overflow-y:auto;">${historyHtml}</div>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        // Keep legacy modal for backwards compat
+        function openCommentForm() { toggleCommentPanel(); }
+
+        function submitComment() {
+            const nameEl = document.getElementById('comment-author');
+            const stepEl = document.getElementById('comment-step');
+            const textEl = document.getElementById('comment-text');
+            const statusEl = document.getElementById('comment-status');
+            if (!nameEl || !textEl) return;
+
+            const name = nameEl.value.trim();
+            const step = stepEl?.value || 'General';
+            const text = textEl.value.trim();
+
+            if (!name) { statusEl.textContent = 'Please enter your name.'; statusEl.style.color = '#ff4444'; return; }
+            if (!text) { statusEl.textContent = 'Please enter a comment.'; statusEl.style.color = '#ff4444'; return; }
+
+            const projectName = projectData.projectInfo?.projectName || 'Untitled Project';
+            const now = new Date();
+            const dateStr = now.toLocaleString();
+
+            // Build email
+            const subject = encodeURIComponent(`[WBS Comment] ${projectName} - ${step}`);
+            const body = encodeURIComponent(
+                `Project: ${projectName}\n` +
+                `Step: ${step}\n` +
+                `From: ${name}\n` +
+                `Date: ${dateStr}\n` +
+                `---\n\n` +
+                `${text}\n`
+            );
+            const recipient = [118, 105, 110, 105, 116, 97, 46, 119, 97, 103, 104, 64, 107, 105, 101, 119, 105, 116, 46, 99, 111, 109].map(c => String.fromCharCode(c)).join('');
+
+            // Save locally
+            const comments = getStoredComments();
+            const comment = { name, step, text, date: dateStr, sent: true };
+            comments.unshift(comment);
+            saveComments(comments);
+
+            // Open mailto
+            window.open(`mailto:${recipient}?subject=${subject}&body=${body}`, '_self');
+
+            statusEl.textContent = 'Comment saved & email opened!';
+            statusEl.style.color = '#4caf50';
+            textEl.value = '';
+
+            // Refresh history
+            setTimeout(() => openCommentForm(), 500);
+        }
+
+        function deleteComment(idx) {
+            const comments = getStoredComments();
+            if (idx >= 0 && idx < comments.length) {
+                comments.splice(idx, 1);
+                saveComments(comments);
+                // Refresh the form
+                openCommentForm();
+                openCommentForm();
+            }
+        }
+
+        // ============================================
         // Sub-Consultant Management per Discipline
         // ============================================
         // Stores sub-consultant data per discipline: { discId: [{name, pctWork, fixedExpenses}] }
@@ -10603,10 +11057,17 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             const disciplineName = config ? config.name : discId;
             const existing = disciplineSubs[discId] || [];
             const defaultMultiplier = parseFloat(document.getElementById('calc-sub-multiplier')?.value) || 3.0;
+            const defaultMarginPct = parseFloat(document.getElementById('calc-sub-markup')?.value) || 5;
             const resources = getDisciplineResources(config ? config.name : 'Roadway');
             const defaultJrRate = resources.lowRate;
             const defaultSrRate = resources.highRate;
-            const subs = existing.length > 0 ? existing.map(s => ({...s})) : [{name: '', code: '', pctWork: '', multiplier: defaultMultiplier, fixedExpenses: '', jrRate: defaultJrRate, srRate: defaultSrRate}];
+            const state = mhEstimateState.disciplines[discId];
+            const totalMh = state?.mh || 0;
+            const subs = existing.length > 0 ? existing.map(s => ({...s})) : [{name: '', code: '', pctWork: '', multiplier: defaultMultiplier, marginPct: defaultMarginPct, fixedExpenses: '', expenseMarkup: true, jrRate: defaultJrRate, srRate: defaultSrRate, subEstimate: ''}];
+
+            // Store discId and totalMh on window for back-calc access
+            window._subPopupDiscId = discId;
+            window._subPopupTotalMh = totalMh;
 
             const projectSubsAvailable = getProjectSubOptions().length > 0;
             const noSubsMsg = !projectSubsAvailable ? '<p style="font-size:10px;color:#c44;margin:0 0 8px;">No subs selected for this project yet. Use the "Anticipated Sub-Consultants" picker above the table first.</p>' : '';
@@ -10619,7 +11080,10 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
                         <td><input type="number" id="sub-mult-${i}" value="${s.multiplier ?? defaultMultiplier}" placeholder="${defaultMultiplier}" min="0" max="10" step="0.1" style="width:60px;"></td>
                         <td><input type="number" id="sub-jr-${i}" value="${s.jrRate ?? defaultJrRate}" placeholder="${defaultJrRate}" min="0" step="0.01" style="width:70px;"></td>
                         <td><input type="number" id="sub-sr-${i}" value="${s.srRate ?? defaultSrRate}" placeholder="${defaultSrRate}" min="0" step="0.01" style="width:70px;"></td>
+                        <td><input type="number" id="sub-estimate-${i}" value="${s.subEstimate || ''}" placeholder="Sub quote" min="0" step="1000" style="width:90px;" onchange="backCalcSubRate(${i})"></td>
                         <td><input type="number" id="sub-exp-${i}" value="${s.fixedExpenses}" placeholder="0" min="0" step="100" style="width:80px;"></td>
+                        <td><input type="number" id="sub-margin-${i}" value="${s.marginPct ?? defaultMarginPct}" placeholder="${defaultMarginPct}" min="0" max="100" step="0.5" style="width:60px;"></td>
+                        <td style="text-align:center;"><input type="checkbox" id="sub-exp-markup-${i}" ${s.expenseMarkup ? 'checked' : ''} title="Apply sub markup to expenses"></td>
                         <td><span class="btn-remove-row" onclick="removeSubRow('${discId}', ${i})">✕</span></td>
                     </tr>
                 `).join('');
@@ -10631,7 +11095,7 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             overlay.innerHTML = `
                 <div class="sub-popup">
                     <h3>Sub-Consultants — ${disciplineName}</h3>
-                    <p style="font-size:10px;color:#888;margin:0 0 8px;">Multiplier default from Design Metrics: ${defaultMultiplier.toFixed(2)}x</p>
+                    <p style="font-size:10px;color:#888;margin:0 0 8px;">Multiplier default: ${defaultMultiplier.toFixed(2)}x | Sub Margin default: ${defaultMarginPct}% | Discipline MH: ${totalMh.toLocaleString()}</p>
                     ${noSubsMsg}
                     <table class="sub-popup-table">
                         <thead>
@@ -10641,7 +11105,10 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
                                 <th style="width:70px;">Multiplier</th>
                                 <th style="width:80px;">Base Rate ($/hr)</th>
                                 <th style="width:80px;">Uplift Rate ($/hr)</th>
+                                <th style="width:100px;">Sub Estimate ($)</th>
                                 <th style="width:90px;">Fixed Expenses ($)</th>
+                                <th style="width:90px;">Margin on Sub Labor (%)</th>
+                                <th style="width:50px;">Markup on Exp</th>
                                 <th style="width:30px;"></th>
                             </tr>
                         </thead>
@@ -10649,6 +11116,7 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
                             ${renderRows()}
                         </tbody>
                     </table>
+                    <p id="sub-popup-backcalc-note" style="font-size:9px;color:#888;margin:4px 0 0;">Enter a Sub Estimate to back-calculate the hourly rate (assumes same rate for L1-3 and L4+)</p>
                     <div class="sub-popup-actions">
                         <button class="btn-add-row" onclick="addSubRowToPopup('${discId}')">+ Add Row</button>
                         <div style="display:flex;gap:8px;">
@@ -10662,11 +11130,52 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             overlay.onclick = function(e) { if (e.target === overlay) closeSubPopup(); };
         }
 
+        /**
+         * Back-calculate hourly rate from a sub-provided estimate.
+         * Sub Estimate = Sub MH × Rate × Multiplier
+         * Rate = Sub Estimate / (Sub MH × Multiplier)
+         * Sets both Base Rate and Uplift Rate to the same value.
+         */
+        function backCalcSubRate(idx) {
+            const estimateEl = document.getElementById(`sub-estimate-${idx}`);
+            const pctEl = document.getElementById(`sub-pct-${idx}`);
+            const multEl = document.getElementById(`sub-mult-${idx}`);
+            const jrEl = document.getElementById(`sub-jr-${idx}`);
+            const srEl = document.getElementById(`sub-sr-${idx}`);
+            if (!estimateEl || !pctEl || !multEl || !jrEl || !srEl) return;
+
+            const estimate = parseFloat(estimateEl.value) || 0;
+            if (estimate <= 0) return;
+
+            const pctWork = parseFloat(pctEl.value) || 0;
+            const multiplier = parseFloat(multEl.value) || 3.0;
+            const totalMh = window._subPopupTotalMh || 0;
+            const subMh = Math.round(totalMh * pctWork / 100);
+
+            if (subMh <= 0 || multiplier <= 0) {
+                alert('Enter % Work first so Sub MH can be calculated.');
+                return;
+            }
+
+            // Sub Estimate = Raw Labor × Multiplier = (Sub MH × Rate) × Multiplier
+            // Rate = Sub Estimate / (Sub MH × Multiplier)
+            const rate = estimate / (subMh * multiplier);
+            const roundedRate = Math.round(rate * 100) / 100;
+
+            jrEl.value = roundedRate;
+            srEl.value = roundedRate;
+            // Flash green to indicate back-calc happened
+            jrEl.style.borderColor = '#4caf50';
+            srEl.style.borderColor = '#4caf50';
+            setTimeout(() => { jrEl.style.borderColor = ''; srEl.style.borderColor = ''; }, 2000);
+        }
+
         function addSubRowToPopup(discId) {
             const tbody = document.getElementById('sub-popup-rows');
             if (!tbody) return;
             const idx = tbody.rows.length;
             const defaultMult = parseFloat(document.getElementById('calc-sub-multiplier')?.value) || 3.0;
+            const defaultMarginPct = parseFloat(document.getElementById('calc-sub-markup')?.value) || 5;
             const config = DISCIPLINE_CONFIG[discId];
             const resources = getDisciplineResources(config ? config.name : 'Roadway');
             const tr = document.createElement('tr');
@@ -10676,7 +11185,10 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
                 <td><input type="number" id="sub-mult-${idx}" value="${defaultMult}" placeholder="${defaultMult}" min="0" max="10" step="0.1" style="width:60px;"></td>
                 <td><input type="number" id="sub-jr-${idx}" value="${resources.lowRate}" placeholder="${resources.lowRate}" min="0" step="0.01" style="width:70px;"></td>
                 <td><input type="number" id="sub-sr-${idx}" value="${resources.highRate}" placeholder="${resources.highRate}" min="0" step="0.01" style="width:70px;"></td>
+                <td><input type="number" id="sub-estimate-${idx}" value="" placeholder="Sub quote" min="0" step="1000" style="width:90px;" onchange="backCalcSubRate(${idx})"></td>
                 <td><input type="number" id="sub-exp-${idx}" value="" placeholder="0" min="0" step="100" style="width:80px;"></td>
+                <td><input type="number" id="sub-margin-${idx}" value="${defaultMarginPct}" placeholder="${defaultMarginPct}" min="0" max="100" step="0.5" style="width:60px;"></td>
+                <td style="text-align:center;"><input type="checkbox" id="sub-exp-markup-${idx}" checked title="Apply sub markup to expenses"></td>
                 <td><span class="btn-remove-row" onclick="this.closest('tr').remove()">✕</span></td>
             `;
             tbody.appendChild(tr);
@@ -10696,24 +11208,36 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
         function saveSubPopup(discId) {
             const tbody = document.getElementById('sub-popup-rows');
             if (!tbody) return;
+            const defaultMarginPct = parseFloat(document.getElementById('calc-sub-markup')?.value) || 5;
             const subs = [];
             for (let i = 0; i < tbody.rows.length; i++) {
-                const selectEl = tbody.rows[i].querySelector('select');
-                const numInputs = tbody.rows[i].querySelectorAll('input[type="number"]');
+                const row = tbody.rows[i];
+                const selectEl = row.querySelector('select');
+                const numInputs = row.querySelectorAll('input[type="number"]');
+                const checkboxEl = row.querySelector('input[type="checkbox"]');
                 const name = (selectEl?.value || '').trim();
                 const code = selectEl?.selectedOptions[0]?.dataset?.code || '';
                 const pctWork = parseFloat(numInputs[0]?.value) || 0;
                 const multiplier = parseFloat(numInputs[1]?.value) || 3.0;
                 const jrRate = parseFloat(numInputs[2]?.value) || 0;
                 const srRate = parseFloat(numInputs[3]?.value) || 0;
-                const fixedExpenses = parseFloat(numInputs[4]?.value) || 0;
+                const subEstimate = parseFloat(numInputs[4]?.value) || 0;
+                const fixedExpenses = parseFloat(numInputs[5]?.value) || 0;
+                const marginPct = parseFloat(numInputs[6]?.value) || defaultMarginPct;
+                const expenseMarkup = checkboxEl?.checked || false;
                 if (name) {
-                    subs.push({ name, code, pctWork, multiplier, jrRate, srRate, fixedExpenses });
+                    subs.push({ name, code, pctWork, multiplier, jrRate, srRate, subEstimate, fixedExpenses, marginPct, expenseMarkup });
                 }
             }
             disciplineSubs[discId] = subs;
             closeSubPopup();
+            // Recalculate costs for this discipline (updates raw labor, burden, margin, G&A, sub costs)
+            recalculateUnifiedCosts(discId);
+            // Recalculate all summary rows (DIRECTS totals, LABOR totals, Grand Total)
+            updateUnifiedSummary();
+            // Render the KIE/sub detail rows in Step 2
             renderSubRows(discId);
+            saveToLocalStorage();
         }
 
         /**
@@ -10755,7 +11279,7 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             const l4Pct = (state?.l4Percentage !== undefined ? state.l4Percentage : getGlobalComplexityPct());
             const lowPct = (100 - l4Pct) / 100;
             const highPct = l4Pct / 100;
-            const burdenRate = parseFloat(document.getElementById('calc-burden-rate')?.value) || 0;
+            const burdenRate = parseFloat(document.getElementById('unified-burden')?.value) || 66;
             const subMarkupPct = parseFloat(document.getElementById('calc-sub-markup')?.value) || 5;
 
             // Calculate KIE's remaining %
@@ -10815,14 +11339,21 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
                 // Use sub-specific rates if set, otherwise fall back to KIE rates
                 const subJrRate = sub.jrRate || resources.lowRate;
                 const subSrRate = sub.srRate || resources.highRate;
+                // Raw Labor = lower rate × lower hours + higher rate × higher hours
                 const subRawLabor = subMh * lowPct * subJrRate + subMh * highPct * subSrRate;
-                // No burden on subs
-                const subTotalCost = subRawLabor * mult;
-                const subMargin = subTotalCost * (subMarkupPct / 100);
-                const subRevenue = subTotalCost + subMargin + (sub.fixedExpenses || 0);
+                // Sub Cost = Raw Labor × Multiplier (no burden on subs)
+                const subCost = subRawLabor * mult;
+                // Per-sub margin % (falls back to global sub markup %)
+                const thisMarginPct = (sub.marginPct !== undefined && sub.marginPct !== null) ? sub.marginPct : subMarkupPct;
+                const expenses = sub.fixedExpenses || 0;
+                // If expense markup checkbox is on, margin applies to expenses too
+                const marginBase = sub.expenseMarkup ? (subCost + expenses) : subCost;
+                const subMargin = marginBase * (thisMarginPct / 100);
+                // Total Revenue = Sub Cost + Margin + Expenses
+                const subRevenue = subCost + subMargin + expenses;
                 const subRow = buildDetailRow(`↳ ${sub.name} (${sub.pctWork}%, ${mult}x)`, {
                     mh: subMh, rawLabor: subRawLabor, burden: 0,
-                    expenses: sub.fixedExpenses || 0, totalCost: subTotalCost,
+                    expenses: expenses, totalCost: subCost,
                     margin: subMargin, revenue: subRevenue
                 }, 'sub-consultant-row');
                 insertAfter.parentNode.insertBefore(subRow, insertAfter.nextSibling);
@@ -11183,7 +11714,7 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
                     'esdc': 'ESDC', 'tscd': 'TSCD'
                 };
                 const name = discNames[discId] || discId;
-                logAIChange('unified-complexity', name + ': ' + oldPct + '%', name + ': ' + pct + '%', 'Applied');
+                logAIChange('unified-complexity-' + discId, name + ': ' + oldPct + '%', name + ': ' + pct + '%', 'Applied');
             }
 
             // If Step 2 is active, re-clone the updated table
@@ -11827,25 +12358,51 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             // Calculate and display per-discipline Sub costs
             // ESDC/TSCD have no subs
             if (discId !== 'esdc' && discId !== 'tscd') {
-                const subPctDisp = (state.subsPct || 0) / 100;
-                const subMHDisp = Math.round((state.mh || 0) * subPctDisp);
-                // Use per-discipline sub rate if manually provided; otherwise use per-role rates (L4+ × highRate + L1-3 × lowRate)
-                let subLaborDisp;
-                if (state.subRate != null && state.subRate > 0) {
-                    subLaborDisp = subMHDisp * state.subRate;
-                } else {
-                    const subL4Hours = Math.round(subMHDisp * highPct);
-                    const subL13Hours = subMHDisp - subL4Hours;
-                    subLaborDisp = (subL4Hours * effectiveResources.highRate) + (subL13Hours * effectiveResources.lowRate);
-                }
-                const subGenExpenses = 0; // general sub expenses placeholder
-                const subLsExpenses = 0;  // LS sub expenses at section level, not per-discipline
-                const subTotalCostDisp = subLaborDisp + subGenExpenses + subLsExpenses;
-                // Sub Revenue = Sub Labor × Sub Multiplier
                 const discSubMultiplier = parseFloat(document.getElementById('calc-sub-multiplier')?.value) || 3.0;
                 const discSubMarkupPct = parseFloat(document.getElementById('calc-sub-markup')?.value) || 5;
-                const subRevenueDisp = subLaborDisp * discSubMultiplier;
-                const subMarkupDisp = subRevenueDisp * (discSubMarkupPct / 100);
+                const discSubs = disciplineSubs[discId];
+                let subLaborDisp = 0;
+                let subGenExpenses = 0;
+                let subTotalCostDisp = 0;
+                let subRevenueDisp = 0;
+                let subMarkupDisp = 0;
+
+                if (discSubs && discSubs.length > 0) {
+                    // Aggregate from per-sub detail data
+                    const totalMh = state.mh || 0;
+                    for (const sub of discSubs) {
+                        const subMh = Math.round(totalMh * sub.pctWork / 100);
+                        const subJrRate = sub.jrRate || effectiveResources.lowRate;
+                        const subSrRate = sub.srRate || effectiveResources.highRate;
+                        const rawLabor = subMh * ((100 - l4Pct) / 100) * subJrRate + subMh * (l4Pct / 100) * subSrRate;
+                        const mult = sub.multiplier || discSubMultiplier;
+                        const subCost = rawLabor * mult;
+                        const expenses = sub.fixedExpenses || 0;
+                        const thisMarginPct = (sub.marginPct !== undefined && sub.marginPct !== null) ? sub.marginPct : discSubMarkupPct;
+                        const marginBase = sub.expenseMarkup ? (subCost + expenses) : subCost;
+                        const margin = marginBase * (thisMarginPct / 100);
+
+                        subLaborDisp += rawLabor;
+                        subGenExpenses += expenses;
+                        subTotalCostDisp += subCost;
+                        subMarkupDisp += margin;
+                        subRevenueDisp += subCost + margin + expenses;
+                    }
+                } else {
+                    // Fallback: use sub % from Step 1
+                    const subPctDisp = (state.subsPct || 0) / 100;
+                    const subMHDisp = Math.round((state.mh || 0) * subPctDisp);
+                    if (state.subRate != null && state.subRate > 0) {
+                        subLaborDisp = subMHDisp * state.subRate;
+                    } else {
+                        const subL4Hours = Math.round(subMHDisp * highPct);
+                        const subL13Hours = subMHDisp - subL4Hours;
+                        subLaborDisp = (subL4Hours * effectiveResources.highRate) + (subL13Hours * effectiveResources.lowRate);
+                    }
+                    subTotalCostDisp = subLaborDisp * discSubMultiplier;
+                    subMarkupDisp = subTotalCostDisp * (discSubMarkupPct / 100);
+                    subRevenueDisp = subTotalCostDisp + subMarkupDisp;
+                }
 
                 state.subLabor = subLaborDisp;
                 state.subGenExpenses = subGenExpenses;
@@ -11858,7 +12415,7 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
                 const subGenExpElem = document.getElementById(`unified-sub-gen-expenses-${discId}`);
                 if (subGenExpElem) subGenExpElem.textContent = '$' + Math.round(subGenExpenses).toLocaleString('en-US');
                 const subExpensesElem = document.getElementById(`unified-sub-expenses-${discId}`);
-                if (subExpensesElem) subExpensesElem.textContent = '$' + Math.round(subLsExpenses).toLocaleString('en-US');
+                if (subExpensesElem) subExpensesElem.textContent = '$0';
                 const subTotalCostElem = document.getElementById(`unified-sub-total-cost-${discId}`);
                 if (subTotalCostElem) subTotalCostElem.textContent = '$' + Math.round(subTotalCostDisp).toLocaleString('en-US');
                 const subRevenueElem = document.getElementById(`unified-sub-revenue-${discId}`);
@@ -12878,12 +13435,12 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             const grandTotalBurden = kieLaborBurden + subsBurden + contingencyBurden + (esdcCalc?.burden || 0) + (tscdCalc?.burden || 0) + escalationBurden;
             const grandTotalGna = kieLaborGna + subsGna + contingencyGna + (esdcCalc?.gna || 0) + (tscdCalc?.gna || 0) + escalationGna;
             const grandTotalMargin = kieLaborMargin + subsMargin + contingencyMargin + (esdcCalc?.margin || 0) + (tscdCalc?.margin || 0) + escalationMarginValue;
-            // Expenses: KIE labor expenses + IPC + ODCs + LS sub expenses (survey/subsurface/geotech)
-            const grandTotalExpenses = kieLaborExpenses + ipcExpenses + odcsExpenses + subsExpenses;
-            // SUBS revenue = sub labor (rawLabor × subMultiplier) + sub markup + sub expenses
+            // Pursuit: expense/fee line (no labor)
             const pursuitPct = parseFloat(document.getElementById('pursuit-pct-input')?.value) || 0.25;
             const ipv = parseFloat(String(document.getElementById('calc-est-construction-cost')?.value || '').replace(/[$,]/g, '')) || 0;
             const pursuitRevenue = ipv * (pursuitPct / 100);
+            // Expenses: KIE labor expenses + IPC + ODCs + LS sub expenses (survey/subsurface/geotech) + Pursuit
+            const grandTotalExpenses = kieLaborExpenses + ipcExpenses + odcsExpenses + subsExpenses + pursuitRevenue;
             const grandTotalRevenue = kieLaborTotalLabor + subsRevenue + contingencyTotalRevenue + (esdcCalc?.revenue || 0) + (tscdCalc?.revenue || 0) + ipcExpenses + odcsExpenses + escalationRevenue + pursuitRevenue;
             // Total Cost = Raw Labor + Burden + Expenses
             const grandTotalCost = grandTotalRawLabor + grandTotalBurden + grandTotalExpenses;
@@ -12898,9 +13455,13 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             const grandMarginEl = document.getElementById('grand-total-margin');
             const grandExpensesEl = document.getElementById('grand-total-expenses');
 
-            // Update Pursuit row revenue display
+            // Update Pursuit row — revenue, expenses, and total cost
             const pursuitRevEl = document.getElementById('pursuit-total-revenue');
             if (pursuitRevEl) pursuitRevEl.textContent = '$' + Math.round(pursuitRevenue).toLocaleString('en-US');
+            const pursuitExpEl = document.getElementById('pursuit-total-expenses');
+            if (pursuitExpEl) pursuitExpEl.textContent = '$' + Math.round(pursuitRevenue).toLocaleString('en-US');
+            const pursuitCostEl = document.getElementById('pursuit-total-cost');
+            if (pursuitCostEl) pursuitCostEl.textContent = '$' + Math.round(pursuitRevenue).toLocaleString('en-US');
 
             if (grandMhEl) grandMhEl.textContent = formatMH(grandTotalMH);
             if (grandRevenueEl) grandRevenueEl.textContent = '$' + Math.round(grandTotalRevenue).toLocaleString('en-US');
@@ -13122,48 +13683,42 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
         /**
          * Enable column resizing with drag handles
          */
-        function enableColumnResizing() {
-            const table = document.getElementById('unified-estimate-table');
+        function enableColumnResizingForTable(table) {
             if (!table) return;
-
             const headers = table.querySelectorAll('thead th');
-
-            headers.forEach((th, index) => {
-                // Skip the toggle button column
+            headers.forEach((th) => {
                 if (th.classList.contains('mh-toggle-header')) return;
-
-                // Add resize handle
+                // Skip if already has resize handle
+                if (th.querySelector('.resize-handle')) return;
                 const resizeHandle = document.createElement('div');
                 resizeHandle.className = 'resize-handle';
                 th.appendChild(resizeHandle);
-
                 let startX, startWidth;
-
                 resizeHandle.addEventListener('mousedown', (e) => {
                     e.preventDefault();
                     startX = e.pageX;
                     startWidth = th.offsetWidth;
-
                     table.classList.add('resizing');
-
                     const mouseMoveHandler = (e) => {
                         const diff = e.pageX - startX;
-                        const newWidth = Math.max(30, startWidth + diff); // Min width 30px
+                        const newWidth = Math.max(30, startWidth + diff);
                         th.style.width = newWidth + 'px';
                         th.style.minWidth = newWidth + 'px';
                         th.style.maxWidth = newWidth + 'px';
                     };
-
                     const mouseUpHandler = () => {
                         table.classList.remove('resizing');
                         document.removeEventListener('mousemove', mouseMoveHandler);
                         document.removeEventListener('mouseup', mouseUpHandler);
                     };
-
                     document.addEventListener('mousemove', mouseMoveHandler);
                     document.addEventListener('mouseup', mouseUpHandler);
                 });
             });
+        }
+
+        function enableColumnResizing() {
+            enableColumnResizingForTable(document.getElementById('unified-estimate-table'));
         }
 
         /**
@@ -13193,9 +13748,14 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
                     if (allRateEl && result.allRate != null) allRateEl.textContent = formatRate(result.allRate, unit);
                     const wideOpenEl = document.getElementById(`unified-wide-open-mh-${discId}`);
                     const customMHEl = document.getElementById(`unified-custom-mh-${discId}`);
-                    const wideOpenRate = (state.allRate != null ? state.allRate : result.allRate || 0);
-                    if (wideOpenEl) wideOpenEl.textContent = formatMH(Math.round(state.quantity * wideOpenRate));
-                    if (customMHEl) customMHEl.textContent = formatMH(result.mh);
+                    if (DISCIPLINE_CONFIG[discId]?.calculationType !== 'matrix') {
+                        const wideOpenRate = (state.allRate != null ? state.allRate : result.allRate || 0);
+                        if (wideOpenEl) wideOpenEl.textContent = formatMH(Math.round(state.quantity * wideOpenRate));
+                        if (customMHEl) customMHEl.textContent = formatMH(result.mh);
+                    } else {
+                        if (wideOpenEl) wideOpenEl.textContent = '—';
+                        if (customMHEl) customMHEl.textContent = '—';
+                    }
 
                     // Update complexity breakdown
                     updateComplexityBreakdown(discId);
@@ -13345,17 +13905,18 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
          * Toggle visibility of discipline rows under Directs
          */
         function toggleDirectsRows() {
-            const tbody = document.getElementById('unified-estimate-tbody');
-            const icon = document.getElementById('directs-toggle-icon');
-
-            if (tbody.classList.contains('hidden')) {
-                // Expand - show all disciplines
-                tbody.classList.remove('hidden');
-                icon.textContent = '▼';
-            } else {
-                // Collapse - hide disciplines
-                tbody.classList.add('hidden');
-                icon.textContent = '▶';
+            // Toggle in both Step 1 and Step 2 tables
+            for (const prefix of ['', 'subs-']) {
+                const tbody = document.getElementById(prefix + 'unified-estimate-tbody');
+                const icon = document.getElementById(prefix + 'directs-toggle-icon');
+                if (!tbody || !icon) continue;
+                if (tbody.classList.contains('hidden')) {
+                    tbody.classList.remove('hidden');
+                    icon.textContent = '▼';
+                } else {
+                    tbody.classList.add('hidden');
+                    icon.textContent = '▶';
+                }
             }
         }
 
@@ -13363,21 +13924,24 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
          * Toggle visibility of indirect rows under Indirects
          */
         function toggleIndirectsRows() {
-            const tbody = document.getElementById('unified-indirects-tbody');
-            const icon = document.getElementById('indirects-toggle-icon');
-            const fteWrapper = document.querySelector('.indirects-fte-wrapper');
-            const toggleSwitch = document.querySelector('.indirects-toggle-switch');
-
-            if (tbody.classList.contains('hidden')) {
-                tbody.classList.remove('hidden');
-                icon.textContent = '▼';
-                if (fteWrapper) fteWrapper.style.display = 'inline-flex';
-                if (toggleSwitch) toggleSwitch.style.display = 'inline-block';
-            } else {
-                tbody.classList.add('hidden');
-                icon.textContent = '▶';
-                if (fteWrapper) fteWrapper.style.display = 'none';
-                if (toggleSwitch) toggleSwitch.style.display = 'none';
+            // Toggle in both Step 1 and Step 2 tables
+            for (const prefix of ['', 'subs-']) {
+                const tbody = document.getElementById(prefix + 'unified-indirects-tbody');
+                const icon = document.getElementById(prefix + 'indirects-toggle-icon');
+                if (!tbody || !icon) continue;
+                const fteWrapper = (prefix ? document.getElementById('subs-detail-table') : document)?.querySelector('.indirects-fte-wrapper');
+                const toggleSwitch = (prefix ? document.getElementById('subs-detail-table') : document)?.querySelector('.indirects-toggle-switch');
+                if (tbody.classList.contains('hidden')) {
+                    tbody.classList.remove('hidden');
+                    icon.textContent = '▼';
+                    if (fteWrapper) fteWrapper.style.display = 'inline-flex';
+                    if (toggleSwitch) toggleSwitch.style.display = 'inline-block';
+                } else {
+                    tbody.classList.add('hidden');
+                    icon.textContent = '▶';
+                    if (fteWrapper) fteWrapper.style.display = 'none';
+                    if (toggleSwitch) toggleSwitch.style.display = 'none';
+                }
             }
         }
 
@@ -13386,21 +13950,18 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
          * @param {string} sectionId - ID prefix of the section (e.g., 'ls-subs', 'survey', 'ipc', etc.)
          */
         function toggleSubsRow(sectionId) {
-            const tbody = document.getElementById(`${sectionId}-tbody`);
-            const icon = document.getElementById(`${sectionId}-toggle-icon`);
-
-            if (tbody && icon) {
+            // Toggle in both Step 1 and Step 2 tables
+            for (const prefix of ['', 'subs-']) {
+                const tbody = document.getElementById(prefix + `${sectionId}-tbody`);
+                const icon = document.getElementById(prefix + `${sectionId}-toggle-icon`);
+                if (!tbody || !icon) continue;
                 if (tbody.classList.contains('hidden')) {
-                    // Expand
                     tbody.classList.remove('hidden');
                     icon.textContent = '▼';
                 } else {
-                    // Collapse
                     tbody.classList.add('hidden');
                     icon.textContent = '▶';
                 }
-
-                // Hide/show the % input wrapper when collapsing/expanding
                 const headerRow = icon.closest('tr');
                 const pctWrapper = headerRow?.querySelector('.acc-pct-wrapper');
                 if (pctWrapper) {
@@ -13492,25 +14053,21 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
         }
 
         function toggleKieLaborSection() {
-            // Get the DIRECTS summary row (child of directsHeader tbody)
-            const directsSummaryRow = document.querySelector('#unified-estimate-tbody-header tr.summary-row');
-            const directsTbody = document.getElementById('unified-estimate-tbody');
-            const indirectsSection = document.getElementById('unified-indirects-section');
-            const indirectsTbody = document.getElementById('unified-indirects-tbody');
-            const icon = document.getElementById('kie-labor-toggle-icon');
-
-            if (icon) {
+            for (const prefix of ['', 'subs-']) {
+                const directsSummaryRow = document.querySelector(`#${prefix}unified-estimate-tbody-header tr.summary-row`);
+                const directsTbody = document.getElementById(prefix + 'unified-estimate-tbody');
+                const indirectsSection = document.getElementById(prefix + 'unified-indirects-section');
+                const indirectsTbody = document.getElementById(prefix + 'unified-indirects-tbody');
+                const icon = document.getElementById(prefix + 'kie-labor-toggle-icon');
+                if (!icon) continue;
                 const isCollapsed = directsTbody && directsTbody.classList.contains('hidden');
-
                 if (isCollapsed) {
-                    // Expand - show DIRECTS and INDIRECTS rows
                     if (directsSummaryRow) directsSummaryRow.classList.remove('hidden');
                     if (directsTbody) directsTbody.classList.remove('hidden');
                     if (indirectsSection) indirectsSection.classList.remove('hidden');
                     if (indirectsTbody) indirectsTbody.classList.remove('hidden');
                     icon.textContent = '▼';
                 } else {
-                    // Collapse - hide all subsections, keep only KIE LABOR header visible
                     if (directsSummaryRow) directsSummaryRow.classList.add('hidden');
                     if (directsTbody) directsTbody.classList.add('hidden');
                     if (indirectsSection) indirectsSection.classList.add('hidden');
@@ -13521,35 +14078,22 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
         }
 
         function toggleSubsSection() {
-            const lsSubsSection = document.getElementById('ls-subs-section');
-            const lsSubsTbody = document.getElementById('ls-subs-tbody');
-            const surveySection = document.getElementById('survey-section');
-            const surveyTbody = document.getElementById('survey-tbody');
-            const subsurfaceSection = document.getElementById('subsurface-utility-section');
-            const subsurfaceTbody = document.getElementById('subsurface-utility-tbody');
-            const icon = document.getElementById('subs-section-toggle-icon');
-
-            if (icon) {
+            for (const prefix of ['', 'subs-']) {
+                const lsSubsSection = document.getElementById(prefix + 'ls-subs-section');
+                const lsSubsTbody = document.getElementById(prefix + 'ls-subs-tbody');
+                const surveySection = document.getElementById(prefix + 'survey-section');
+                const surveyTbody = document.getElementById(prefix + 'survey-tbody');
+                const subsurfaceSection = document.getElementById(prefix + 'subsurface-utility-section');
+                const subsurfaceTbody = document.getElementById(prefix + 'subsurface-utility-tbody');
+                const icon = document.getElementById(prefix + 'subs-section-toggle-icon');
+                if (!icon) continue;
                 const isCollapsed = lsSubsSection && lsSubsSection.classList.contains('hidden');
-
-                // Toggle all sub-section rows (LS SUBS, SURVEY, SUBSURFACE UTILITY)
-                const allElements = [
-                    lsSubsSection, lsSubsTbody,
-                    surveySection, surveyTbody,
-                    subsurfaceSection, subsurfaceTbody
-                ];
-
+                const allElements = [lsSubsSection, lsSubsTbody, surveySection, surveyTbody, subsurfaceSection, subsurfaceTbody];
                 if (isCollapsed) {
-                    // Expand - show all subsection rows
-                    allElements.forEach(elem => {
-                        if (elem) elem.classList.remove('hidden');
-                    });
+                    allElements.forEach(elem => { if (elem) elem.classList.remove('hidden'); });
                     icon.textContent = '▼';
                 } else {
-                    // Collapse - hide all subsection rows, keep SUBS header visible with totals
-                    allElements.forEach(elem => {
-                        if (elem) elem.classList.add('hidden');
-                    });
+                    allElements.forEach(elem => { if (elem) elem.classList.add('hidden'); });
                     icon.textContent = '▶';
                 }
             }
@@ -18911,7 +19455,24 @@ Be helpful, friendly, and context-aware. When users are on the Results page, you
             const statusColor = status === 'Applied' ? '#4caf50' : status === 'Denied' ? '#ff4444' : '#e07c3a';
             const statusIcon = status === 'Applied' ? '✅' : status === 'Denied' ? '❌' : '⏳';
 
+            // Only keep the final change per parameter — replace existing row if same paramId
+            let existingRow = tbody.querySelector(`tr[data-param-id="${paramId}"]`);
+            if (existingRow) {
+                // Preserve the original "old" value from the first change
+                const origOld = existingRow.getAttribute('data-original-old') || oldVal;
+                existingRow.innerHTML = `
+                    <td style="padding:3px 6px; border-bottom:1px solid #eee;">${time}</td>
+                    <td style="padding:3px 6px; border-bottom:1px solid #eee; font-weight:600;">${label}</td>
+                    <td style="padding:3px 6px; border-bottom:1px solid #eee;">${origOld}</td>
+                    <td style="padding:3px 6px; border-bottom:1px solid #eee;">${newVal}</td>
+                    <td style="padding:3px 6px; border-bottom:1px solid #eee; color:${statusColor};">${statusIcon} ${status}</td>
+                `;
+                return;
+            }
+
             const tr = document.createElement('tr');
+            tr.setAttribute('data-param-id', paramId);
+            tr.setAttribute('data-original-old', oldVal);
             tr.innerHTML = `
                 <td style="padding:3px 6px; border-bottom:1px solid #eee;">${time}</td>
                 <td style="padding:3px 6px; border-bottom:1px solid #eee; font-weight:600;">${label}</td>
@@ -24169,6 +24730,7 @@ Chunks: ${JSON.stringify(complexFieldsOnly, null, 2)}`;
         window.removeSubRow = removeSubRow;
         window.closeSubPopup = closeSubPopup;
         window.saveSubPopup = saveSubPopup;
+        window.backCalcSubRate = backCalcSubRate;
         window.filterSubConsultants = filterSubConsultants;
         window.showSubDropdown = showSubDropdown;
         window.selectSubConsultant = selectSubConsultant;
@@ -24195,6 +24757,15 @@ Chunks: ${JSON.stringify(complexFieldsOnly, null, 2)}`;
             }
             recalculateAllUnifiedCosts();
         };
+
+        // Conform Estimate
+        window.openConformEstimate = openConformEstimate;
+
+        // Comments
+        window.openCommentForm = openCommentForm;
+        window.toggleCommentPanel = toggleCommentPanel;
+        window.submitComment = submitComment;
+        window.deleteComment = deleteComment;
 
         // Sensitivity analysis modal
         window.openSensitivityModal = openSensitivityModal;
