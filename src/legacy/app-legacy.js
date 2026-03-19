@@ -24931,6 +24931,33 @@ Chunks: ${JSON.stringify(complexFieldsOnly, null, 2)}`;
         window.currentStep = currentStep;
         
         // Info icon popover toggle
+        // KIE Multiplier minimum enforcement
+        function enforceKIEMinimum(input) {
+            const val = parseFloat(input.value);
+            const note = document.getElementById('kie-min-note');
+            if (!isNaN(val) && val < 2.7) {
+                input.style.borderColor = '#e53935';
+                input.style.backgroundColor = '#fff5f5';
+                if (note) note.style.display = 'block';
+                // Clamp to minimum on blur
+                input.onblur = () => {
+                    if (parseFloat(input.value) < 2.7) {
+                        input.value = 2.7;
+                        input.style.borderColor = '';
+                        input.style.backgroundColor = '';
+                        if (note) note.style.display = 'none';
+                        calculateMarginPercent();
+                        recalculateAllUnifiedCosts();
+                    }
+                };
+            } else {
+                input.style.borderColor = '';
+                input.style.backgroundColor = '';
+                if (note) note.style.display = 'none';
+            }
+        }
+        window.enforceKIEMinimum = enforceKIEMinimum;
+
         function toggleInfoPopover(event, iconEl) {
             event.stopPropagation();
             event.preventDefault();
