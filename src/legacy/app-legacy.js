@@ -12112,18 +12112,18 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
 
         /**
          * Apply global complexity setting to all disciplines
-         * Low = 30%, Medium = 60%, High = 90%
+         * Low = 0%, Medium = 60%, High = 90%
          */
         /** Read the current global complexity % from the Management Override dropdown */
         function getGlobalComplexityPct() {
             const sel = document.getElementById('unified-complexity');
-            if (!sel) return 30;
+            if (!sel) return 0;
             const v = sel.value;
             if (v === 'Custom') {
                 const c = parseFloat(document.getElementById('custom-complexity-pct')?.value);
-                return isNaN(c) ? 30 : Math.min(100, Math.max(0, c));
+                return isNaN(c) ? 0 : Math.min(100, Math.max(0, c));
             }
-            return { 'Low': 30, 'Med': 60, 'High': 90 }[v] || 30;
+            return { 'Low': 0, 'Med': 50, 'High': 100 }[v] ?? 0;
         }
 
         function applyGlobalComplexity() {
@@ -12139,7 +12139,7 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
                     toggle.checked = true;
                     toggleComplexityEdit(true);
                 }
-                logAIChange('unified-complexity', 'Low (30%)', complexity + ' (' + getGlobalComplexityPct() + '%)', 'Applied');
+                logAIChange('unified-complexity', 'Typical Job (0%)', complexity + ' (' + getGlobalComplexityPct() + '%)', 'Applied');
             }
 
             // Show/hide custom input
@@ -12150,9 +12150,9 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
 
             // Map complexity to percentage
             const complexityMap = {
-                'Low': 30,
-                'Med': 60,
-                'High': 90
+                'Low': 0,
+                'Med': 50,
+                'High': 100
             };
 
             let defaultPct;
@@ -13775,7 +13775,7 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             }
 
             // Show feedback
-            const complexityMap = { 'Low': '30%', 'Med': '60%', 'High': '90%' };
+            const complexityMap = { 'Low': '0%', 'Med': '50%', 'High': '100%' };
             alert(`✅ Estimated Hours Calculated!\n\nProject Type: ${projectType}\nComplexity: ${complexity} (${complexityMap[complexity]})\n\n⚠️ Please check and update quantities and applicable benchmarks\n\nParameters section minimized - click header to expand.`);
         }
 
@@ -13817,7 +13817,7 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
                 summaryType.textContent = projectType.options[projectType.selectedIndex].text;
 
                 const complexityText = complexity.options[complexity.selectedIndex].text;
-                const complexityMap = { 'Low': '30%', 'Med': '60%', 'High': '90%' };
+                const complexityMap = { 'Low': '0%', 'Med': '50%', 'High': '100%' };
                 summaryComplexity.textContent = `${complexityText} (${complexityMap[complexity.value]})`;
             }
 
@@ -14557,7 +14557,7 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
         if (!ipcEnabled) overrides.push('IPC Fee has been <strong>disabled</strong> (set to $0).');
         if (escalationPct !== 5) overrides.push('Escalation Rate changed from default <strong>5%</strong> to <strong>' + escalationPct + '%</strong>.');
         if (subMarkup !== 5) overrides.push('Sub Markup changed from default <strong>5%</strong> to <strong>' + subMarkup + '%</strong>.');
-        if (complexityVal !== 'Low') overrides.push('Global Complexity changed from default <strong>Low (30%)</strong> to <strong>' + complexityVal + ' (' + getGlobalComplexityPct() + '%)</strong>.');
+        if (complexityVal !== 'Low') overrides.push('Global Complexity changed from default <strong>Typical Job (0%)</strong> to <strong>' + complexityVal + ' (' + getGlobalComplexityPct() + '%)</strong>.');
 
         if (overrides.length === 0) return '';
         return `

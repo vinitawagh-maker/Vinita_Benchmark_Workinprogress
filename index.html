@@ -40,7 +40,7 @@
                         <!-- Ribbon 1: Input Parameters (4 boxes) -->
                         <div class="ribbon ribbon-inputs-row">
                             <div class="ribbon-box">
-                                <label class="ribbon-box-label">Total Project Value (From CRM/Green Sheets)*</label>
+                                <label class="ribbon-box-label" title="This is the total revenue including construction and design">Total Project Value (From CRM/Green Sheets)*</label>
                                 <input type="text" id="calc-est-construction-cost" placeholder="$0.00" inputmode="numeric" title="This is the total revenue including construction and design" onblur="formatAccountingInput(this)" oninput="calculateAssumedConstructionCost()">
                             </div>
                             <div class="ribbon-box">
@@ -118,7 +118,7 @@
                                             <input type="number" id="unified-escalation" value="5" min="0" max="100" step="0.1" disabled style="background-color: #e0e0e0; color: #666; cursor: not-allowed;">
                                         </div>
                                         <div class="input-group">
-                                            <label style="display: flex; align-items: center; gap: 4px;">
+                                            <label style="display: flex; align-items: center; gap: 4px;" title="% Complexity is used to increase the rates of a job in cases where the design is more technically complex or when rates will be higher based on the region where design work is being performed">
                                                 Complexity
                                                 <label class="toggle-switch" title="Toggle to enable editing">
                                                     <input type="checkbox" id="toggle-complexity" onchange="toggleComplexityEdit(this.checked)">
@@ -126,9 +126,9 @@
                                                 </label>
                                             </label>
                                             <select id="unified-complexity" class="input-step" onchange="applyGlobalComplexity()" disabled style="background-color: #e0e0e0; color: #666; cursor: not-allowed;">
-                                                <option value="Low" selected>Default (30%)</option>
-                                                <option value="Med">Medium (60%)</option>
-                                                <option value="High">High (90%)</option>
+                                                <option value="Low" selected>Typical Job (0%)</option>
+                                                <option value="Med">Moderate Regional/Technical Uplift (50%)</option>
+                                                <option value="High">High Regional/Technical Uplift (100%)</option>
                                                 <option value="Custom">Custom (%)</option>
                                             </select>
                                             <input type="number" id="custom-complexity-pct" min="0" max="100" step="1" placeholder="Enter %" value="50"
@@ -164,16 +164,6 @@
                                                 </label>
                                             </label>
                                             <input type="number" id="calc-sub-markup" placeholder="5" value="5" min="0" max="100" step="0.1" disabled style="background-color: #e0e0e0; color: #666; cursor: not-allowed;">
-                                        </div>
-                                        <div class="input-group">
-                                            <label style="display: flex; align-items: center; gap: 4px;">
-                                                Design Fee Margin %
-                                                <label class="toggle-switch" title="Toggle to enable editing">
-                                                    <input type="checkbox" id="toggle-margin-percent" onchange="toggleMarginPercentEdit(this.checked)">
-                                                    <span class="toggle-slider"></span>
-                                                </label>
-                                            </label>
-                                            <input type="number" id="calc-margin-percent" value="15.00" min="0" step="0.01" onchange="applyManualMarginPercent()" disabled style="background-color: #e0e0e0; color: #666; cursor: not-allowed;">
                                         </div>
                                     </div>
                                 </div>
