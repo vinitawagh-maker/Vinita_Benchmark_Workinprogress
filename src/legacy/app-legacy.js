@@ -7434,8 +7434,8 @@ ${reasoning}`;
             const state = mhEstimateState.disciplines[discId] || {};
             // Map global complexity pct to DD complexity level, used as default
             const globalPct = getGlobalComplexityPct();
-            const globalToDDMap = { 0: 'Low', 50: 'Low-Med', 100: 'High' };
-            const globalDDDefault = globalToDDMap[globalPct] ?? 'Low';
+            const globalToDDMap = { 0: 'Low-Med', 50: 'Low-Med', 100: 'High' };
+            const globalDDDefault = globalToDDMap[globalPct] ?? 'Low-Med';
             const validDDLevels = ['Low', 'Low-Med', 'Med', 'Med-High', 'High'];
             const currentComplexity = (state.ddComplexity && validDDLevels.includes(state.ddComplexity))
                 ? state.ddComplexity : globalDDDefault;
