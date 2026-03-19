@@ -6960,21 +6960,10 @@ ${reasoning}`;
                     </td>
                     <td>${config.unit}</td>
                     <td class="benchmark-select-cell">
-                        ${isMatrix ? `
-                        <select id="mh-dd-complexity" onchange="updateDDComplexity()" title="Complexity level for Digital Delivery matrix"
-                                style="background:#1a1a2e; color:#e0e0e0; border:1px solid #444; padding:3px 5px; font-size:11px; border-radius:3px; width:100%;">
-                            <option value="Low">Low</option>
-                            <option value="Low-Med">Low-Med</option>
-                            <option value="Med" selected>Medium</option>
-                            <option value="Med-High">Med-High</option>
-                            <option value="High">High</option>
-                        </select>
-                        ` : `
-                        <button class="btn-benchmark-select" onclick="showDisciplineBenchmark('${discId}')" title="Select benchmark projects for ${config.name}">
+                        <button class="btn-benchmark-select" onclick="openDDPopup('${discId}')" title="Select complexity or manual override for ${config.name}">
                             <span class="benchmark-icon">📊</span>
                             <span class="benchmark-btn-text">Select</span>
                         </button>
-                        `}
                     </td>
                     <td class="numeric">
                         ${isMatrix
@@ -7417,7 +7406,7 @@ ${reasoning}`;
             const ddState = mhEstimateState.disciplines.digitalDelivery;
             if (ddState && ddState.active && mhEstimateState.projectCost > 0) {
                 const costK = mhEstimateState.projectCost / 1000;
-                const ddComplexity = document.getElementById('mh-dd-complexity')?.value || ddState.complexity || 'Med';
+                const ddComplexity = ddState.ddComplexity || ddState.complexity || 'Low-Med';
                 const ddResult = calculateDigitalDeliveryMH(costK, mhEstimateState.designDuration, ddComplexity);
                 ddState.mh = ddResult.mh;
                 ddState.rate = costK > 0 ? ddResult.mh / costK : 0;
@@ -7436,6 +7425,68 @@ ${reasoning}`;
             recalculateUnifiedCosts('digitalDelivery');
             updateUnifiedSummary();
             saveToLocalStorage();
+        }
+
+        /**
+         * Open Digital Delivery complexity/override popup
+         */
+        function openDDPopup(discId) {
+            const state = mhEstimateState.disciplines[discId] || {};
+            const currentComplexity = state.ddComplexity || 'Low-Med';
+            const currentManualMH = state.manualMH || '';
+
+            const overlay = document.createElement('div');
+            overlay.className = 'complexity-popup-overlay';
+            overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:10000;display:flex;align-items:center;justify-content:center;';
+
+            overlay.innerHTML = `
+                <div class="complexity-popup" style="background:#1a1a2e;border:1px solid #ffd700;border-radius:8px;padding:24px;min-width:340px;max-width:420px;color:#e0e0e0;">
+                    <h3 style="margin:0 0 16px;color:#ffd700;font-size:14px;">Digital Delivery — Complexity & Override</h3>
+                    <div class="popup-rates-table" style="background:#111;border-radius:4px;padding:10px;margin-bottom:16px;font-size:12px;">
+                        <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+                            <span style="color:#888;">Base Rate (DD.01):</span>
+                            <span style="color:#ffd700;font-weight:bold;">$58.00/hr</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;">
+                            <span style="color:#888;">Uplift Rate (DD.02):</span>
+                            <span style="color:#ffd700;font-weight:bold;">$64.00/hr</span>
+                        </div>
+                    </div>
+                    <label style="display:block;margin-bottom:6px;font-size:12px;color:#ccc;">Complexity Level</label>
+                    <select id="dd-popup-complexity" style="width:100%;padding:6px;background:#111;color:#e0e0e0;border:1px solid #444;border-radius:4px;margin-bottom:16px;font-size:12px;">
+                        <option value="Low" ${currentComplexity==='Low'?'selected':''}>Low</option>
+                        <option value="Low-Med" ${currentComplexity==='Low-Med'?'selected':''}>Low-Med (Default)</option>
+                        <option value="Med" ${currentComplexity==='Med'?'selected':''}>Medium</option>
+                        <option value="Med-High" ${currentComplexity==='Med-High'?'selected':''}>Med-High</option>
+                        <option value="High" ${currentComplexity==='High'?'selected':''}>High</option>
+                    </select>
+                    <label style="display:block;margin-bottom:6px;font-size:12px;color:#ccc;">Manual MH Override <span style="color:#888;">(leave blank to use matrix)</span></label>
+                    <input type="number" id="dd-popup-manual-mh" placeholder="Enter MH or leave blank" value="${currentManualMH}"
+                           style="width:100%;padding:6px;background:#111;color:#e0e0e0;border:1px solid #444;border-radius:4px;margin-bottom:20px;font-size:12px;box-sizing:border-box;" min="0" step="1">
+                    <div style="display:flex;gap:10px;justify-content:flex-end;">
+                        <button onclick="this.closest('.complexity-popup-overlay').remove()"
+                                style="padding:7px 16px;background:#333;color:#ccc;border:1px solid #555;border-radius:4px;cursor:pointer;font-size:12px;">Cancel</button>
+                        <button class="popup-apply" onclick="applyDDPopup('${discId}')"
+                                style="padding:7px 16px;background:#ffd700;color:#000;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;">Apply</button>
+                    </div>
+                </div>`;
+
+            document.body.appendChild(overlay);
+            overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+        }
+
+        function applyDDPopup(discId) {
+            const complexity = document.getElementById('dd-popup-complexity')?.value || 'Low-Med';
+            const manualMHRaw = document.getElementById('dd-popup-manual-mh')?.value?.trim();
+            const manualMH = manualMHRaw !== '' ? parseFloat(manualMHRaw) : null;
+
+            const state = mhEstimateState.disciplines[discId] || {};
+            state.ddComplexity = complexity;
+            state.manualMH = manualMH !== null && !isNaN(manualMH) ? manualMH : '';
+            mhEstimateState.disciplines[discId] = state;
+
+            document.querySelector('.complexity-popup-overlay')?.remove();
+            updateDDComplexity();
         }
 
         /**
@@ -8526,14 +8577,9 @@ ${reasoning}`;
                 ? `<td class="mh-col" title="Picker is next to discipline name">—</td>`
                 : isMatrix
                 ? `<td class="mh-col">
-                    <select id="mh-dd-complexity" onchange="updateDDComplexity()" title="Complexity level for Digital Delivery matrix"
-                            style="background:#FFF2D9; color:#000000; border:1px solid #FFC212; padding:3px 5px; font-size:11px; border-radius:3px; width:100%;">
-                        <option value="Low">Low</option>
-                        <option value="Low-Med">Low-Med</option>
-                        <option value="Med" selected>Medium</option>
-                        <option value="Med-High">Med-High</option>
-                        <option value="High">High</option>
-                    </select>
+                    <button class="btn-benchmark-select" onclick="openDDPopup('${discId}')">
+                        📊 Select
+                    </button>
                    </td>`
                 : isFte
                 ? `<td class="mh-col">
@@ -12585,7 +12631,7 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
                 const totalRevEl = document.getElementById('unified-total-revenue-digitalDelivery');
                 if (totalRevEl) totalRevEl.textContent = '$0';
                 // Still update weighted rate display so complexity changes are visible
-                const _earlyRes = getDisciplineResources('roadway');
+                const _earlyRes = getDisciplineResources('digital delivery');
                 const _earlyL4 = (state?.l4Percentage !== undefined && state?.l4Percentage !== null) ? state.l4Percentage : getGlobalComplexityPct();
                 const _earlyRate = (_earlyRes.lowRate * ((100 - _earlyL4) / 100)) + (_earlyRes.highRate * (_earlyL4 / 100));
                 state.weightedRate = _earlyRate;
@@ -12598,18 +12644,20 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             }
 
             // Calculate Digital Delivery MH using 3-step process
-            const ddComplexity = document.getElementById('mh-dd-complexity')?.value || 'Med';
-            const result = calculateDigitalDeliveryMH(projectValueM, durationMonths, ddComplexity);
+            const ddComplexity = state.ddComplexity || 'Low-Med';
+            const result = state.manualMH
+                ? calculateDigitalDeliveryMH(projectValueM, durationMonths, ddComplexity, parseFloat(state.manualMH))
+                : calculateDigitalDeliveryMH(projectValueM, durationMonths, ddComplexity);
 
             // Update state
             state.active = projectValueM > 0;
             state.quantity = projectValueM;
             state.mh = result.mh;
-            // Use DD's own complexity % for weighted rate (maps to Roadway resource codes)
-            const _rwRes = getDisciplineResources('roadway');
-            const _rwL4 = (state?.l4Percentage !== undefined && state?.l4Percentage !== null) ? state.l4Percentage : getGlobalComplexityPct();
-            const _rwWeightedRate = (_rwRes.lowRate * ((100 - _rwL4) / 100)) + (_rwRes.highRate * (_rwL4 / 100));
-            state.rate = _rwWeightedRate;
+            // Use Digital Delivery resource codes ($58 base / $64 uplift)
+            const _ddRes = getDisciplineResources('digital delivery');
+            const _ddL4 = (state?.l4Percentage !== undefined && state?.l4Percentage !== null) ? state.l4Percentage : getGlobalComplexityPct();
+            const _ddWeightedRate = (_ddRes.lowRate * ((100 - _ddL4) / 100)) + (_ddRes.highRate * (_ddL4 / 100));
+            state.rate = _ddWeightedRate;
             state.rawLabor = result.rawLabor;
             state.burden = result.burden;
             state.gna = result.gna;
@@ -24730,6 +24778,8 @@ Chunks: ${JSON.stringify(complexFieldsOnly, null, 2)}`;
         window.toggleEsdcTscdOverride = toggleEsdcTscdOverride;
         window.updatePursuitRevenue = updatePursuitRevenue;
         window.updateDDComplexity = updateDDComplexity;
+        window.openDDPopup = openDDPopup;
+        window.applyDDPopup = applyDDPopup;
         window.recalculateMiscStructures = recalculateMiscStructures;
         window.checkAllBenchmark = checkAllBenchmark;
         window.uncheckAllBenchmark = uncheckAllBenchmark;
