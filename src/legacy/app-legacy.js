@@ -24933,6 +24933,7 @@ Chunks: ${JSON.stringify(complexFieldsOnly, null, 2)}`;
         // Info icon popover toggle
         function toggleInfoPopover(event, iconEl) {
             event.stopPropagation();
+            event.preventDefault();
             const popover = iconEl.nextElementSibling;
             const isVisible = popover.classList.contains('visible');
             // Close all open popovers first
