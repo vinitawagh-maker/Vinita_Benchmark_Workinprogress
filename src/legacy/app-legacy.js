@@ -24887,4 +24887,17 @@ Chunks: ${JSON.stringify(complexFieldsOnly, null, 2)}`;
         window.projectData = projectData;
         window.currentStep = currentStep;
         
+        // Feedback email form
+        function submitFeedbackEmail() {
+            const name = (document.getElementById('fb-name')?.value || '').trim();
+            const subject = (document.getElementById('fb-subject')?.value || '').trim() || 'QREV Feedback';
+            const message = (document.getElementById('fb-message')?.value || '').trim();
+            if (!message) { alert('Please enter a message.'); return; }
+            const body = (name ? `From: ${name}\n\n` : '') + message;
+            const mailtoLink = `mailto:vinita.wagh@kiewit.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+            window.location.href = mailtoLink;
+            document.getElementById('feedback-form-popup').style.display = 'none';
+        }
+        window.submitFeedbackEmail = submitFeedbackEmail;
+
         console.log('WBS Terminal: All functions exported to global scope');
