@@ -12263,25 +12263,21 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
                 const parsed = parseFloat(customInput?.value);
                 defaultPct = isNaN(parsed) ? 50 : Math.min(100, Math.max(0, parsed));
             } else {
-                defaultPct = complexityMap[complexity] || 60;
+                defaultPct = complexityMap[complexity] ?? 0;
             }
 
-            // Apply to all disciplines
+            // Apply to all disciplines (including inactive — so weighted rate display updates immediately)
             for (const discId of Object.keys(mhEstimateState.disciplines)) {
                 const state = mhEstimateState.disciplines[discId];
 
-                // Always update state and DOM input so value is set even before quantities are entered
                 state.l4Percentage = defaultPct;
                 const l4Input = document.getElementById(`unified-l4-${discId}`);
                 if (l4Input) {
                     l4Input.value = defaultPct;
                 }
 
-                // Only recalculate costs for active disciplines
-                if (state.active) {
-                    updateComplexityBreakdown(discId);
-                    recalculateUnifiedCosts(discId);
-                }
+                updateComplexityBreakdown(discId);
+                recalculateUnifiedCosts(discId);
             }
 
             updateUnifiedSummary();
