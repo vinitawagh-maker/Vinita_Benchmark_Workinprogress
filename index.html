@@ -40,8 +40,8 @@
                         <!-- Ribbon 1: Input Parameters (4 boxes) -->
                         <div class="ribbon ribbon-inputs-row">
                             <div class="ribbon-box">
-                                <label class="ribbon-box-label">Initial Project Value (From CRM/Green Sheets)*</label>
-                                <input type="text" id="calc-est-construction-cost" placeholder="$0.00" inputmode="numeric" onblur="formatAccountingInput(this)" oninput="calculateAssumedConstructionCost()">
+                                <label class="ribbon-box-label">Total Project Value (From CRM/Green Sheets)*</label>
+                                <input type="text" id="calc-est-construction-cost" placeholder="$0.00" inputmode="numeric" title="This is the total revenue including construction and design" onblur="formatAccountingInput(this)" oninput="calculateAssumedConstructionCost()">
                             </div>
                             <div class="ribbon-box">
                                 <label class="ribbon-box-label">NTP Date*</label>
@@ -55,11 +55,11 @@
                         </div>
 
                         <!-- Ribbon 2: Management Override (collapsible) -->
-                        <div class="ribbon ribbon-override-row">
+                        <div class="ribbon ribbon-override-row collapsed">
                             <div class="ribbon-override-header" onclick="toggleOverrideRibbon()">
                                 <span class="ribbon-override-title">⚙️ Management Override <span class="ribbon-override-subtitle">(toggle fields to edit)</span></span>
                                 <button class="param-toggle-btn" id="override-ribbon-toggle" title="Expand/Collapse">
-                                    <span id="override-ribbon-icon">▼</span>
+                                    <span id="override-ribbon-icon">▶</span>
                                 </button>
                             </div>
                             <div class="ribbon-override-content" id="override-ribbon-content">
