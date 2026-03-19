@@ -375,17 +375,18 @@
 
 .benchmark-discipline-header {
     padding: 10px 12px;
-    background: #111;
+    background: #193246;
     cursor: pointer;
     display: flex;
     justify-content: space-between;
     align-items: center;
     font-size: 13px;
-    color: var(--color-primary);
+    color: #ffffff;
+    font-weight: 600;
 }
 
 .benchmark-discipline-header:hover {
-    background: var(--color-bg-highlight);
+    background: #375D80;
 }
 
 .benchmark-count {
@@ -413,7 +414,7 @@
 }
 
 .benchmark-project-item:hover {
-    background: #111;
+    background: var(--color-bg-highlight-hover);
 }
 
 .benchmark-project-item input[type="checkbox"] {
