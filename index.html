@@ -2155,6 +2155,20 @@
         </div>
     </div>
 
+    <!-- WIP Disclaimer Modal -->
+    <div id="wip-disclaimer-overlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.75);z-index:99999;display:flex;align-items:center;justify-content:center;">
+        <div style="background:#1a1a1a;border:1px solid #ffd700;border-left:5px solid #ffd700;border-radius:8px;padding:36px 40px;max-width:580px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,0.6);">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:1.5px;color:#ffd700;margin-bottom:16px;">⚡ Optimized for Rollout</div>
+            <p style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#e0e0e0;line-height:1.75;margin:0 0 28px;">
+                This partial environment is curated specifically for implementation teams to ensure high-performance execution of daily deliverables. Underlying logic layers are currently undergoing final architectural refinement to ensure seamless integration with the organization standards and will be defined later.
+            </p>
+            <button onclick="document.getElementById('wip-disclaimer-overlay').remove()"
+                    style="background:#ffd700;color:#000;border:none;border-radius:4px;padding:10px 28px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;cursor:pointer;letter-spacing:0.5px;">
+                Acknowledge
+            </button>
+        </div>
+    </div>
+
     <!-- Vite Entry Point -->
     <script type="module" src="/src/main.js"></script>
 </body>
