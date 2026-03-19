@@ -12374,7 +12374,10 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
                 const subPctForCalc = currentEstimateMode === 'benchmark' ? 0 : ((state.subsPct || 0) / 100);
                 const subMHForCalc = Math.round(state.mh * subPctForCalc);
                 const kieMHForCalc = state.mh - subMHForCalc;
-                rawLabor = kieMHForCalc * weightedRate;
+                // Split hours by complexity: base hours × base rate + uplift hours × uplift rate
+                const baseMH = kieMHForCalc * lowPct;
+                const upliftMH = kieMHForCalc * highPct;
+                rawLabor = (baseMH * effectiveResources.lowRate) + (upliftMH * effectiveResources.highRate);
                 burdenCost = rawLabor * (burdenRate / 100);
                 gnaCost = rawLabor * (gnaRate / 100);
                 marginCost = rawLabor * (marginPercent / 100);
@@ -13294,7 +13297,7 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             document.getElementById('odcs-total-gna').textContent = '$0';
             document.getElementById('odcs-total-margin').textContent = '$0';
             // ODC's are billable, so include expenses in revenue
-            document.getElementById('odcs-total-revenue').textContent = 
+            document.getElementById('odcs-total-revenue').textContent =
                 '$' + Math.round(odcsExpenses).toLocaleString('en-US');
             document.getElementById('odcs-total-expenses').textContent =
                 '$' + Math.round(odcsExpenses).toLocaleString('en-US');
