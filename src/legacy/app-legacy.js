@@ -12679,15 +12679,17 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             const costEl = document.getElementById('unified-cost-digitalDelivery');
             
             if (mhEl) mhEl.textContent = formatMH(result.mh);
-            if (rateEl) rateEl.textContent = '$' + _rwWeightedRate.toFixed(2);
+            if (rateEl) rateEl.textContent = '$' + _ddWeightedRate.toFixed(2);
             // Update the Weighted Rate column (hourly rate display) for Digital Delivery
             const ddHourlyRateEl = document.getElementById('unified-hourly-rate-digitalDelivery');
             if (ddHourlyRateEl) {
-                const _rwLowPct = (100 - _rwL4) / 100;
-                const _rwHighPct = _rwL4 / 100;
-                ddHourlyRateEl.innerHTML = `$${_rwWeightedRate.toFixed(2)}<br><span style="font-size: 8px; color: #666;">${Math.round(_rwLowPct * 100)}% ${_rwRes.lowCode} ($${_rwRes.lowRate.toFixed(2)}) + ${Math.round(_rwHighPct * 100)}% ${_rwRes.highCode} ($${_rwRes.highRate.toFixed(2)})</span>`;
+                const _ddLowPct = (100 - _ddL4) / 100;
+                const _ddHighPct = _ddL4 / 100;
+                ddHourlyRateEl.innerHTML = `$${_ddWeightedRate.toFixed(2)}<br><span style="font-size: 8px; color: #666;">${Math.round(_ddLowPct * 100)}% ${_ddRes.lowCode} ($${_ddRes.lowRate.toFixed(2)}) + ${Math.round(_ddHighPct * 100)}% ${_ddRes.highCode} ($${_ddRes.highRate.toFixed(2)})</span>`;
             }
-            if (qtyEl) qtyEl.value = projectValueM > 0 ? '$' + Math.round(initialProjectValue / 1000).toLocaleString('en-US') : '0';
+            const ddKValue = Math.round(initialProjectValue / 1000);
+            state.quantity = ddKValue;
+            if (qtyEl) qtyEl.value = projectValueM > 0 ? ddKValue.toLocaleString('en-US') : '0';
             if (rawLaborEl) rawLaborEl.textContent = '$' + Math.round(result.rawLabor).toLocaleString('en-US');
             if (burdenEl) burdenEl.textContent = '$' + Math.round(result.burden).toLocaleString('en-US');
             if (gnaEl) gnaEl.textContent = '$' + Math.round(result.gna).toLocaleString('en-US');
