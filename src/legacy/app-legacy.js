@@ -11704,7 +11704,7 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
                         <option value="custom" ${matchedPreset==='custom'?'selected':''}>Custom</option>
                     </select>
                     <div id="complexity-custom-wrap" style="display:${customDisplay};margin-bottom:10px;">
-                        <label style="font-size:11px;color:#aaa;">Custom Uplift %</label>
+                        <label style="font-size:11px;color:#aaa;">% Complexity</label>
                         <input type="number" id="complexity-popup-input" value="${currentPct}" min="0" max="100" step="5"
                                style="width:100%;padding:6px;background:#111;color:#e0e0e0;border:1px solid #444;border-radius:4px;font-size:12px;box-sizing:border-box;">
                     </div>
