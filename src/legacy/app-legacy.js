@@ -11658,10 +11658,13 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
          */
         function openComplexityPopup(discId) {
             const state = mhEstimateState.disciplines[discId];
-            // Default to 30% if no value set
-            const currentPct = (state?.l4Percentage !== undefined && state?.l4Percentage !== null) ? state.l4Percentage : getGlobalComplexityPct();
+            const globalPct = getGlobalComplexityPct();
+            const currentPct = (state?.l4Percentage !== undefined && state?.l4Percentage !== null) ? state.l4Percentage : globalPct;
 
-            // Get discipline display name
+            // Determine if currentPct matches a preset
+            const presets = { 0: 'typical', 50: 'moderate', 100: 'high' };
+            const matchedPreset = presets[currentPct] ?? 'custom';
+
             const nameMap = {
                 'roadway': 'Roadway', 'drainage': 'Drainage', 'mot': 'MOT', 'traffic': 'Traffic',
                 'utilities': 'Utilities', 'retainingWalls': 'Retaining Walls', 'noiseWalls': 'Noise Walls',
@@ -11672,12 +11675,10 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             };
             const discName = nameMap[discId] || discId;
 
-            // Get resource rates for live preview
             const isEsdcTscd = (discId === 'esdc' || discId === 'tscd');
             const resources = isEsdcTscd ? getDisciplineResources('roadway') : getDisciplineResources(discId);
             const calcRate = (pct) => (resources.lowRate * ((100 - pct) / 100)) + (resources.highRate * (pct / 100));
 
-            // Build popup
             const overlay = document.createElement('div');
             overlay.className = 'complexity-popup-overlay';
             overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
@@ -11686,6 +11687,7 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             const currentRate = calcRate(currentPct);
             const juniorContrib = resources.lowRate * (juniorPct / 100);
             const seniorContrib = resources.highRate * (currentPct / 100);
+            const customDisplay = matchedPreset === 'custom' ? 'block' : 'none';
 
             overlay.innerHTML = `
                 <div class="complexity-popup">
@@ -11694,8 +11696,18 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
                         <div class="popup-rate-row"><span class="popup-rate-label">Base:</span> <span class="popup-rate-value">$${resources.lowRate.toFixed(2)}/hr</span></div>
                         <div class="popup-rate-row"><span class="popup-rate-label">Regional/Technical Uplift:</span> <span class="popup-rate-value">$${resources.highRate.toFixed(2)}/hr</span></div>
                     </div>
-                    <label>Regional/Technical Uplift %</label>
-                    <input type="number" id="complexity-popup-input" value="${currentPct}" min="0" max="100" step="5">
+                    <label>Complexity Level</label>
+                    <select id="complexity-popup-select" style="width:100%;padding:6px;background:#111;color:#e0e0e0;border:1px solid #444;border-radius:4px;margin-bottom:10px;font-size:12px;">
+                        <option value="typical" ${matchedPreset==='typical'?'selected':''}>Typical Job (0%)</option>
+                        <option value="moderate" ${matchedPreset==='moderate'?'selected':''}>Moderate Regional/Technical Uplift (50%)</option>
+                        <option value="high" ${matchedPreset==='high'?'selected':''}>High Regional/Technical Uplift (100%)</option>
+                        <option value="custom" ${matchedPreset==='custom'?'selected':''}>Custom</option>
+                    </select>
+                    <div id="complexity-custom-wrap" style="display:${customDisplay};margin-bottom:10px;">
+                        <label style="font-size:11px;color:#aaa;">Custom Uplift %</label>
+                        <input type="number" id="complexity-popup-input" value="${currentPct}" min="0" max="100" step="5"
+                               style="width:100%;padding:6px;background:#111;color:#e0e0e0;border:1px solid #444;border-radius:4px;font-size:12px;box-sizing:border-box;">
+                    </div>
                     <div class="popup-formula" id="complexity-popup-formula">
                         <span style="color:#888;">Weighted Rate =</span> $${resources.lowRate.toFixed(2)} × <span id="popup-junior-pct">${juniorPct}</span>% + $${resources.highRate.toFixed(2)} × <span id="popup-senior-pct">${currentPct}</span>%<br>
                         <span style="color:#888;">= </span>$<span id="popup-junior-contrib">${juniorContrib.toFixed(2)}</span> + $<span id="popup-senior-contrib">${seniorContrib.toFixed(2)}</span>
@@ -11709,34 +11721,56 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
             `;
             document.body.appendChild(overlay);
 
-            // Live preview of rate as user changes %
-            const input = document.getElementById('complexity-popup-input');
+            const select = document.getElementById('complexity-popup-select');
+            const customWrap = document.getElementById('complexity-custom-wrap');
+            const customInput = document.getElementById('complexity-popup-input');
             const rateDisplay = document.getElementById('complexity-popup-rate');
             const juniorPctEl = document.getElementById('popup-junior-pct');
             const seniorPctEl = document.getElementById('popup-senior-pct');
             const juniorContribEl = document.getElementById('popup-junior-contrib');
             const seniorContribEl = document.getElementById('popup-senior-contrib');
-            input.addEventListener('input', () => {
-                const pct = Math.max(0, Math.min(100, parseFloat(input.value) || 0));
+
+            const presetPcts = { typical: 0, moderate: 50, high: 100 };
+
+            const updateFormula = (pct) => {
                 const jPct = 100 - pct;
                 rateDisplay.textContent = '$' + calcRate(pct).toFixed(2);
                 juniorPctEl.textContent = jPct;
                 seniorPctEl.textContent = pct;
                 juniorContribEl.textContent = (resources.lowRate * (jPct / 100)).toFixed(2);
                 seniorContribEl.textContent = (resources.highRate * (pct / 100)).toFixed(2);
+            };
+
+            select.addEventListener('change', () => {
+                if (select.value === 'custom') {
+                    customWrap.style.display = 'block';
+                    customInput.focus();
+                } else {
+                    customWrap.style.display = 'none';
+                    updateFormula(presetPcts[select.value]);
+                }
             });
-            input.focus();
-            input.select();
+
+            customInput?.addEventListener('input', () => {
+                const pct = Math.max(0, Math.min(100, parseFloat(customInput.value) || 0));
+                updateFormula(pct);
+            });
         }
 
         /**
          * Apply complexity % from popup and close it
          */
         function applyComplexityPopup(discId) {
-            const input = document.getElementById('complexity-popup-input');
-            if (!input) return;
-            const parsed = parseFloat(input.value);
-            const pct = Math.max(0, Math.min(100, isNaN(parsed) ? 30 : parsed));
+            const select = document.getElementById('complexity-popup-select');
+            const presetPcts = { typical: 0, moderate: 50, high: 100 };
+            let pct;
+            if (select && select.value !== 'custom') {
+                pct = presetPcts[select.value] ?? 0;
+            } else {
+                const input = document.getElementById('complexity-popup-input');
+                const parsed = parseFloat(input?.value);
+                pct = Math.max(0, Math.min(100, isNaN(parsed) ? 0 : parsed));
+            }
 
             // Capture old value for change log
             const state = mhEstimateState.disciplines[discId];
