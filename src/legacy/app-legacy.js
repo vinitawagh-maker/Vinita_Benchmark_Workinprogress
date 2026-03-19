@@ -7432,7 +7432,13 @@ ${reasoning}`;
          */
         function openDDPopup(discId) {
             const state = mhEstimateState.disciplines[discId] || {};
-            const currentComplexity = state.ddComplexity || 'Low-Med';
+            // Map global complexity pct to DD complexity level, used as default
+            const globalPct = getGlobalComplexityPct();
+            const globalToDDMap = { 0: 'Low', 50: 'Low-Med', 100: 'High' };
+            const globalDDDefault = globalToDDMap[globalPct] ?? 'Low';
+            const validDDLevels = ['Low', 'Low-Med', 'Med', 'Med-High', 'High'];
+            const currentComplexity = (state.ddComplexity && validDDLevels.includes(state.ddComplexity))
+                ? state.ddComplexity : globalDDDefault;
             const currentManualMH = state.manualMH || '';
 
             const overlay = document.createElement('div');
@@ -11659,7 +11665,11 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
         function openComplexityPopup(discId) {
             const state = mhEstimateState.disciplines[discId];
             const globalPct = getGlobalComplexityPct();
-            const currentPct = (state?.l4Percentage !== undefined && state?.l4Percentage !== null) ? state.l4Percentage : globalPct;
+            // Always open showing global complexity — only use saved value if it's one of the valid new presets (0/50/100)
+            const validPresets = [0, 50, 100];
+            const savedPct = state?.l4Percentage;
+            const currentPct = (savedPct !== undefined && savedPct !== null && validPresets.includes(savedPct))
+                ? savedPct : globalPct;
 
             // Determine if currentPct matches a preset
             const presets = { 0: 'typical', 50: 'moderate', 100: 'high' };
