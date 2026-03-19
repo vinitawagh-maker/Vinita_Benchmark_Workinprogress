@@ -1,0 +1,41 @@
+{
+  "discipline": "Track Design",
+  "eqty_metric": {
+    "name": "Track Alignment Length",
+    "uom": "TF"
+  },
+  "projects": [
+    {
+      "project": "Federal Way Link Extension",
+      "fct_mhrs": 55340,
+      "eqty": 81688,
+      "uom": "TF",
+      "production_mhrs_per_ea": 0.677,
+      "applicable_job": false
+    },
+    {
+      "project": "Foothill Phase 2A LRT",
+      "fct_mhrs": 8757,
+      "eqty": 154899,
+      "uom": "TF",
+      "production_mhrs_per_ea": 0.057,
+      "applicable_job": false
+    },
+    {
+      "project": "Foothill Phase 2B1 LRT",
+      "fct_mhrs": 6838,
+      "eqty": 103233,
+      "uom": "TF",
+      "production_mhrs_per_ea": 0.066,
+      "applicable_job": false
+    },
+    {
+      "project": "Ottawa LRT",
+      "fct_mhrs": 82275,
+      "eqty": 167537,
+      "uom": "TF",
+      "production_mhrs_per_ea": 0.491,
+      "applicable_job": false
+    }
+  ]
+}

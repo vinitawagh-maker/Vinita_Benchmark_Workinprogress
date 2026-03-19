@@ -901,6 +901,19 @@ let projectData = {
             marginPercentOutput.value = (marginPercent * 100).toFixed(2);
 
             window.calculatedMarginPercent = marginPercent;
+
+            // Red highlight on KIE multiplier input if below 2.7
+            if (kieMultiplierInput) {
+                if (kieMultiplier < 2.7) {
+                    kieMultiplierInput.style.backgroundColor = '#ff4444';
+                    kieMultiplierInput.style.color = '#fff';
+                    kieMultiplierInput.style.fontWeight = 'bold';
+                } else {
+                    kieMultiplierInput.style.backgroundColor = '';
+                    kieMultiplierInput.style.color = '';
+                    kieMultiplierInput.style.fontWeight = '';
+                }
+            }
         }
 
         /**
@@ -4306,14 +4319,14 @@ let projectData = {
                 'structures': 'bridges',
                 'retaining walls': 'walls',
                 'retainingwalls': 'walls',
-                'noise walls': 'walls',
-                'noisewalls': 'walls',
+                'noise walls': 'noise walls',
+                'noisewalls': 'noise walls',
                 'misc structures': 'bridges',
                 'miscstructures': 'bridges',
                 'geotechnical': 'geotechnical',
                 'environmental': 'environmental',
-                'digital delivery': 'roadway',
-                'digitaldelivery': 'roadway',
+                'digital delivery': 'digital delivery',
+                'digitaldelivery': 'digital delivery',
                 'pavement': 'roadway',
                 'landscaping': 'roadway',
                 'esdc': 'esdc',
@@ -14033,19 +14046,21 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
         }
 
         /**
-         * Derive indirect FTE count from Initial Project Value (CRM/Green Sheets):
-         * ≤ $250M → 4 FTEs | $250M–$500M → 5 | $500M–$750M → 6 | $750M–$1B → 7 | > $1B → 8
+         * Derive indirect FTE count from Total Project Value (CRM/Green Sheets):
+         * ≤$250M→4 | $250–500M→5 | $500–750M→6 | $750M–$1B→7 | $1B–$1.25B→8 | $1.25–$1.5B→9 | >$1.5B→10
          */
         function updateIndirectsFTEFromProjectValue() {
             const raw = document.getElementById('calc-est-construction-cost')?.value || '';
             const projectValue = parseFloat(raw.replace(/[$,]/g, '')) || 0;
             let ftes = 0;
             if (projectValue > 0) {
-                if      (projectValue <= 250e6)  ftes = 5;
-                else if (projectValue <= 500e6)  ftes = 6;
-                else if (projectValue <= 750e6)  ftes = 7;
-                else if (projectValue < 1000e6)  ftes = 8;
-                else                             ftes = 9;
+                if      (projectValue <= 250e6)   ftes = 4;
+                else if (projectValue <= 500e6)   ftes = 5;
+                else if (projectValue <= 750e6)   ftes = 6;
+                else if (projectValue <= 1000e6)  ftes = 7;
+                else if (projectValue <= 1250e6)  ftes = 8;
+                else if (projectValue <= 1500e6)  ftes = 9;
+                else                              ftes = 10;
             }
             const input = document.getElementById('indirects-fte');
             if (input && ftes > 0) input.value = ftes;
@@ -14551,7 +14566,7 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
 
         if (burden !== 66) overrides.push('Burden Rate changed from default <strong>66%</strong> to <strong>' + burden.toFixed(1) + '%</strong>.');
         if (gna !== 104) overrides.push('G&A Rate changed from default <strong>104%</strong> to <strong>' + gna.toFixed(1) + '%</strong>.');
-        if (kie !== 2.85) overrides.push('KIE Multiplier changed from default <strong>2.85</strong> to <strong>' + kie.toFixed(2) + '</strong>.');
+        if (kie !== 2.85) overrides.push('KIE Multiplier changed from default <strong>2.85</strong> to <strong>' + kie.toFixed(2) + '</strong>.' + (kie < 2.7 ? ' <span style="color:#cc0000; font-weight:bold;">⚠ Warning: Multiplier is below 2.7 — margin may be insufficient. Review required.</span>' : ''));
         if (contingencyPct !== 5) overrides.push('Contingency changed from default <strong>5%</strong> to <strong>' + contingencyPct + '%</strong>.');
         if (ipcFee !== 6) overrides.push('IPC Fee changed from default <strong>$6/MH</strong> to <strong>$' + ipcFee.toFixed(2) + '/MH</strong>.');
         if (!ipcEnabled) overrides.push('IPC Fee has been <strong>disabled</strong> (set to $0).');

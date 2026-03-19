@@ -1,0 +1,49 @@
+{
+  "discipline": "Utilities Design (no coordination time included)",
+  "eqty_metric": {
+    "name": "Relocation Count",
+    "uom": "EA"
+  },
+  "projects": [
+    {
+      "project": "IH 820 Southeast Connector",
+      "fct_mhrs": 108899,
+      "eqty": 384,
+      "uom": "EA",
+      "production_mhrs_per_ea": 283.591,
+      "applicable_job": true
+    },
+    {
+      "project": "Foothill Phase 2B1 LRT",
+      "fct_mhrs": 18896,
+      "eqty": 70,
+      "uom": "EA",
+      "production_mhrs_per_ea": 269.943,
+      "applicable_job": false
+    },
+    {
+      "project": "I-15 Tropicana",
+      "fct_mhrs": 6374,
+      "eqty": 48,
+      "uom": "EA",
+      "production_mhrs_per_ea": 132.792,
+      "applicable_job": true
+    },
+    {
+      "project": "US 97",
+      "fct_mhrs": 3336,
+      "eqty": 11,
+      "uom": "EA",
+      "production_mhrs_per_ea": 303.273,
+      "applicable_job": true
+    },
+    {
+      "project": "264th Street Interchange",
+      "fct_mhrs": 1465,
+      "eqty": 5,
+      "uom": "EA",
+      "production_mhrs_per_ea": 293.0,
+      "applicable_job": true
+    }
+  ]
+}

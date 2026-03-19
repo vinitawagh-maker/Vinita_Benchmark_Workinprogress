@@ -1,0 +1,57 @@
+{
+  "discipline": "TSCD",
+  "disciplineId": "tscd",
+  "fullName": "Temporary Structures & Construction Devices",
+  "eqty_metric": {
+    "name": "Project Cost",
+    "uom": "K$"
+  },
+  "type": "revenue_based",
+  "curve": {
+    "type": "power",
+    "a": 0.0183,
+    "b": -0.156,
+    "r2": 0.42,
+    "description": "Production % = 0.0183 × Revenue^(-0.156)"
+  },
+  "statistics": {
+    "all_projects": {
+      "average_production_pct": 0.52,
+      "std_dev": 0.41,
+      "count": 108
+    },
+    "custom_projects": {
+      "average_production_pct": 0.31,
+      "count": 17
+    }
+  },
+  "projects": [
+    {"id": "tscd-001", "name": "IH 820 Southeast Connector", "esdc_cost": 7812.04, "anticipated_cost": 2006033.03, "production_pct": 0.39, "applicable": true, "market": "Transportation, Highway", "location": "Fort Worth, TX"},
+    {"id": "tscd-002", "name": "E-130 LRT", "esdc_cost": 1955.98, "anticipated_cost": 820594.77, "production_pct": 0.24, "applicable": false, "market": "Transit, Light Rail", "location": "Seattle, WA"},
+    {"id": "tscd-003", "name": "Connect 4", "esdc_cost": 1491.45, "anticipated_cost": 268033.92, "production_pct": 0.56, "applicable": true, "market": "Transportation, Highway", "location": "Fort Worth, TX"},
+    {"id": "tscd-004", "name": "Foothill Phase 2B1 LRT", "esdc_cost": 809.18, "anticipated_cost": 836559.23, "production_pct": 0.10, "applicable": false, "market": "Transit, Light Rail", "location": "San Dimas, CA"},
+    {"id": "tscd-005", "name": "I-15 Tropicana", "esdc_cost": 830.59, "anticipated_cost": 368187.07, "production_pct": 0.23, "applicable": true, "market": "Transportation, Highway", "location": "Las Vegas, NV"},
+    {"id": "tscd-006", "name": "C-70", "esdc_cost": 7441.71, "anticipated_cost": 1290640.68, "production_pct": 0.58, "applicable": true, "market": "Transportation, Highway", "location": "Denver, CO"},
+    {"id": "tscd-007", "name": "Turcot", "esdc_cost": 9542.25, "anticipated_cost": 1784779.8, "production_pct": 0.53, "applicable": true, "market": "Transportation, Highway", "location": "Montreal, QB"},
+    {"id": "tscd-008", "name": "Federal Way Link Extension", "esdc_cost": 1889.68, "anticipated_cost": 1403683.47, "production_pct": 0.13, "applicable": false, "market": "Transit, Light Rail", "location": "Federal Way, WA"},
+    {"id": "tscd-009", "name": "Southwest Calgary Ring Road", "esdc_cost": 2905.56, "anticipated_cost": 1310255.12, "production_pct": 0.22, "applicable": true, "market": "Transportation, Highway", "location": "Calgary, AB"},
+    {"id": "tscd-010", "name": "Goethals Bridge Replacement", "esdc_cost": 1935.06, "anticipated_cost": 1091231.6, "production_pct": 0.18, "applicable": true, "market": "Transportation, Bridges", "location": "Staten Island, NY"},
+    {"id": "tscd-011", "name": "Midtown Express", "esdc_cost": 1552.51, "anticipated_cost": 914940.51, "production_pct": 0.17, "applicable": true, "market": "Transportation, Highway", "location": "Irving, TX"},
+    {"id": "tscd-012", "name": "South Central LRT Extension", "esdc_cost": 592.66, "anticipated_cost": 823932.77, "production_pct": 0.07, "applicable": false, "market": "Transit, Light Rail", "location": "Phoenix, AZ"},
+    {"id": "tscd-013", "name": "Border West Expressway", "esdc_cost": 1858.64, "anticipated_cost": 691683.83, "production_pct": 0.27, "applicable": true, "market": "Transportation, Highway", "location": "El Paso, TX"},
+    {"id": "tscd-014", "name": "Project Neon", "esdc_cost": 931.75, "anticipated_cost": 628296.99, "production_pct": 0.15, "applicable": true, "market": "Transportation, Highway", "location": "Las Vegas, NV"},
+    {"id": "tscd-015", "name": "30 Crossing", "esdc_cost": 1551.47, "anticipated_cost": 497061.58, "production_pct": 0.31, "applicable": true, "market": "Transportation, Bridges", "location": "Little Rock, AR"},
+    {"id": "tscd-016", "name": "I-225 Light Rail Corridor", "esdc_cost": 649.55, "anticipated_cost": 427748.52, "production_pct": 0.15, "applicable": false, "market": "Transit, Light Rail", "location": "Aurora, CO"},
+    {"id": "tscd-017", "name": "E-360 Bellevue to Redmond", "esdc_cost": 540.12, "anticipated_cost": 270974.68, "production_pct": 0.20, "applicable": false, "market": "Transit, Light Rail", "location": "Redmond, WA"},
+    {"id": "tscd-018", "name": "Selmon Expressway Extension", "esdc_cost": 1955.92, "anticipated_cost": 262650, "production_pct": 0.74, "applicable": true, "market": "Transportation, Highway", "location": "Tampa, FL"},
+    {"id": "tscd-019", "name": "Flyway 470", "esdc_cost": 898.39, "anticipated_cost": 256515.18, "production_pct": 0.35, "applicable": true, "market": "Transportation, Highway", "location": "Aurora, CO"},
+    {"id": "tscd-020", "name": "MVC 4100 South to SR-201", "esdc_cost": 131.57, "anticipated_cost": 229983.74, "production_pct": 0.06, "applicable": true, "market": "Transportation, Highway", "location": "West Valley City, UT"},
+    {"id": "tscd-021", "name": "Tlicho All-Season Road", "esdc_cost": 216.41, "anticipated_cost": 183706.28, "production_pct": 0.12, "applicable": true, "market": "Transportation, Highway", "location": "Whati, ON"},
+    {"id": "tscd-022", "name": "I-10 Capital Corridor", "esdc_cost": 1776.12, "anticipated_cost": 159847.91, "production_pct": 1.11, "applicable": true, "market": "Transportation, Highway", "location": "Baton Rouge, LA"},
+    {"id": "tscd-023", "name": "Nashville Connector", "esdc_cost": 361.46, "anticipated_cost": 148878.92, "production_pct": 0.24, "applicable": true, "market": "Transportation, Bridges", "location": "Nashville, TN"},
+    {"id": "tscd-024", "name": "Moosejaw", "esdc_cost": 759.58, "anticipated_cost": 148722.83, "production_pct": 0.51, "applicable": true, "market": "Transportation, Highway", "location": "Virginia, MT"},
+    {"id": "tscd-025", "name": "Big Thompson", "esdc_cost": 235.58, "anticipated_cost": 146038.94, "production_pct": 0.16, "applicable": true, "market": "Transportation, Highway", "location": "Loveland, CO"},
+    {"id": "tscd-026", "name": "Kingston Third Crossing", "esdc_cost": 1140.54, "anticipated_cost": 144336.5, "production_pct": 0.79, "applicable": true, "market": "Transportation, Bridges", "location": "Kingston, ON"},
+    {"id": "tscd-027", "name": "Porter Road", "esdc_cost": 770.65, "anticipated_cost": 112340.79, "production_pct": 0.69, "applicable": true, "market": "Transportation, Highway", "location": "Springdale, TX"}
+  ]
+}

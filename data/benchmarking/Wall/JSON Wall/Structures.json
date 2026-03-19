@@ -1,0 +1,202 @@
+[
+  {
+    "col_0": null,
+    "Structures (Fence) Design": "eQTY: Barrier Length (LF)",
+    "col_2": null,
+    "col_3": null,
+    "col_4": null,
+    "col_5": null,
+    "col_6": null,
+    "col_7": null
+  },
+  {
+    "col_0": null,
+    "Structures (Fence) Design": "Project",
+    "col_2": "FCT MHRs",
+    "col_3": "eQTY",
+    "col_4": "Unit",
+    "col_5": "Production",
+    "col_6": "Applicable Job",
+    "col_7": "Custom"
+  },
+  {
+    "col_0": "Del Rio Sector",
+    "Structures (Fence) Design": "Del Rio - CW",
+    "col_2": 3533,
+    "col_3": 53827,
+    "col_4": "LF",
+    "col_5": 0.0656362049,
+    "col_6": "Yes",
+    "col_7": 0.0656362049
+  },
+  {
+    "col_0": "Rio Grande",
+    "Structures (Fence) Design": "RGV4",
+    "col_2": 3198,
+    "col_3": 65946,
+    "col_4": "LF",
+    "col_5": 0.0484942225,
+    "col_6": "Yes",
+    "col_7": 0.0484942225
+  },
+  {
+    "col_0": "Rio Grande",
+    "Structures (Fence) Design": "RGV5",
+    "col_2": 1032,
+    "col_3": 15100,
+    "col_4": "LF",
+    "col_5": 0.0683443709,
+    "col_6": "Yes",
+    "col_7": 0.0683443709
+  },
+  {
+    "col_0": "Rio Grande",
+    "Structures (Fence) Design": "RGV6",
+    "col_2": 1760,
+    "col_3": 14494,
+    "col_4": "LF",
+    "col_5": 0.1214295571,
+    "col_6": "Yes",
+    "col_7": 0.1214295571
+  },
+  {
+    "col_0": "Roosevelt",
+    "Structures (Fence) Design": "T63 - Lukeville/Douglas",
+    "col_2": 7462,
+    "col_3": 329650,
+    "col_4": "LF",
+    "col_5": 0.0226361292,
+    "col_6": "Yes",
+    "col_7": 0.0226361292
+  },
+  {
+    "col_0": "Roosevelt",
+    "Structures (Fence) Design": "T63 - Naco",
+    "col_2": 5181,
+    "col_3": 166848,
+    "col_4": "LF",
+    "col_5": 0.0310522152,
+    "col_6": "Yes",
+    "col_7": 0.0310522152
+  },
+  {
+    "col_0": "Del Rio Sector",
+    "Structures (Fence) Design": "TFC Border Farms (5.7)",
+    "col_2": 2131,
+    "col_3": 27995,
+    "col_4": "LF",
+    "col_5": 0.0761207358,
+    "col_6": "Yes",
+    "col_7": 0.0761207358
+  },
+  {
+    "col_0": "Rio Grande",
+    "Structures (Fence) Design": "TFC Starr County RGV11",
+    "col_2": 2181,
+    "col_3": 37277,
+    "col_4": "LF",
+    "col_5": 0.0585079271,
+    "col_6": "Yes",
+    "col_7": 0.0585079271
+  },
+  {
+    "col_0": "Del Rio Sector",
+    "Structures (Fence) Design": "Del Rio Buena Vista O6",
+    "col_2": 1200,
+    "col_3": 4435,
+    "col_4": "LF",
+    "col_5": 0.2705749718,
+    "col_6": "Yes",
+    "col_7": 0.2705749718
+  },
+  {
+    "col_0": "Del Rio Sector",
+    "Structures (Fence) Design": "Cinco Ranch",
+    "col_2": 1834.25,
+    "col_3": 25714,
+    "col_4": "LF",
+    "col_5": 0.071332737,
+    "col_6": "Yes",
+    "col_7": 0.071332737
+  },
+  {
+    "col_0": null,
+    "Structures (Fence) Design": "Productions (Project Qty)",
+    "col_2": null,
+    "col_3": 25000,
+    "col_4": "LF",
+    "col_5": 0.0814968856,
+    "col_6": null,
+    "col_7": 0.0814968856
+  },
+  {
+    "col_0": null,
+    "Structures (Fence) Design": "Input / Output",
+    "col_2": null,
+    "col_3": null,
+    "col_4": null,
+    "col_5": null,
+    "col_6": null,
+    "col_7": null
+  },
+  {
+    "col_0": null,
+    "Structures (Fence) Design": "Key Quantity (Column D)",
+    "col_2": 25000,
+    "col_3": null,
+    "col_4": null,
+    "col_5": null,
+    "col_6": null,
+    "col_7": null
+  },
+  {
+    "col_0": null,
+    "Structures (Fence) Design": "Total MHR (All Projects)",
+    "col_2": 2037.4221392982,
+    "col_3": null,
+    "col_4": null,
+    "col_5": null,
+    "col_6": null,
+    "col_7": null
+  },
+  {
+    "col_0": null,
+    "Structures (Fence) Design": "Total MHR (Custom Projects)",
+    "col_2": 2037.4221392982,
+    "col_3": null,
+    "col_4": null,
+    "col_5": null,
+    "col_6": null,
+    "col_7": null
+  },
+  {
+    "col_0": null,
+    "Structures (Fence) Design": null,
+    "col_2": null,
+    "col_3": null,
+    "col_4": null,
+    "col_5": "Open",
+    "col_6": "Custom",
+    "col_7": null
+  },
+  {
+    "col_0": null,
+    "Structures (Fence) Design": null,
+    "col_2": "Average",
+    "col_3": 0.0834129072,
+    "col_4": null,
+    "col_5": 16.7675290989,
+    "col_6": 16.7675290989,
+    "col_7": null
+  },
+  {
+    "col_0": null,
+    "Structures (Fence) Design": null,
+    "col_2": "Standard Dev.",
+    "col_3": 0.0710962678,
+    "col_4": null,
+    "col_5": -0.5260026403,
+    "col_6": -0.5260026403,
+    "col_7": null
+  }
+]
