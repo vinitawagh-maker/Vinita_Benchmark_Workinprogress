@@ -128,6 +128,53 @@
     z-index: 1;
 }
 
+/* Info Icon with Popover */
+.info-icon-wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.info-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 15px;
+    height: 15px;
+    background: #193246;
+    color: #ffffff;
+    border-radius: 50%;
+    font-size: 10px;
+    font-style: normal;
+    cursor: pointer;
+    user-select: none;
+    flex-shrink: 0;
+    line-height: 1;
+}
+
+.info-popover {
+    display: none;
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    width: 240px;
+    background: #193246;
+    color: #ffffff;
+    font-size: 11px;
+    line-height: 1.5;
+    font-weight: 400;
+    padding: 8px 12px;
+    border-radius: 6px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+    white-space: normal;
+    z-index: 9999;
+}
+
+.info-popover.visible {
+    display: block;
+}
+
 /* Autosave Indicator */
 .autosave-indicator {
     position: fixed;

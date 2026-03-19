@@ -46,7 +46,7 @@
                         <!-- Ribbon 1: Input Parameters (4 boxes) -->
                         <div class="ribbon ribbon-inputs-row">
                             <div class="ribbon-box">
-                                <label class="ribbon-box-label" title="Total revenue including construction and design">Total Project Value (From CRM/Green Sheets)*</label>
+                                <label class="ribbon-box-label" style="display:flex; align-items:center; gap:5px;">Total Project Value (From CRM/Green Sheets)*<span class="info-icon-wrap"><span class="info-icon" onclick="toggleInfoPopover(event, this)">i</span><span class="info-popover">Total revenue including construction and design</span></span></label>
                                 <input type="text" id="calc-est-construction-cost" placeholder="$0.00" inputmode="numeric" title="This is the total revenue including construction and design" onblur="formatAccountingInput(this)" oninput="calculateAssumedConstructionCost()">
                             </div>
                             <div class="ribbon-box">
@@ -124,8 +124,8 @@
                                             <input type="number" id="unified-escalation" value="5" min="0" max="100" step="0.1" disabled style="background-color: #e0e0e0; color: #666; cursor: not-allowed;">
                                         </div>
                                         <div class="input-group">
-                                            <label style="display: flex; align-items: center; gap: 4px;" title="% Complexity is used to increase the rates of a job in cases where the design is more technically complex or when rates will be higher based on the region where design work is being performed">
-                                                Complexity
+                                            <label style="display: flex; align-items: center; gap: 4px;">
+                                                Complexity<span class="info-icon-wrap"><span class="info-icon" onclick="toggleInfoPopover(event, this)">i</span><span class="info-popover">% Complexity is used to increase the rates of a job in cases where the design is more technically complex or when rates will be higher based on the region where design work is being performed</span></span>
                                                 <label class="toggle-switch" title="Toggle to enable editing">
                                                     <input type="checkbox" id="toggle-complexity" onchange="toggleComplexityEdit(this.checked)">
                                                     <span class="toggle-slider"></span>

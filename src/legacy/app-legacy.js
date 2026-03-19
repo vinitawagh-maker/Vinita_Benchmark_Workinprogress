@@ -24887,6 +24887,21 @@ Chunks: ${JSON.stringify(complexFieldsOnly, null, 2)}`;
         window.projectData = projectData;
         window.currentStep = currentStep;
         
+        // Info icon popover toggle
+        function toggleInfoPopover(event, iconEl) {
+            event.stopPropagation();
+            const popover = iconEl.nextElementSibling;
+            const isVisible = popover.classList.contains('visible');
+            // Close all open popovers first
+            document.querySelectorAll('.info-popover.visible').forEach(p => p.classList.remove('visible'));
+            if (!isVisible) popover.classList.add('visible');
+        }
+        window.toggleInfoPopover = toggleInfoPopover;
+        // Close info popovers when clicking outside
+        document.addEventListener('click', () => {
+            document.querySelectorAll('.info-popover.visible').forEach(p => p.classList.remove('visible'));
+        });
+
         // Feedback email form
         function submitFeedbackEmail() {
             const name = (document.getElementById('fb-name')?.value || '').trim();
