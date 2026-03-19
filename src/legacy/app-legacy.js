@@ -7444,11 +7444,11 @@ ${reasoning}`;
                     <h3 style="margin:0 0 16px;color:#ffd700;font-size:14px;">Digital Delivery — Complexity & Override</h3>
                     <div class="popup-rates-table" style="background:#111;border-radius:4px;padding:10px;margin-bottom:16px;font-size:12px;">
                         <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
-                            <span style="color:#888;">Base Rate (DD.01):</span>
+                            <span style="color:#888;">Base Rate:</span>
                             <span style="color:#ffd700;font-weight:bold;">$58.00/hr</span>
                         </div>
                         <div style="display:flex;justify-content:space-between;">
-                            <span style="color:#888;">Uplift Rate (DD.02):</span>
+                            <span style="color:#888;">Regional/Technical Uplift:</span>
                             <span style="color:#ffd700;font-weight:bold;">$64.00/hr</span>
                         </div>
                     </div>
@@ -11691,10 +11691,10 @@ Include rows like: Grand Total, Design Engineering Indirects, Design Engineering
                 <div class="complexity-popup">
                     <h3>${discName} — Complexity</h3>
                     <div class="popup-rates-table">
-                        <div class="popup-rate-row"><span class="popup-rate-label">Base (Junior ${resources.lowCode || ''} - L1-3):</span> <span class="popup-rate-value">$${resources.lowRate.toFixed(2)}/hr</span></div>
-                        <div class="popup-rate-row"><span class="popup-rate-label">Regional/Technical Uplift (Senior ${resources.highCode || ''} - L4-6):</span> <span class="popup-rate-value">$${resources.highRate.toFixed(2)}/hr</span></div>
+                        <div class="popup-rate-row"><span class="popup-rate-label">Base:</span> <span class="popup-rate-value">$${resources.lowRate.toFixed(2)}/hr</span></div>
+                        <div class="popup-rate-row"><span class="popup-rate-label">Regional/Technical Uplift:</span> <span class="popup-rate-value">$${resources.highRate.toFixed(2)}/hr</span></div>
                     </div>
-                    <label>Regional/Technical Uplift % (L4-6)</label>
+                    <label>Regional/Technical Uplift %</label>
                     <input type="number" id="complexity-popup-input" value="${currentPct}" min="0" max="100" step="5">
                     <div class="popup-formula" id="complexity-popup-formula">
                         <span style="color:#888;">Weighted Rate =</span> $${resources.lowRate.toFixed(2)} × <span id="popup-junior-pct">${juniorPct}</span>% + $${resources.highRate.toFixed(2)} × <span id="popup-senior-pct">${currentPct}</span>%<br>
