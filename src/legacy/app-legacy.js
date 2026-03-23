@@ -43,6 +43,7 @@ let projectData = {
             projectScope: '',
             scheduleNotes: '',
             subbingPhilosophy: '',
+            intendedSubsNotes: '',
             disciplineScopes: {},
             rfpReviewSteps: [],  // Review steps extracted from RFP
             
@@ -487,6 +488,10 @@ let projectData = {
                 // Sync subbing philosophy from textarea
                 const subbingEl = document.getElementById('subbing-philosophy');
                 if (subbingEl) projectData.subbingPhilosophy = subbingEl.value;
+
+                // Sync intended subs notes
+                const intendedSubsEl = document.getElementById('intended-subs-notes');
+                if (intendedSubsEl) projectData.intendedSubsNotes = intendedSubsEl.value;
 
                 // Save selected project sub-consultants
                 projectData.selectedProjectSubs = selectedProjectSubs;
@@ -3389,6 +3394,12 @@ let projectData = {
             const subbingEl = document.getElementById('subbing-philosophy');
             if (subbingEl && projectData.subbingPhilosophy) {
                 subbingEl.value = projectData.subbingPhilosophy;
+            }
+
+            // Restore intended subs notes
+            const intendedSubsEl = document.getElementById('intended-subs-notes');
+            if (intendedSubsEl && projectData.intendedSubsNotes) {
+                intendedSubsEl.value = projectData.intendedSubsNotes;
             }
 
             // Restore selected project sub-consultants
@@ -25030,6 +25041,7 @@ Chunks: ${JSON.stringify(complexFieldsOnly, null, 2)}`;
         window.escapeHtml = escapeHtml;
         window.triggerAutosave = triggerAutosave;
         window.saveToLocalStorage = saveToLocalStorage;
+        window.saveIntendedSubsNotes = function() { saveToLocalStorage(); };
         window.loadFromLocalStorage = loadFromLocalStorage;
         window.checkForSavedData = checkForSavedData;
         window.showRecoveryModal = showRecoveryModal;
