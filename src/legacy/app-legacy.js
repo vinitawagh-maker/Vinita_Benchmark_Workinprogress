@@ -18936,6 +18936,10 @@ ${discRows.map(d => `| ${d.name} | ${d.quantity} | ${d.unit} | ${d.benchmark} | 
 - ESDC and TSCD can use either benchmark curves or a simple % of assumed construction cost
 - IPC is calculated as a flat $/MH fee across all job hours
 - Indirects are based on FTE count × design duration
+
+## Important Rules
+- If the user asks about adding or detailing subcontractors (subs), inform them that sub details can be entered in **Step 2: Detailed Estimate with Subs**. In Step 1 you can only set the overall % Subs for each discipline.
+- Changes to **Burden Rate** and **G&A Rate** require executive approval. An approval email must be uploaded before those changes can take effect.
 `;
 
             // Add project scope if available
@@ -19516,6 +19520,127 @@ Be helpful, friendly, and context-aware. When users are on the Results page, you
         // Parameters that require executive approval before the chatbot can change them
         const EXECUTIVE_APPROVAL_PARAMS = ['unified-burden', 'unified-gna'];
 
+        /**
+         * Shows a modal requiring executive approval email upload before changing burden/G&A.
+         */
+        function showExecApprovalModal(label, oldValue, newValue, parameterId, resolve) {
+            // Remove any existing modal
+            const existing = document.getElementById('exec-approval-modal');
+            if (existing) existing.remove();
+
+            const modal = document.createElement('div');
+            modal.id = 'exec-approval-modal';
+            modal.style.cssText = 'position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:10000; display:flex; align-items:center; justify-content:center;';
+            modal.innerHTML = `
+                <div style="background:#fff; border-radius:10px; padding:28px 32px; width:460px; max-width:95vw; box-shadow:0 8px 32px rgba(0,0,0,0.3); position:relative; font-family:inherit;">
+                    <button id="exec-modal-close" style="position:absolute; top:10px; right:14px; background:none; border:none; font-size:22px; cursor:pointer; color:#666;">&times;</button>
+                    <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
+                        <span style="font-size:28px;">&#9888;</span>
+                        <h3 style="margin:0; font-size:17px; color:#b71c1c; font-weight:700;">Executive Approval Required</h3>
+                    </div>
+                    <p style="margin:0 0 6px; font-size:13px; color:#333;">
+                        Changing <strong>${label}</strong> from <strong>${oldValue}</strong> to <strong>${newValue}</strong> requires executive approval.
+                    </p>
+                    <p style="margin:0 0 18px; font-size:12px; color:#666;">
+                        Please upload the approval email (PDF, EML, MSG, or image) to proceed.
+                    </p>
+                    <div id="exec-upload-zone" style="border:2px dashed #bbb; border-radius:8px; padding:24px; text-align:center; cursor:pointer; margin-bottom:16px; transition:border-color 0.2s;">
+                        <div style="font-size:32px; margin-bottom:6px;">&#128231;</div>
+                        <div style="font-size:13px; color:#555; font-weight:600;">Click or drag to upload approval email</div>
+                        <div style="font-size:11px; color:#999; margin-top:4px;">Accepted: .pdf, .eml, .msg, .png, .jpg, .jpeg</div>
+                        <input type="file" id="exec-approval-file" accept=".pdf,.eml,.msg,.png,.jpg,.jpeg" style="display:none;">
+                    </div>
+                    <div id="exec-file-info" style="display:none; padding:10px 12px; background:#e8f5e9; border-radius:6px; margin-bottom:16px; font-size:12px; color:#2e7d32;">
+                        <span id="exec-file-name" style="font-weight:600;"></span>
+                        <span style="float:right; cursor:pointer; color:#c62828;" id="exec-file-remove" title="Remove">&times;</span>
+                    </div>
+                    <div style="display:flex; gap:10px;">
+                        <button id="exec-approve-btn" disabled style="flex:1; padding:10px; background:#9e9e9e; color:#fff; border:none; border-radius:6px; font-size:14px; font-weight:700; cursor:not-allowed;">
+                            Submit for Approval
+                        </button>
+                        <button id="exec-deny-btn" style="flex:1; padding:10px; background:#fff; color:#333; border:1px solid #ccc; border-radius:6px; font-size:14px; font-weight:600; cursor:pointer;">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            const fileInput = document.getElementById('exec-approval-file');
+            const uploadZone = document.getElementById('exec-upload-zone');
+            const fileInfo = document.getElementById('exec-file-info');
+            const fileName = document.getElementById('exec-file-name');
+            const fileRemove = document.getElementById('exec-file-remove');
+            const approveBtn = document.getElementById('exec-approve-btn');
+            const denyBtn = document.getElementById('exec-deny-btn');
+            const closeBtn = document.getElementById('exec-modal-close');
+
+            let uploadedFile = null;
+
+            uploadZone.addEventListener('click', () => fileInput.click());
+            uploadZone.addEventListener('dragover', (e) => { e.preventDefault(); uploadZone.style.borderColor = '#ffd700'; });
+            uploadZone.addEventListener('dragleave', () => { uploadZone.style.borderColor = '#bbb'; });
+            uploadZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadZone.style.borderColor = '#bbb';
+                if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+            });
+
+            fileInput.addEventListener('change', () => {
+                if (fileInput.files.length) handleFile(fileInput.files[0]);
+            });
+
+            function handleFile(file) {
+                uploadedFile = file;
+                fileName.textContent = file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
+                fileInfo.style.display = 'block';
+                uploadZone.style.display = 'none';
+                approveBtn.disabled = false;
+                approveBtn.style.background = '#193246';
+                approveBtn.style.cursor = 'pointer';
+            }
+
+            fileRemove.addEventListener('click', () => {
+                uploadedFile = null;
+                fileInfo.style.display = 'none';
+                uploadZone.style.display = 'block';
+                fileInput.value = '';
+                approveBtn.disabled = true;
+                approveBtn.style.background = '#9e9e9e';
+                approveBtn.style.cursor = 'not-allowed';
+            });
+
+            function closeModal(result) {
+                modal.remove();
+                resolve(result);
+            }
+
+            approveBtn.addEventListener('click', () => {
+                if (!uploadedFile) return;
+                logAIChange(parameterId, oldValue, newValue, 'Approved (Exec) - ' + uploadedFile.name);
+                // Apply the change
+                const input = document.getElementById(parameterId);
+                if (input) {
+                    input.value = newValue;
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                    input.dispatchEvent(new Event('change', { bubbles: true }));
+                    if (typeof recalculateAllUnifiedCosts === 'function') recalculateAllUnifiedCosts();
+                    if (typeof updateUnifiedSummary === 'function') updateUnifiedSummary();
+                }
+                closeModal({ success: true, message: `${label} changed from "${oldValue}" to "${newValue}". Approval email "${uploadedFile.name}" uploaded and logged.` });
+            });
+
+            denyBtn.addEventListener('click', () => {
+                logAIChange(parameterId, oldValue, newValue, 'Denied');
+                closeModal({ success: false, error: `Change to ${label} was denied. Executive approval email is required to modify this parameter.` });
+            });
+
+            closeBtn.addEventListener('click', () => {
+                logAIChange(parameterId, oldValue, newValue, 'Denied');
+                closeModal({ success: false, error: `Change to ${label} was cancelled. Executive approval email is required.` });
+            });
+        }
+
         // Friendly labels for parameter IDs
         const PARAM_LABELS = {
             'unified-burden': 'Burden Rate (%)',
@@ -19598,14 +19723,11 @@ Be helpful, friendly, and context-aware. When users are on the Results page, you
             }
             const oldValue = input.value;
 
-            // Block restricted parameters with approval prompt
+            // Block restricted parameters — require executive approval email upload
             if (EXECUTIVE_APPROVAL_PARAMS.includes(parameter_id)) {
-                const approved = confirm(`⚠️ Executive Approval Required\n\nChanging "${label}" from ${oldValue} to ${value} requires executive approval.\n\nDo you have authorization to make this change?`);
-                if (!approved) {
-                    logAIChange(parameter_id, oldValue, value, 'Denied');
-                    return { success: false, error: `Change to ${label} was denied. Executive approval is required to modify this parameter.` };
-                }
-                logAIChange(parameter_id, oldValue, value, 'Approved (Exec)');
+                return new Promise((resolve) => {
+                    showExecApprovalModal(label, oldValue, value, parameter_id, resolve);
+                });
             } else {
                 logAIChange(parameter_id, oldValue, value, 'Applied');
             }
