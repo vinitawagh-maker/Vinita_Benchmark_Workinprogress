@@ -19070,6 +19070,7 @@ Be helpful, friendly, and context-aware. When users are on the Results page, you
             const panel = document.getElementById('chat-panel');
             const fab = document.getElementById('chat-fab');
             
+            panel.style.display = chatState.isOpen ? 'flex' : 'none';
             panel.classList.toggle('open', chatState.isOpen);
             fab.classList.remove('has-unread');
             
