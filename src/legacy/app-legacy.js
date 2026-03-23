@@ -18938,7 +18938,7 @@ ${discRows.map(d => `| ${d.name} | ${d.quantity} | ${d.unit} | ${d.benchmark} | 
 - Indirects are based on FTE count × design duration
 
 ## Important Rules
-- If the user asks about adding or detailing subcontractors (subs), inform them that sub details can be entered in **Step 2: Detailed Estimate with Subs**. In Step 1 you can only set the overall % Subs for each discipline.
+- If the user asks about adding subs, entering sub percentages, or detailing subcontractors, inform them that **all sub-related inputs are in Step 2: Detailed Estimate with Subs**. Step 1 does not have sub percentage inputs — only a small notes box for general comments.
 - Changes to **Burden Rate** and **G&A Rate** require executive approval. An approval email must be uploaded before those changes can take effect.
 `;
 
