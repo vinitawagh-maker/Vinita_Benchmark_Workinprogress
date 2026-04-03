@@ -1,0 +1,81 @@
+{
+  "discipline": "Traffic Design",
+  "eqty_metric": {
+    "name": "Alignment Length",
+    "uom": "LF"
+  },
+  "projects": [
+    {
+      "project": "IH 820 Southeast Connector",
+      "fct_mhrs": 43833,
+      "eqty": 550674,
+      "uom": "LF",
+      "production_mhrs_per_ea": 0.08,
+      "applicable_job": true
+    },
+    {
+      "project": "Federal Way Link Extension",
+      "fct_mhrs": 42037,
+      "eqty": 83559,
+      "uom": "LF",
+      "production_mhrs_per_ea": 0.503,
+      "applicable_job": false
+    },
+    {
+      "project": "Foothill Phase 2A LRT",
+      "fct_mhrs": 4284,
+      "eqty": 25667,
+      "uom": "LF",
+      "production_mhrs_per_ea": 0.167,
+      "applicable_job": false
+    },
+    {
+      "project": "Foothill Phase 2B1 LRT",
+      "fct_mhrs": 12410,
+      "eqty": 17105,
+      "uom": "LF",
+      "production_mhrs_per_ea": 0.726,
+      "applicable_job": false
+    },
+    {
+      "project": "I-15 Tropicana",
+      "fct_mhrs": 27602,
+      "eqty": 48206,
+      "uom": "LF",
+      "production_mhrs_per_ea": 0.573,
+      "applicable_job": true
+    },
+    {
+      "project": "I-17 Anthem",
+      "fct_mhrs": 12223,
+      "eqty": 325987,
+      "uom": "LF",
+      "production_mhrs_per_ea": 0.037,
+      "applicable_job": true
+    },
+    {
+      "project": "30 Crossing",
+      "fct_mhrs": 18882,
+      "eqty": 57768,
+      "uom": "LF",
+      "production_mhrs_per_ea": 0.327,
+      "applicable_job": true
+    },
+    {
+      "project": "US 97",
+      "fct_mhrs": 1803,
+      "eqty": 102183,
+      "uom": "LF",
+      "production_mhrs_per_ea": 0.018,
+      "applicable_job": true
+    },
+    {
+      "project": "264th Street Interchange",
+      "fct_mhrs": 5649,
+      "eqty": 51920,
+      "uom": "LF",
+      "production_mhrs_per_ea": 0.109,
+      "applicable_job": true
+    }
+  ]
+}

@@ -1,0 +1,57 @@
+{
+  "discipline": "Retaining Wall Design",
+  "eqty_metric": {
+    "name": "Wall Area",
+    "uom": "SF"
+  },
+  "projects": [
+    {
+      "project": "IH 820 Southeast Connector",
+      "fct_mhrs": 48960,
+      "eqty": 1169432,
+      "uom": "SF",
+      "production_mhrs_per_ea": 0.042,
+      "applicable_job": false
+    },
+    {
+      "project": "Federal Way Link Extension",
+      "fct_mhrs": 54751,
+      "eqty": 434037,
+      "uom": "SF",
+      "production_mhrs_per_ea": 0.126,
+      "applicable_job": false
+    },
+    {
+      "project": "Foothill Phase 2B1 LRT",
+      "fct_mhrs": 18592,
+      "eqty": 377619,
+      "uom": "SF",
+      "production_mhrs_per_ea": 0.049,
+      "applicable_job": false
+    },
+    {
+      "project": "I-15 Tropicana",
+      "fct_mhrs": 4724,
+      "eqty": 95796,
+      "uom": "SF",
+      "production_mhrs_per_ea": 0.049,
+      "applicable_job": true
+    },
+    {
+      "project": "30 Crossing",
+      "fct_mhrs": 3905,
+      "eqty": 42336,
+      "uom": "SF",
+      "production_mhrs_per_ea": 0.092,
+      "applicable_job": true
+    },
+    {
+      "project": "US 97",
+      "fct_mhrs": 696,
+      "eqty": 30039,
+      "uom": "SF",
+      "production_mhrs_per_ea": 0.023,
+      "applicable_job": false
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WBS Terminal - Redirect</title>
+    <script>
+      // SPA fallback: send user to app root so the app loads
+      var base = '/Design_Estimate';
+      var target = base + '/' + (location.search || '') + (location.hash || '');
+      location.replace(target);
+    </script>
+    <meta http-equiv="refresh" content="0;url=/Design_Estimate/">
+</head>
+<body>
+    <p>Redirecting to <a href="/Design_Estimate/">WBS Terminal</a>...</p>
+</body>
+</html>

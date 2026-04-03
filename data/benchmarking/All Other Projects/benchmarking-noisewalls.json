@@ -1,0 +1,25 @@
+{
+  "discipline": "Noise Wall Design",
+  "eqty_metric": {
+    "name": "Noise Wall Area",
+    "uom": "SF"
+  },
+  "projects": [
+    {
+      "project": "IH 820 Southeast Connector",
+      "fct_mhrs": 10909,
+      "eqty": 190048,
+      "uom": "SF",
+      "production_mhrs_per_ea": 0.057,
+      "applicable_job": true
+    },
+    {
+      "project": "Foothill Phase 2B1 LRT",
+      "fct_mhrs": 5339,
+      "eqty": 241020,
+      "uom": "SF",
+      "production_mhrs_per_ea": 0.022,
+      "applicable_job": false
+    }
+  ]
+}

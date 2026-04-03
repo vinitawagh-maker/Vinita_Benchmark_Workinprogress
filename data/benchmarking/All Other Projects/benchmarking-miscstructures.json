@@ -1,0 +1,65 @@
+{
+  "discipline": "Miscellaneous Structure Design",
+  "eqty_metric": {
+    "name": "Spent MHRs of Roadway, Drainage and Traffic",
+    "uom": "MHR"
+  },
+  "projects": [
+    {
+      "project": "IH 820 Southeast Connector",
+      "fct_mhrs": 19110,
+      "eqty": 378295,
+      "uom": "MHR",
+      "production_mhrs_per_ea": 0.051,
+      "applicable_job": true
+    },
+    {
+      "project": "BC Highway 1",
+      "fct_mhrs": 738,
+      "eqty": 6765,
+      "uom": "MHR",
+      "production_mhrs_per_ea": 0.109,
+      "applicable_job": true
+    },
+    {
+      "project": "Federal Way Link Extension",
+      "fct_mhrs": 9945,
+      "eqty": 294035,
+      "uom": "MHR",
+      "production_mhrs_per_ea": 0.034,
+      "applicable_job": false
+    },
+    {
+      "project": "Foothill Phase 2B1 LRT",
+      "fct_mhrs": 12927,
+      "eqty": 166681,
+      "uom": "MHR",
+      "production_mhrs_per_ea": 0.078,
+      "applicable_job": false
+    },
+    {
+      "project": "I-15 Tropicana",
+      "fct_mhrs": 4145,
+      "eqty": 71064,
+      "uom": "MHR",
+      "production_mhrs_per_ea": 0.058,
+      "applicable_job": true
+    },
+    {
+      "project": "I-17 Anthem",
+      "fct_mhrs": 5004,
+      "eqty": 113381,
+      "uom": "MHR",
+      "production_mhrs_per_ea": 0.044,
+      "applicable_job": true
+    },
+    {
+      "project": "264th Street Interchange",
+      "fct_mhrs": 1945,
+      "eqty": 44396,
+      "uom": "MHR",
+      "production_mhrs_per_ea": 0.044,
+      "applicable_job": true
+    }
+  ]
+}

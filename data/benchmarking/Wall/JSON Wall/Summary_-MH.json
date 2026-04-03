@@ -1,0 +1,615 @@
+{
+  "sheet": "Summary - MH",
+  "inputs": {
+    "Barrier Length": 25000,
+    "Alignment Length": 50000,
+    "Design Duration": 0,
+    "Est. Construction Cost": 0,
+    "Easement Type": "All",
+    "FTE Count": "#DIV/0!"
+  },
+  "rows": [
+    {
+      "Discipline": {
+        "value": "Total Indirects"
+      },
+      "Account Codes": {
+        "value": "88.10"
+      },
+      "Quantity Description": {
+        "value": "Alignment Length & Barrier Length"
+      },
+      "Benchmark Alignment Length": {
+        "value": 2373.7893331055025,
+        "formula": "=Indirects!C24"
+      },
+      "Benchmark Barrier Length": {
+        "value": 2638.574587287252,
+        "formula": "=Indirects!K24"
+      },
+      "Go-By Hours": {
+        "value": 2638.574587287252,
+        "formula": "=E9"
+      },
+      "Notes": {
+        "value": null
+      },
+      "Benchmark (MH/LF) Alignment Length": {
+        "value": 0.047475786662110046,
+        "formula": "=D9/$B$6"
+      },
+      "Benchmark (MH/LF) Barrier Length": {
+        "value": 0.10554298349149009,
+        "formula": "=E9/$B$5"
+      },
+      "Go-By (MH/LF) Barrier Length": {
+        "value": 0.10554298349149009,
+        "formula": "=F9/$B$5"
+      }
+    },
+    {
+      "Discipline": {
+        "value": "Total Directs"
+      },
+      "Account Codes": {
+        "value": "88.35, 88.40, 88.45, 88.50"
+      },
+      "Quantity Description": {
+        "value": "Alignment Length & Barrier Length"
+      },
+      "Benchmark Alignment Length": {
+        "value": 15728.443969676946,
+        "formula": "=Directs!C24+D11"
+      },
+      "Benchmark Barrier Length": {
+        "value": 17233.883339756932,
+        "formula": "=Directs!K24+E11"
+      },
+      "Go-By Hours": {
+        "value": 17233.883339756932,
+        "formula": "=E10"
+      },
+      "Notes": {
+        "value": null
+      },
+      "Benchmark (MH/LF) Alignment Length": {
+        "value": 0.3145688793935389,
+        "formula": "=D10/$B$6"
+      },
+      "Benchmark (MH/LF) Barrier Length": {
+        "value": 0.6893553335902773,
+        "formula": "=E10/$B$5"
+      },
+      "Go-By (MH/LF) Barrier Length": {
+        "value": 0.6893553335902773,
+        "formula": "=F10/$B$5"
+      }
+    },
+    {
+      "Discipline": {
+        "value": "Digital Engineering"
+      },
+      "Account Codes": {
+        "value": "88.40.26"
+      },
+      "Quantity Description": {
+        "value": "Anticipated Contract Amount"
+      },
+      "Benchmark Alignment Length": {
+        "value": 3633,
+        "formula": "=Dig_Engr!K9"
+      },
+      "Benchmark Barrier Length": {
+        "value": 3633,
+        "formula": "=Dig_Engr!K9"
+      },
+      "Go-By Hours": {
+        "value": 3633,
+        "formula": "=E11"
+      },
+      "Notes": {
+        "value": "Typical Digital Delivery hours for projects >$1B, 12 Months design duration, Low-Med complexity "
+      },
+      "Benchmark (MH/LF) Alignment Length": {
+        "value": 0.07266,
+        "formula": "=D11/$B$6"
+      },
+      "Benchmark (MH/LF) Barrier Length": {
+        "value": 0.14532,
+        "formula": "=E11/$B$5"
+      },
+      "Go-By (MH/LF) Barrier Length": {
+        "value": 0.14532,
+        "formula": "=F11/$B$5"
+      }
+    },
+    {
+      "Discipline": {
+        "value": "Drainage"
+      },
+      "Account Codes": {
+        "value": "88.40.27"
+      },
+      "Quantity Description": {
+        "value": "Alignment Length & Barrier Length"
+      },
+      "Benchmark Alignment Length": {
+        "value": 2126.5609261896834,
+        "formula": "=Drainage!C24"
+      },
+      "Benchmark Barrier Length": {
+        "value": 2446.097792185969,
+        "formula": "=Drainage!K24"
+      },
+      "Go-By Hours": {
+        "value": 2446.097792185969,
+        "formula": "=E12"
+      },
+      "Notes": {
+        "value": null
+      },
+      "Benchmark (MH/LF) Alignment Length": {
+        "value": 0.04253121852379367,
+        "formula": "=D12/$B$6"
+      },
+      "Benchmark (MH/LF) Barrier Length": {
+        "value": 0.09784391168743876,
+        "formula": "=E12/$B$5"
+      },
+      "Go-By (MH/LF) Barrier Length": {
+        "value": 0.09784391168743876,
+        "formula": "=F12/$B$5"
+      }
+    },
+    {
+      "Discipline": {
+        "value": "Roadway (Civil)"
+      },
+      "Account Codes": {
+        "value": "88.40.47, 88.40.39"
+      },
+      "Quantity Description": {
+        "value": "Alignment Length & Barrier Length"
+      },
+      "Benchmark Alignment Length": {
+        "value": 3766.6781224361725,
+        "formula": "=Roadway!C23"
+      },
+      "Benchmark Barrier Length": {
+        "value": 4185.478381374633,
+        "formula": "=Roadway!K23"
+      },
+      "Go-By Hours": {
+        "value": 4185.478381374633,
+        "formula": "=E13"
+      },
+      "Notes": {
+        "value": null
+      },
+      "Benchmark (MH/LF) Alignment Length": {
+        "value": 0.07533356244872345,
+        "formula": "=D13/$B$6"
+      },
+      "Benchmark (MH/LF) Barrier Length": {
+        "value": 0.1674191352549853,
+        "formula": "=E13/$B$5"
+      },
+      "Go-By (MH/LF) Barrier Length": {
+        "value": 0.1674191352549853,
+        "formula": "=F13/$B$5"
+      }
+    },
+    {
+      "Discipline": {
+        "value": "Geotechnical"
+      },
+      "Account Codes": {
+        "value": "88.50 (includes Retaining Walls)"
+      },
+      "Quantity Description": {
+        "value": "Alignment Length & Barrier Length"
+      },
+      "Benchmark Alignment Length": {
+        "value": 1189.4998684280552,
+        "formula": "=Geotech!C23"
+      },
+      "Benchmark Barrier Length": {
+        "value": 1347.9859434081857,
+        "formula": "=Geotech!K23"
+      },
+      "Go-By Hours": {
+        "value": 1347.9859434081857,
+        "formula": "=E14"
+      },
+      "Notes": {
+        "value": null
+      },
+      "Benchmark (MH/LF) Alignment Length": {
+        "value": 0.023789997368561102,
+        "formula": "=D14/$B$6"
+      },
+      "Benchmark (MH/LF) Barrier Length": {
+        "value": 0.05391943773632743,
+        "formula": "=E14/$B$5"
+      },
+      "Go-By (MH/LF) Barrier Length": {
+        "value": 0.05391943773632743,
+        "formula": "=F14/$B$5"
+      }
+    },
+    {
+      "Discipline": {
+        "value": "Structures (Fence)"
+      },
+      "Account Codes": {
+        "value": "88.45.81 (excludes MSTR)"
+      },
+      "Quantity Description": {
+        "value": "Barrier Length Only"
+      },
+      "Benchmark Alignment Length": {
+        "value": null
+      },
+      "Benchmark Barrier Length": {
+        "value": 2037.42213929819,
+        "formula": "=Structures!C20"
+      },
+      "Go-By Hours": {
+        "value": 2037.42213929819,
+        "formula": "=E15"
+      },
+      "Notes": {
+        "value": " "
+      },
+      "Benchmark (MH/LF) Alignment Length": {
+        "value": 0,
+        "formula": "=D15/$B$6"
+      },
+      "Benchmark (MH/LF) Barrier Length": {
+        "value": 0.0814968855719276,
+        "formula": "=E15/$B$5"
+      },
+      "Go-By (MH/LF) Barrier Length": {
+        "value": 0.0814968855719276,
+        "formula": "=F15/$B$5"
+      }
+    },
+    {
+      "Discipline": {
+        "value": "Electrical / Systems"
+      },
+      "Account Codes": {
+        "value": 88.35
+      },
+      "Quantity Description": {
+        "value": "Barrier Length Only"
+      },
+      "Benchmark Alignment Length": {
+        "value": null
+      },
+      "Benchmark Barrier Length": {
+        "value": 1693.8403122153354,
+        "formula": "=Elec_Systems!C22"
+      },
+      "Go-By Hours": {
+        "value": 1693.8403122153354,
+        "formula": "=E16"
+      },
+      "Notes": {
+        "value": null
+      },
+      "Benchmark (MH/LF) Alignment Length": {
+        "value": 0,
+        "formula": "=D16/$B$6"
+      },
+      "Benchmark (MH/LF) Barrier Length": {
+        "value": 0.06775361248861342,
+        "formula": "=E16/$B$5"
+      },
+      "Go-By (MH/LF) Barrier Length": {
+        "value": 0.06775361248861342,
+        "formula": "=F16/$B$5"
+      }
+    },
+    {
+      "Discipline": {
+        "value": "Environmental"
+      },
+      "Account Codes": {
+        "value": "88.40.39"
+      },
+      "Quantity Description": {
+        "value": "Alignment Length & Barrier Length"
+      },
+      "Benchmark Alignment Length": {
+        "value": 427.1475337031704,
+        "formula": "=($D$10-SUM($D$11:$D$14,$E$15:$E$16))/3"
+      },
+      "Benchmark Barrier Length": {
+        "value": 630.0195904248734,
+        "formula": "=($E$10-SUM($E$11:$E$16))/3"
+      },
+      "Go-By Hours": {
+        "value": 630.0195904248734,
+        "formula": "=E17"
+      },
+      "Notes": {
+        "value": "Remaining Total Direct benchmark hours split between Enviro, Utilities and Misc Structures"
+      },
+      "Benchmark (MH/LF) Alignment Length": {
+        "value": 0.008542950674063408,
+        "formula": "=D17/$B$6"
+      },
+      "Benchmark (MH/LF) Barrier Length": {
+        "value": 0.025200783616994935,
+        "formula": "=E17/$B$5"
+      },
+      "Go-By (MH/LF) Barrier Length": {
+        "value": 0.025200783616994935,
+        "formula": "=F17/$B$5"
+      }
+    },
+    {
+      "Discipline": {
+        "value": "Utilities"
+      },
+      "Account Codes": {
+        "value": "88.40.67"
+      },
+      "Quantity Description": {
+        "value": "Alignment Length & Barrier Length"
+      },
+      "Benchmark Alignment Length": {
+        "value": 427.1475337031704,
+        "formula": "=($D$10-SUM($D$11:$D$14,$E$15:$E$16))/3"
+      },
+      "Benchmark Barrier Length": {
+        "value": 630.0195904248734,
+        "formula": "=($E$10-SUM($E$11:$E$16))/3"
+      },
+      "Go-By Hours": {
+        "value": 630.0195904248734,
+        "formula": "=E18"
+      },
+      "Notes": {
+        "value": null
+      },
+      "Benchmark (MH/LF) Alignment Length": {
+        "value": 0.008542950674063408,
+        "formula": "=D18/$B$6"
+      },
+      "Benchmark (MH/LF) Barrier Length": {
+        "value": 0.025200783616994935,
+        "formula": "=E18/$B$5"
+      },
+      "Go-By (MH/LF) Barrier Length": {
+        "value": 0.025200783616994935,
+        "formula": "=F18/$B$5"
+      }
+    },
+    {
+      "Discipline": {
+        "value": "Misc Structures"
+      },
+      "Account Codes": {
+        "value": "88.45.81.036"
+      },
+      "Quantity Description": {
+        "value": "Alignment Length & Barrier Length"
+      },
+      "Benchmark Alignment Length": {
+        "value": 427.1475337031704,
+        "formula": "=($D$10-SUM($D$11:$D$14,$E$15:$E$16))/3"
+      },
+      "Benchmark Barrier Length": {
+        "value": 630.0195904248734,
+        "formula": "=($E$10-SUM($E$11:$E$16))/3"
+      },
+      "Go-By Hours": {
+        "value": 630.0195904248734,
+        "formula": "=E19"
+      },
+      "Notes": {
+        "value": null
+      },
+      "Benchmark (MH/LF) Alignment Length": {
+        "value": 0.008542950674063408,
+        "formula": "=D19/$B$6"
+      },
+      "Benchmark (MH/LF) Barrier Length": {
+        "value": 0.025200783616994935,
+        "formula": "=E19/$B$5"
+      },
+      "Go-By (MH/LF) Barrier Length": {
+        "value": 0.025200783616994935,
+        "formula": "=F19/$B$5"
+      }
+    },
+    {
+      "Discipline": {
+        "value": "New Item:"
+      },
+      "Account Codes": {
+        "value": null
+      },
+      "Quantity Description": {
+        "value": null
+      },
+      "Benchmark Alignment Length": {
+        "value": null
+      },
+      "Benchmark Barrier Length": {
+        "value": null
+      },
+      "Go-By Hours": {
+        "value": 0,
+        "formula": "=E20"
+      },
+      "Notes": {
+        "value": null
+      },
+      "Benchmark (MH/LF) Alignment Length": {
+        "value": 0,
+        "formula": "=D20/$B$6"
+      },
+      "Benchmark (MH/LF) Barrier Length": {
+        "value": 0,
+        "formula": "=E20/$B$5"
+      },
+      "Go-By (MH/LF) Barrier Length": {
+        "value": 0,
+        "formula": "=F20/$B$5"
+      }
+    },
+    {
+      "Discipline": {
+        "value": "New Item:"
+      },
+      "Account Codes": {
+        "value": null
+      },
+      "Quantity Description": {
+        "value": null
+      },
+      "Benchmark Alignment Length": {
+        "value": null
+      },
+      "Benchmark Barrier Length": {
+        "value": null
+      },
+      "Go-By Hours": {
+        "value": 0,
+        "formula": "=E21"
+      },
+      "Notes": {
+        "value": null
+      },
+      "Benchmark (MH/LF) Alignment Length": {
+        "value": 0,
+        "formula": "=D21/$B$6"
+      },
+      "Benchmark (MH/LF) Barrier Length": {
+        "value": 0,
+        "formula": "=E21/$B$5"
+      },
+      "Go-By (MH/LF) Barrier Length": {
+        "value": 0,
+        "formula": "=F21/$B$5"
+      }
+    },
+    {
+      "Discipline": {
+        "value": "ESDC"
+      },
+      "Account Codes": {
+        "value": null
+      },
+      "Quantity Description": {
+        "value": "Anticipated Project Cost"
+      },
+      "Benchmark Alignment Length": {
+        "value": 2715.3349954173673,
+        "formula": "=SUM(D9:D10)*0.15"
+      },
+      "Benchmark Barrier Length": {
+        "value": 2980.8686890566273,
+        "formula": "=SUM(E9:E10)*0.15"
+      },
+      "Go-By Hours": {
+        "value": 2980.8686890566273,
+        "formula": "=E22"
+      },
+      "Notes": {
+        "value": "Assumption: 15% of base design hours"
+      },
+      "Benchmark (MH/LF) Alignment Length": {
+        "value": 0.05430669990834735,
+        "formula": "=D22/$B$6"
+      },
+      "Benchmark (MH/LF) Barrier Length": {
+        "value": 0.1192347475622651,
+        "formula": "=E22/$B$5"
+      },
+      "Go-By (MH/LF) Barrier Length": {
+        "value": 0.1192347475622651,
+        "formula": "=F22/$B$5"
+      }
+    },
+    {
+      "Discipline": {
+        "value": "TSCD"
+      },
+      "Account Codes": {
+        "value": null
+      },
+      "Quantity Description": {
+        "value": "Anticipated Project Cost"
+      },
+      "Benchmark Alignment Length": {
+        "value": 543.0669990834734,
+        "formula": "=SUM(D9:D10)*0.03"
+      },
+      "Benchmark Barrier Length": {
+        "value": 596.1737378113255,
+        "formula": "=SUM(E9:E10)*0.03"
+      },
+      "Go-By Hours": {
+        "value": 596.1737378113255,
+        "formula": "=E23"
+      },
+      "Notes": {
+        "value": "Assumption: 3% of base design hours"
+      },
+      "Benchmark (MH/LF) Alignment Length": {
+        "value": 0.010861339981669469,
+        "formula": "=D23/$B$6"
+      },
+      "Benchmark (MH/LF) Barrier Length": {
+        "value": 0.02384694951245302,
+        "formula": "=E23/$B$5"
+      },
+      "Go-By (MH/LF) Barrier Length": {
+        "value": 0.02384694951245302,
+        "formula": "=F23/$B$5"
+      }
+    },
+    {
+      "Discipline": {
+        "value": "Contingency"
+      },
+      "Account Codes": {
+        "value": null
+      },
+      "Quantity Description": {
+        "value": "Anticipated Project Cost"
+      },
+      "Benchmark Alignment Length": {
+        "value": 1708.8508237826632,
+        "formula": "=SUM(D9:D10,D22,D23)*0.08"
+      },
+      "Benchmark Barrier Length": {
+        "value": 1875.960028312971,
+        "formula": "=SUM(E9:E10,E22,E23)*0.08"
+      },
+      "Go-By Hours": {
+        "value": 1875.960028312971,
+        "formula": "=E24"
+      },
+      "Notes": {
+        "value": "Assumption: 8% of Indirects + Directs + ESDC + TSCD"
+      },
+      "Benchmark (MH/LF) Alignment Length": {
+        "value": 0.034177016475653264,
+        "formula": "=D24/$B$6"
+      },
+      "Benchmark (MH/LF) Barrier Length": {
+        "value": 0.07503840113251883,
+        "formula": "=E24/$B$5"
+      },
+      "Go-By (MH/LF) Barrier Length": {
+        "value": 0.07503840113251883,
+        "formula": "=F24/$B$5"
+      }
+    }
+  ]
+}

@@ -1,0 +1,2106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Design Estimate Based on Benchmarks</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script type="module" crossorigin src="/Vinita_Benchmark_Workinprogress/assets/js/main-LPwX6QDP.js"></script>
+  <link rel="modulepreload" crossorigin href="/Vinita_Benchmark_Workinprogress/assets/js/vendor-charts-CifjYfLb.js">
+  <link rel="modulepreload" crossorigin href="/Vinita_Benchmark_Workinprogress/assets/js/vendor-pdf-BGfpCg_N.js">
+  <link rel="stylesheet" crossorigin href="/Vinita_Benchmark_Workinprogress/assets/styles/main-NhP7nwuM.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="terminal" style="margin-bottom: 20px;">
+            <div class="terminal-header">
+                <span>■ DESIGN ESTIMATE BASED ON BENCHMARKS (Published by K-Applied AI Group)</span>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <button class="rfp-header-btn" onclick="openProjectManager()">📁 PROJECTS</button>
+                    <span id="status-text">LOADING BENCHMARKS...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Terminal -->
+        <div id="wizard-terminal" class="terminal">
+            <div class="terminal-body">
+                <!-- Progress bar removed - benchmarking only -->
+
+                <!-- Benchmarking (main content) -->
+                <div id="step4" class="step-content benchmarking-step">
+                    <!-- UNIFIED TABLE LAYOUT -->
+                    <div class="unified-benchmarking-layout">
+                        <!-- Ribbon: Benchmark Dataset (above input ribbons) -->
+                        <div class="ribbon-benchmark-row">
+                            <span class="ribbon-bmark-label">📊 Benchmark Dataset*</span>
+                            <select id="benchmark-dataset" class="input-step" onchange="handleBenchmarkDatasetChange()" disabled style="background-color: #e0e0e0; color: #666; cursor: not-allowed;">
+                                <option value="all-other">Highway/Bridge Projects</option>
+                                <option value="border-wall">Wall Projects</option>
+                            </select>
+                        </div>
+
+                        <!-- WIP Disclaimer Banner -->
+                        <div style="background:#2a0000; border:1px solid #ff4444; border-left:4px solid #ff4444; border-radius:4px; padding:10px 14px; margin-bottom:8px;">
+                            <span style="font-size:10px; font-weight:900; text-transform:uppercase; letter-spacing:1px; color:#ff4444;">⚡ Optimized</span>
+                            <p style="margin:4px 0 0; font-size:11px; color:#ff8080; line-height:1.6;">This partial environment is curated specifically for implementation teams to ensure high-performance execution of daily deliverables. Underlying logic layers are currently undergoing final architectural refinement to ensure seamless integration with the organization standards and will be defined later.</p>
+                        </div>
+
+                        <!-- Ribbon 1: Input Parameters (4 boxes) -->
+                        <div class="ribbon ribbon-inputs-row">
+                            <div class="ribbon-box">
+                                <label class="ribbon-box-label" style="display:flex; align-items:center; gap:5px;">Total Project Value (From CRM/Green Sheets)*<span class="info-icon-wrap"><span class="info-icon" onclick="toggleInfoPopover(event, this)">i</span><span class="info-popover">Total revenue including construction and design</span></span></label>
+                                <input type="text" id="calc-est-construction-cost" placeholder="$0.00" inputmode="numeric" title="This is the total revenue including construction and design" onblur="formatAccountingInput(this)" oninput="calculateAssumedConstructionCost()">
+                            </div>
+                            <div class="ribbon-box">
+                                <label class="ribbon-box-label">NTP Date*</label>
+                                <input type="date" id="calc-ntp-date" placeholder="MM/DD/YYYY">
+                            </div>
+                            <div class="ribbon-box">
+                                <label class="ribbon-box-label">Design Duration (Months)*</label>
+                                <input type="number" id="calc-design-duration" placeholder="0" min="0" step="1">
+                            </div>
+                            <!-- Complexity moved to Management Override → Design Metrics -->
+                        </div>
+
+                        <!-- Ribbon 2: Management Override (collapsible) -->
+                        <div class="ribbon ribbon-override-row collapsed">
+                            <div class="ribbon-override-header" onclick="toggleOverrideRibbon()">
+                                <span class="ribbon-override-title">⚙️ Management Override <span class="ribbon-override-subtitle">(toggle fields to edit)</span></span>
+                                <button class="param-toggle-btn" id="override-ribbon-toggle" title="Expand/Collapse">
+                                    <span id="override-ribbon-icon">▶</span>
+                                </button>
+                            </div>
+                            <div class="ribbon-override-content" id="override-ribbon-content">
+                                <!-- Design Metrics -->
+                                <div class="override-section">
+                                    <p class="override-section-label override-design-label">Design Metrics</p>
+                                    <div class="override-fields-grid">
+                                        <div class="input-group">
+                                            <label style="display: flex; align-items: center; gap: 4px;">
+                                                Burden Rate (%)
+                                                <label class="toggle-switch" title="Toggle to enable editing">
+                                                    <input type="checkbox" id="toggle-burden" onchange="toggleFieldEdit('unified-burden', this.checked)">
+                                                    <span class="toggle-slider"></span>
+                                                </label>
+                                            </label>
+                                            <input type="number" id="unified-burden" value="66" min="0" max="200" step="1" disabled style="background-color: #e0e0e0; color: #666; cursor: not-allowed;">
+                                        </div>
+                                        <div class="input-group">
+                                            <label style="display: flex; align-items: center; gap: 4px;">
+                                                G&A Rate (%)
+                                                <label class="toggle-switch" title="Toggle to enable editing">
+                                                    <input type="checkbox" id="toggle-gna" onchange="toggleFieldEdit('unified-gna', this.checked)">
+                                                    <span class="toggle-slider"></span>
+                                                </label>
+                                            </label>
+                                            <input type="number" id="unified-gna" value="104" min="0" max="300" step="1" disabled style="background-color: #e0e0e0; color: #666; cursor: not-allowed;">
+                                        </div>
+                                        <div class="input-group">
+                                            <label style="display: flex; align-items: center; gap: 4px;">
+                                                Contingency (%)
+                                                <label class="toggle-switch" title="Toggle to enable editing">
+                                                    <input type="checkbox" id="toggle-contingency" onchange="toggleFieldEdit('unified-contingency', this.checked)">
+                                                    <span class="toggle-slider"></span>
+                                                </label>
+                                            </label>
+                                            <input type="number" id="unified-contingency" value="5" min="0" max="100" step="1" disabled style="background-color: #e0e0e0; color: #666; cursor: not-allowed;">
+                                        </div>
+                                        <div class="input-group">
+                                            <label style="display: flex; align-items: center; gap: 4px;">
+                                                IPC Fee ($/MH)
+                                                <label class="toggle-switch" title="Toggle to enable editing">
+                                                    <input type="checkbox" id="toggle-ipc-fee" onchange="toggleFieldEdit('unified-ipc-fee', this.checked)">
+                                                    <span class="toggle-slider"></span>
+                                                </label>
+                                            </label>
+                                            <input type="number" id="unified-ipc-fee" value="6" min="0" step="0.01" disabled style="background-color: #e0e0e0; color: #666; cursor: not-allowed;">
+                                        </div>
+                                        <div class="input-group">
+                                            <label style="display: flex; align-items: center; gap: 4px;">
+                                                Escalation (%)
+                                                <label class="toggle-switch" title="Toggle to enable editing">
+                                                    <input type="checkbox" id="toggle-escalation" onchange="toggleFieldEdit('unified-escalation', this.checked)">
+                                                    <span class="toggle-slider"></span>
+                                                </label>
+                                            </label>
+                                            <input type="number" id="unified-escalation" value="5" min="0" max="100" step="0.1" disabled style="background-color: #e0e0e0; color: #666; cursor: not-allowed;">
+                                        </div>
+                                        <div class="input-group">
+                                            <label style="display: flex; align-items: center; gap: 4px;">
+                                                Complexity<span class="info-icon-wrap"><span class="info-icon" onclick="toggleInfoPopover(event, this)">i</span><span class="info-popover">% Complexity is used to increase the rates of a job in cases where the design is more technically complex or when rates will be higher based on the region where design work is being performed</span></span>
+                                                <label class="toggle-switch" title="Toggle to enable editing">
+                                                    <input type="checkbox" id="toggle-complexity" onchange="toggleComplexityEdit(this.checked)">
+                                                    <span class="toggle-slider"></span>
+                                                </label>
+                                            </label>
+                                            <select id="unified-complexity" class="input-step" onchange="applyGlobalComplexity()" disabled style="background-color: #e0e0e0; color: #666; cursor: not-allowed;">
+                                                <option value="Low" selected>Typical Job (0%)</option>
+                                                <option value="Med">Moderate Regional/Technical Uplift (50%)</option>
+                                                <option value="High">High Regional/Technical Uplift (100%)</option>
+                                                <option value="Custom">Custom (%)</option>
+                                            </select>
+                                            <input type="number" id="custom-complexity-pct" min="0" max="100" step="1" placeholder="Enter %" value="50"
+                                                style="display:none; margin-top:4px; width:100%; padding:3px 6px; font-size:11px; border:1px solid #ccc; border-radius:3px;"
+                                                oninput="applyGlobalComplexity()">
+                                        </div>
+                                        <div class="input-group">
+                                            <label style="display: flex; align-items: center; gap: 4px;">
+                                                KIE Multiplier
+                                                <label class="toggle-switch" title="Toggle to enable editing">
+                                                    <input type="checkbox" id="toggle-kie-multiplier" onchange="toggleFieldEdit('calc-kie-multiplier', this.checked)">
+                                                    <span class="toggle-slider"></span>
+                                                </label>
+                                            </label>
+                                            <input type="number" id="calc-kie-multiplier" placeholder="2.85" value="2.85" min="2.7" step="0.01" oninput="enforceKIEMinimum(this)" onchange="calculateMarginPercent()" disabled style="background-color: #e0e0e0; color: #666; cursor: not-allowed;">
+                                            <span id="kie-min-note" style="display:none; color:#e53935; font-size:10px; font-weight:600; margin-top:2px;">Lower limit is 2.7</span>
+                                        </div>
+                                        <div class="input-group override-sub-field">
+                                            <label style="display: flex; align-items: center; gap: 4px;">
+                                                Sub Multiplier
+                                                <label class="toggle-switch" title="Toggle to enable editing">
+                                                    <input type="checkbox" id="toggle-sub-multiplier" onchange="toggleFieldEdit('calc-sub-multiplier', this.checked)">
+                                                    <span class="toggle-slider"></span>
+                                                </label>
+                                            </label>
+                                            <input type="number" id="calc-sub-multiplier" placeholder="3.00" value="3.00" min="0" step="0.01" disabled style="background-color: #e0e0e0; color: #666; cursor: not-allowed;">
+                                        </div>
+                                        <div class="input-group">
+                                            <label style="display: flex; align-items: center; gap: 4px;">
+                                                Sub Markup (%)
+                                                <label class="toggle-switch" title="Toggle to enable editing">
+                                                    <input type="checkbox" id="toggle-sub-markup" onchange="toggleFieldEdit('calc-sub-markup', this.checked)">
+                                                    <span class="toggle-slider"></span>
+                                                </label>
+                                            </label>
+                                            <input type="number" id="calc-sub-markup" placeholder="5" value="5" min="0" max="100" step="0.1" disabled style="background-color: #e0e0e0; color: #666; cursor: not-allowed;">
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- Construction Metrics -->
+                                <div class="override-section override-construction">
+                                    <p class="override-section-label override-construction-label">Construction Metrics</p>
+                                    <div class="override-fields-grid">
+                                        <div class="input-group">
+                                            <label style="display: flex; align-items: center; gap: 4px;">
+                                                Assumed Construction Margin (%)
+                                                <label class="toggle-switch" title="Toggle to enable editing">
+                                                    <input type="checkbox" id="toggle-margin" onchange="toggleFieldEdit('calc-construction-margin', this.checked)">
+                                                    <span class="toggle-slider"></span>
+                                                </label>
+                                            </label>
+                                            <input type="number" id="calc-construction-margin" value="15" min="0" max="100" step="0.1" disabled style="background-color: #e0e0e0; color: #666; cursor: not-allowed;" onchange="calculateAssumedConstructionCost()">
+                                        </div>
+                                        <div class="input-group">
+                                            <label style="display: flex; align-items: center; gap: 4px;">
+                                                Construction G&A %
+                                                <label class="toggle-switch" title="Toggle to enable editing">
+                                                    <input type="checkbox" id="toggle-construction-gna" onchange="toggleFieldEdit('calc-construction-gna', this.checked)">
+                                                    <span class="toggle-slider"></span>
+                                                </label>
+                                            </label>
+                                            <input type="number" id="calc-construction-gna" value="8.83" min="0" max="100" step="0.01" disabled style="background-color: #e0e0e0; color: #666; cursor: not-allowed;" onchange="calculateAssumedConstructionCost()">
+                                        </div>
+                                        <div class="input-group">
+                                            <label style="display: flex; align-items: center; gap: 4px;">
+                                                Assumed Construction Cost
+                                                <label class="toggle-switch" title="Toggle to enable editing">
+                                                    <input type="checkbox" id="toggle-assumed-cost" onchange="toggleFieldEdit('calc-assumed-construction-cost', this.checked)">
+                                                    <span class="toggle-slider"></span>
+                                                </label>
+                                            </label>
+                                            <input type="text" id="calc-assumed-construction-cost" placeholder="$0.00" disabled style="background-color: #e0e0e0; color: #666; cursor: not-allowed;">
+                                        </div>
+                                        <div class="input-group">
+                                            <label style="display: flex; align-items: center; gap: 4px;">
+                                                ESDC % of Construction Cost
+                                                <label class="toggle-switch" title="Toggle to override ESDC using % of assumed construction cost">
+                                                    <input type="checkbox" id="toggle-esdc-pct" checked onchange="toggleEsdcTscdPct('esdc', this.checked)">
+                                                    <span class="toggle-slider"></span>
+                                                </label>
+                                            </label>
+                                            <input type="number" id="calc-esdc-pct" value="1.5" min="0" max="100" step="0.1" onchange="recalculateAllUnifiedCosts()">
+                                        </div>
+                                        <div class="input-group">
+                                            <label style="display: flex; align-items: center; gap: 4px;">
+                                                TSCD % of Construction Cost
+                                                <label class="toggle-switch" title="Toggle to override TSCD using % of assumed construction cost">
+                                                    <input type="checkbox" id="toggle-tscd-pct" checked onchange="toggleEsdcTscdPct('tscd', this.checked)">
+                                                    <span class="toggle-slider"></span>
+                                                </label>
+                                            </label>
+                                            <input type="number" id="calc-tscd-pct" value="0.6" min="0" max="100" step="0.1" onchange="recalculateAllUnifiedCosts()">
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- AI Change Log -->
+                                <div class="override-section override-changelog" id="ai-changelog-section" style="width:100%; flex-basis:100%; margin-top:8px;">
+                                    <p class="override-section-label" style="color:#e07c3a;">AI Change Log</p>
+                                    <table class="ai-changelog-table" style="width:100%; font-size:10px; border-collapse:collapse;">
+                                        <thead>
+                                            <tr style="background:#f5f0e0; text-align:left;">
+                                                <th style="padding:3px 6px; border-bottom:1px solid #ccc;">Time</th>
+                                                <th style="padding:3px 6px; border-bottom:1px solid #ccc;">Parameter</th>
+                                                <th style="padding:3px 6px; border-bottom:1px solid #ccc;">From</th>
+                                                <th style="padding:3px 6px; border-bottom:1px solid #ccc;">To</th>
+                                                <th style="padding:3px 6px; border-bottom:1px solid #ccc;">Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="ai-changelog-tbody">
+                                            <tr><td colspan="5" style="padding:6px; color:#999; font-style:italic; text-align:center;">No changes yet — ask the AI assistant to modify parameters</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div><!-- /ribbon-override-content -->
+                        </div><!-- /ribbon-override-row -->
+
+                        <!-- Intended Subs (collapsible, below Management Override) -->
+                        <div class="ribbon" style="border:1px solid #ccc; border-radius:4px; margin-bottom:6px; overflow:hidden;">
+                            <div onclick="const c=document.getElementById('intended-subs-content'); const i=document.getElementById('intended-subs-icon'); if(c.style.display==='none'){c.style.display='block';i.textContent='▼';}else{c.style.display='none';i.textContent='▶';}" style="cursor:pointer; padding:8px 14px; background:#f5f5f5; display:flex; align-items:center; gap:8px; user-select:none;">
+                                <span id="intended-subs-icon" style="font-size:10px; color:#666;">▶</span>
+                                <span style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:#1a6b3c;">Intended Subs</span>
+                                <span style="font-size:10px; color:#888; font-weight:400;">(Intended sub-consultants)</span>
+                            </div>
+                            <div id="intended-subs-content" style="display:none; padding:10px 14px;">
+                                <textarea id="intended-subs-notes" rows="3" placeholder="e.g., Survey — ABC Surveying, Geotech — XYZ Drilling..." style="width:100%; box-sizing:border-box; padding:8px 10px; border:1px solid #ccc; border-radius:4px; font-size:12px; font-family:inherit; resize:vertical; color:#333;" oninput="saveIntendedSubsNotes()"></textarea>
+                            </div>
+                        </div>
+
+                        <!-- Ribbon 3: Action Buttons -->
+                        <div class="ribbon ribbon-buttons-row">
+                            <button class="btn-step" onclick="openRfpWizard()">📄 RFP Wizard</button>
+                            <button class="btn-calculate" onclick="calculateMHEstimates()">⚡ Calculate Estimated Hours</button>
+                            <input type="file" id="dillon-file-input" accept=".xlsx,.xls" style="display: none;" onchange="handleDillonFileUpload(event)">
+                            <button type="button" class="btn-step" onclick="document.getElementById('dillon-file-input').click()" title="Upload Excel with Summary MH tab to fill quantity fields">📁 Dillon Files - Test</button>
+                            <input type="file" id="dillon-cost-input" accept=".xlsx,.xls,.png,.jpg,.jpeg,.pdf" style="display: none;" onchange="handleDillonCostUpload(event)">
+                            <button type="button" class="btn-step" onclick="document.getElementById('dillon-cost-input').click()" title="Upload Dillon cost file (Excel, PNG, or PDF) to populate Excel Revenue in Check File">💲 Dillon Cost Upload</button>
+                            <span id="dillon-cost-status" style="font-size:10px; color:#4caf50; font-style:italic;"></span>
+                        </div>
+
+                        <!-- Estimate Mode Tabs -->
+                        <div class="estimate-mode-tabs">
+                            <button class="estimate-tab active" id="tab-benchmark" onclick="switchEstimateMode('benchmark')">
+                                Step 1: Benchmark Estimate
+                            </button>
+                        </div>
+
+                        <!-- Unified Table -->
+                        <div class="unified-table-wrapper">
+                            <div class="unified-table-header" onclick="toggleUnifiedTable()">
+                                <div>
+                                    <h3 style="margin: 0; font-size: 13px; color: #333;">📊 CATEGORY BREAKDOWN</h3>
+                                    <div class="unified-table-summary" id="unified-table-summary" style="display: none; font-size: 10px; color: #666; margin-top: 2px;">
+                                        Click to expand table
+                                    </div>
+                                </div>
+                                <button class="param-toggle-btn" id="unified-table-toggle" title="Expand/Collapse">
+                                    <span id="unified-table-icon">▼</span>
+                                </button>
+                            </div>
+                            <table class="unified-estimate-table" id="unified-estimate-table">
+                                <thead>
+                                    <tr>
+                                        <th class="frozen-col">Category<span class="header-help" data-tooltip="Standard KIE category list">?</span></th>
+                                        <!-- MH Columns (Blue) -->
+                                        <th class="mh-col account-code-col">Account Code<span class="header-help" data-tooltip="Standard KIE account codes">?</span></th>
+                                        <th class="mh-col numeric">Quantity<span class="header-help" data-tooltip="Auto-populated from RFP, verify with Discipline Lead">?</span></th>
+                                        <th class="mh-col">Unit<span class="header-help" data-tooltip="Unit of measure based on account code">?</span></th>
+                                        <th class="mh-col">Benchmark<span class="header-help" data-tooltip="Click to select historical projects for rate calculation">?</span></th>
+                                        <th class="mh-col numeric subs-pct-col">% Subs<span class="header-help" data-tooltip="Portion of work subcontracted out — enter 0–100%">?</span></th>
+                                        <th class="mh-col numeric col-all-rate">All Rate<span class="header-help" data-tooltip="Production rate using ALL available benchmark projects">?</span></th>
+                                        <th class="mh-col numeric col-selected-rate">Selected Rate<span class="header-help" data-tooltip="Production rate using SELECTED benchmark projects only">?</span></th>
+                                        <th class="mh-col numeric">Wide Open MHs<span class="header-help" data-tooltip="All Rate × Quantity (for directs)">?</span></th>
+                                        <th class="mh-col numeric">Custom MH's<span class="header-help" data-tooltip="Quantity × Selected Rate">?</span></th>
+                                        <th class="mh-col numeric complexity-col">Complexity<span class="header-help" data-tooltip="Resource complexity: % of senior engineers (L4-L6) vs junior (L1-L3)">?</span><br><span style="font-size: 8px; font-weight: 400;">(% & Hours)</span></th>
+                                        <th class="mh-col mh-col-keep numeric">Total MH's<span class="header-help" data-tooltip="Total estimated man-hours = Quantity × Selected Rate">?</span></th>
+                                        <th class="mh-col mh-col-keep numeric mh-detail-col">KIE MH's<span class="header-help" data-tooltip="KIE in-house MH's = Total MH's − Sub MH's">?</span></th>
+                                        <th class="mh-col mh-col-keep numeric mh-detail-col">Sub MH's<span class="header-help" data-tooltip="Subcontracted MH's = Total MH's × Subs %">?</span></th>
+                                        <th class="mh-col mh-toggle-header">
+                                            <button class="btn-toggle-mh-inline" onclick="toggleMHColumns()" title="Show/hide man-hour estimation columns">
+                                                <span id="toggle-mh-icon">◀</span>
+                                            </button>
+                                        </th>
+                                        <!-- Cost Columns (Green) -->
+                                        <th class="cost-col numeric">Weighted Rate<span class="header-help" data-tooltip="Weighted hourly rate based on complexity % and resource codes">?</span><br><span style="font-size: 8px; font-weight: 400;">($/hr)</span></th>
+                                        <th class="cost-col numeric revenue-detail-col" id="th-labor">KIE Labor<span class="header-help" data-tooltip="KIE Labor = KIE MH × Weighted Rate">?</span></th>
+                                        <th class="cost-col numeric revenue-detail-col" id="th-burden">KIE Burden<span class="header-help" data-tooltip="KIE Burden = KIE Labor × Burden Rate %">?</span></th>
+                                        <th class="cost-col numeric revenue-detail-col" id="th-expenses">KIE Expenses<span class="header-help" data-tooltip="Other direct costs and expenses">?</span></th>
+                                        <th class="cost-col numeric revenue-detail-col kie-detail-col">KIE Total Cost<span class="header-help" data-tooltip="KIE Labor + KIE Burden + KIE Expenses">?</span></th>
+                                        <th class="cost-col numeric revenue-detail-col" id="th-margin">KIE Margin<span class="header-help" data-tooltip="KIE Margin = KIE Labor × Margin %">?</span></th>
+                                        <th class="cost-col numeric revenue-detail-col kie-detail-col">KIE Revenue<span class="header-help" data-tooltip="KIE Revenue = KIE Labor × KIE Multiplier">?</span></th>
+                                        <th class="cost-col numeric revenue-detail-col sub-cost-col">Sub Labor<span class="header-help" data-tooltip="Sub Labor = Sub MH × Weighted Rate">?</span></th>
+                                        <th class="cost-col numeric revenue-detail-col sub-cost-col">Sub Expenses<span class="header-help" data-tooltip="General subcontractor expenses">?</span></th>
+                                        <th class="cost-col numeric revenue-detail-col sub-cost-col">Sub Total Cost<span class="header-help" data-tooltip="Sub Labor + Sub Expenses + LS Sub Expenses">?</span></th>
+                                        <th class="cost-col numeric revenue-detail-col sub-cost-col">Sub Cost to KIE<span class="header-help" data-tooltip="Sub Labor × Sub Multiplier (default 3x)">?</span></th>
+                                        <th class="cost-col numeric revenue-detail-col sub-cost-col">Sub Markup<span class="header-help" data-tooltip="Sub Cost to KIE × (1 + Sub Markup %, default 5%)">?</span></th>
+                                        <th class="cost-col numeric revenue-detail-col ls-sub-expenses-col">LS Sub Expenses<span class="header-help" data-tooltip="LS Consultant subcontractor expenses (% of assumed construction cost)">?</span></th>
+                                        <th class="cost-col numeric revenue-detail-col">G&A<span class="header-help" data-tooltip="G&A = KIE Labor × G&A Rate %">?</span></th>
+                                        <th class="cost-col numeric">Total Revenue/Bill<span class="header-help" data-tooltip="Click to expand breakdown">?</span></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="unified-estimate-tbody-header">
+                                    <!-- KIE Labor Section -->
+                                    <tr class="section-header-row clickable-row" onclick="toggleKieLaborSection()">
+                                        <td class="frozen-col section-header">
+                                            <span id="kie-labor-toggle-icon">▼</span> LABOR
+                                        </td>
+                                        <td class="mh-col section-header account-code-col"></td><td class="mh-col section-header"></td><td class="mh-col section-header"></td><td class="mh-col section-header"></td><td class="mh-col section-header subs-pct-col"></td><td class="mh-col section-header col-all-rate"></td><td class="mh-col section-header col-selected-rate"></td><td class="mh-col section-header"></td><td class="mh-col section-header"></td><td class="mh-col section-header complexity-col"></td>
+                                        <td class="mh-col mh-col-keep section-header numeric clickable-mh" id="kie-labor-total-mh" onclick="event.stopPropagation(); toggleMHDetails()">0</td>
+                                        <td class="mh-col mh-col-keep section-header numeric mh-detail-col" id="kie-labor-kie-mh">0</td>
+                                        <td class="mh-col mh-col-keep section-header numeric mh-detail-col" id="kie-labor-sub-mh">0</td>
+                                        <td class="mh-col mh-toggle-cell section-header"></td>
+                                        <td class="cost-col section-header numeric" id="kie-labor-avg-rate">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col" id="kie-labor-total-raw-labor">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col" id="kie-labor-total-burden">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col" id="kie-labor-total-expenses">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col" id="kie-labor-total-cost">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col" id="kie-labor-total-margin">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col" id="kie-labor-kie-revenue">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col sub-cost-col" id="kie-labor-sub-labor">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col sub-cost-col" id="kie-labor-sub-gen-expenses">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col sub-cost-col" id="kie-labor-sub-total-cost">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col sub-cost-col" id="kie-labor-sub-revenue">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col sub-cost-col" id="kie-labor-sub-markup">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col ls-sub-expenses-col" id="kie-labor-sub-expenses">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col" id="kie-labor-total-gna">$0</td>
+                                        <td class="cost-col section-header numeric clickable-revenue" id="kie-labor-total-revenue" onclick="event.stopPropagation(); toggleRevenueDetails()">$0</td>
+                                    </tr>
+                                    <!-- Directs Row -->
+                                    <tr class="summary-row indent-level-1 clickable-row" onclick="toggleDirectsRows()">
+                                        <td class="frozen-col indent-1">
+                                            <span id="directs-toggle-icon">▼</span> DIRECTS
+                                        </td>
+                                        <td class="mh-col account-code-col"></td><td class="mh-col"></td><td class="mh-col"></td><td class="mh-col"></td><td class="mh-col subs-pct-col"></td><td class="mh-col col-all-rate"></td><td class="mh-col col-selected-rate"></td><td class="mh-col"></td><td class="mh-col"></td><td class="mh-col complexity-col"></td>
+                                        <td class="mh-col mh-col-keep numeric clickable-mh" id="unified-total-mh" onclick="event.stopPropagation(); toggleMHDetails()">0</td>
+                                        <td class="mh-col mh-col-keep numeric mh-detail-col" id="directs-kie-mh">0</td>
+                                        <td class="mh-col mh-col-keep numeric mh-detail-col" id="directs-sub-mh">0</td>
+                                        <td class="mh-col mh-toggle-cell"></td>
+                                        <td class="cost-col numeric" id="unified-avg-rate">$0</td>
+                                        <td class="cost-col numeric revenue-detail-col" id="unified-total-raw-labor">$0</td>
+                                        <td class="cost-col numeric revenue-detail-col" id="unified-total-burden">$0</td>
+                                        <td class="cost-col numeric revenue-detail-col" id="unified-total-expenses">$0</td>
+                                        <td class="cost-col numeric revenue-detail-col" id="unified-total-cost">$0</td>
+                                        <td class="cost-col numeric revenue-detail-col" id="unified-total-margin">$0</td>
+                                        <td class="cost-col numeric revenue-detail-col" id="unified-kie-revenue">$0</td>
+                                        <td class="cost-col numeric revenue-detail-col sub-cost-col" id="directs-sub-labor">$0</td>
+                                        <td class="cost-col numeric revenue-detail-col sub-cost-col" id="directs-sub-gen-expenses">$0</td>
+                                        <td class="cost-col numeric revenue-detail-col sub-cost-col" id="directs-sub-total-cost">$0</td>
+                                        <td class="cost-col numeric revenue-detail-col sub-cost-col" id="directs-sub-revenue">$0</td>
+                                        <td class="cost-col numeric revenue-detail-col sub-cost-col" id="directs-sub-markup">$0</td>
+                                        <td class="cost-col numeric revenue-detail-col ls-sub-expenses-col" id="directs-sub-expenses">$0</td>
+                                        <td class="cost-col numeric revenue-detail-col" id="unified-total-gna">$0</td>
+                                        <td class="cost-col numeric clickable-revenue" id="unified-total-revenue" onclick="event.stopPropagation(); toggleRevenueDetails()">$0</td>
+                                    </tr>
+                                </tbody>
+                                <tbody id="unified-estimate-tbody" class="indent-level-2">
+                                    <!-- Category rows populated by JavaScript - indented under Directs -->
+                                </tbody>
+                                <tbody id="unified-indirects-section">
+                                    <!-- Indirects Row -->
+                                    <tr class="summary-row indent-level-1 clickable-row" onclick="toggleIndirectsRows()">
+                                        <td class="frozen-col indent-1">
+                                            <span id="indirects-toggle-icon">▼</span> INDIRECTS
+                                            <span class="calc-info-btn" onclick="event.stopPropagation(); showCalcInfo('indirects')" title="How is this calculated?">i</span>
+                                            <label class="indirects-toggle-switch" title="Toggle Indirects on/off">
+                                                <input type="checkbox" id="indirects-enabled-toggle" checked onclick="event.stopPropagation(); toggleIndirectsEnabled();">
+                                                <span class="indirects-toggle-slider"></span>
+                                            </label>
+                                            <span class="indirects-fte-wrapper">
+                                                <input type="number" id="indirects-fte" value="" min="0" step="1" placeholder="#"
+                                                       class="indirects-fte-input" title="Number of indirect FTEs"
+                                                       onclick="event.stopPropagation()"
+                                                       onchange="updateIndirectsFTEInput(this.value)">
+                                                <span class="fte-label">FTEs</span>
+                                            </span>
+                                        </td>
+                                        <td class="mh-col account-code-col"></td><td class="mh-col" style="font-size:10px; color:#aaa; padding-left:8px;"><span id="indirects-ratio-display">—</span></td><td class="mh-col"></td><td class="mh-col"></td><td class="mh-col subs-pct-col"></td><td class="mh-col col-all-rate"></td><td class="mh-col col-selected-rate"></td><td class="mh-col"></td><td class="mh-col"></td><td class="mh-col complexity-col"></td>
+                                        <td class="mh-col mh-col-keep numeric" id="unified-indirect-total-mh">0</td>
+                                        <td class="mh-col mh-col-keep numeric mh-detail-col">—</td>
+                                        <td class="mh-col mh-col-keep numeric mh-detail-col">—</td>
+                                        <td class="mh-col mh-toggle-cell"></td>
+                                        <td class="cost-col numeric" id="unified-indirect-avg-rate">$0</td>
+                                        <td class="cost-col numeric revenue-detail-col" id="unified-indirect-total-raw-labor">$0</td>
+                                        <td class="cost-col numeric revenue-detail-col" id="unified-indirect-total-burden">$0</td>
+                                        <td class="cost-col numeric revenue-detail-col" id="unified-indirect-total-expenses">$0</td>
+                                        <td class="cost-col numeric revenue-detail-col" id="unified-indirect-total-cost">$0</td>
+                                        <td class="cost-col numeric revenue-detail-col" id="unified-indirect-total-margin">$0</td>
+                                        <td class="cost-col numeric revenue-detail-col" id="unified-indirect-kie-revenue">$0</td>
+                                        <td class="cost-col numeric revenue-detail-col sub-cost-col" id="indirect-sub-labor">—</td>
+                                        <td class="cost-col numeric revenue-detail-col sub-cost-col" id="indirect-sub-gen-expenses">—</td>
+                                        <td class="cost-col numeric revenue-detail-col sub-cost-col" id="indirect-sub-total-cost">—</td>
+                                        <td class="cost-col numeric revenue-detail-col sub-cost-col" id="indirect-sub-revenue">—</td>
+                                        <td class="cost-col numeric revenue-detail-col sub-cost-col" id="indirect-sub-markup">—</td>
+                                        <td class="cost-col numeric revenue-detail-col ls-sub-expenses-col" id="indirect-sub-expenses">—</td>
+                                        <td class="cost-col numeric revenue-detail-col" id="unified-indirect-total-gna">$0</td>
+                                        <td class="cost-col numeric clickable-revenue" id="unified-indirect-total-revenue" onclick="event.stopPropagation(); toggleRevenueDetails()">$0</td>
+                                    </tr>
+                                </tbody>
+                                <tbody id="unified-indirects-tbody" class="indent-level-2">
+                                    <!-- Indirect category rows (if any) - indented under Indirects -->
+                                </tbody>
+
+                                <!-- SUBS Section -->
+                                <tbody id="subs-section-header">
+                                    <tr class="section-header-row clickable-row" onclick="toggleSubsSection()">
+                                        <td class="frozen-col section-header">
+                                            <span id="subs-section-toggle-icon">▼</span> LS CONSULTANTS <span style="font-size:9px;font-weight:400;color:#aaa;">(% of assumed const. cost)</span>
+                                            <label onclick="event.stopPropagation();" style="display:inline-flex; align-items:center; gap:3px; margin-left:8px; font-size:9px; font-weight:400; color:#666; cursor:pointer;" title="Markup % from Management Override → Sub Markup">
+                                                Markup
+                                                <label class="ipc-toggle-switch" title="Toggle markup on/off" style="margin-left:2px;">
+                                                    <input type="checkbox" id="ls-sub-markup-toggle" checked onchange="toggleLsSubMarkup()">
+                                                    <span class="ipc-toggle-slider"></span>
+                                                </label>
+                                                <input type="number" id="ls-sub-markup-pct-input" value="5" min="0" max="100" step="0.5"
+                                                    onclick="event.stopPropagation();" onchange="updateLsSubMarkupPct()"
+                                                    style="width:38px; font-size:9px; padding:1px 2px; border:1px solid #d4c98e; border-radius:2px; background:#fffef5; text-align:center; font-weight:700; color:#8b7d3c;">%
+                                            </label>
+                                        </td>
+                                        <td class="mh-col section-header account-code-col"></td><td class="mh-col section-header"></td><td class="mh-col section-header"></td><td class="mh-col section-header"></td><td class="mh-col section-header subs-pct-col"></td><td class="mh-col section-header col-all-rate"></td><td class="mh-col section-header col-selected-rate"></td><td class="mh-col section-header"></td><td class="mh-col section-header"></td><td class="mh-col section-header complexity-col"></td>
+                                        <td class="mh-col mh-col-keep section-header numeric" id="subs-section-total-mh">0</td>
+                                        <td class="mh-col mh-col-keep section-header numeric mh-detail-col">—</td>
+                                        <td class="mh-col mh-col-keep section-header numeric mh-detail-col">—</td>
+                                        <td class="mh-col mh-toggle-cell section-header"></td>
+                                        <td class="cost-col section-header numeric" id="subs-section-avg-rate">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col" id="subs-section-total-raw-labor">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col" id="subs-section-total-burden">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col" id="subs-section-total-expenses">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col" id="subs-section-total-cost">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col" id="subs-section-total-margin">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col" id="subs-section-kie-revenue">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col sub-cost-col" id="subs-section-sub-labor">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col sub-cost-col" id="subs-section-sub-gen-expenses">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col sub-cost-col" id="subs-section-sub-total-cost">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col sub-cost-col" id="subs-section-sub-revenue">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col sub-cost-col" id="subs-section-sub-markup">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col ls-sub-expenses-col" id="subs-section-sub-expenses">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col" id="subs-section-total-gna">$0</td>
+                                        <td class="cost-col section-header numeric" id="subs-section-total-revenue">$0</td>
+                                    </tr>
+                                </tbody>
+                                <tbody id="ls-subs-section">
+                                    <!-- LS SUBS -->
+                                    <tr class="summary-row indent-level-1 clickable-row" onclick="toggleSubsRow('ls-subs')">
+                                        <td class="frozen-col indent-1">
+                                            <span id="ls-subs-toggle-icon">▼</span> Survey Subs
+                                            <span class="acc-pct-wrapper" onclick="event.stopPropagation();">
+                                                <input type="number" id="survey-subs-pct" value="0.25" min="0" max="10" step="0.01"
+                                                       class="acc-pct-input" title="% of Assumed Construction Cost">%
+                                            </span>
+                                            <span class="calc-info-btn" onclick="event.stopPropagation(); showCalcInfo('surveySubs')" title="How is this calculated?">i</span>
+                                        </td>
+                                        <td class="mh-col account-code-col"></td><td class="mh-col"></td><td class="mh-col"></td><td class="mh-col"></td><td class="mh-col subs-pct-col"></td><td class="mh-col col-all-rate"></td><td class="mh-col col-selected-rate"></td><td class="mh-col"></td><td class="mh-col"></td><td class="mh-col complexity-col"></td>
+                                        <td class="mh-col mh-col-keep numeric" id="ls-subs-total-mh">0</td>
+                                        <td class="mh-col mh-col-keep numeric mh-detail-col">—</td>
+                                        <td class="mh-col mh-col-keep numeric mh-detail-col">—</td>
+                                        <td class="mh-col mh-toggle-cell"></td>
+                                        <td class="cost-col numeric" id="ls-subs-avg-rate">$0</td>
+                                        <td class="cost-col numeric revenue-detail-col" id="ls-subs-total-raw-labor">$0</td>
+                                        <td class="cost-col numeric revenue-detail-col" id="ls-subs-total-burden">$0</td>
+                                        <td class="cost-col numeric revenue-detail-col" id="ls-subs-total-expenses">$0</td>
+                                        <td class="cost-col numeric revenue-detail-col" id="ls-subs-total-cost">$0</td>
+                                        <td class="cost-col numeric revenue-detail-col" id="ls-subs-total-margin">$0</td>
+                                        <td class="cost-col numeric revenue-detail-col" id="ls-subs-kie-revenue">$0</td>
+                                        <td class="cost-col numeric revenue-detail-col sub-cost-col" id="ls-subs-sub-labor">—</td>
+                                        <td class="cost-col numeric revenue-detail-col sub-cost-col" id="ls-subs-sub-gen-expenses">—</td>
+                                        <td class="cost-col numeric revenue-detail-col sub-cost-col" id="ls-subs-sub-total-cost">—</td>
+                                        <td class="cost-col numeric revenue-detail-col sub-cost-col" id="ls-subs-sub-revenue">—</td>
+                                        <td class="cost-col numeric revenue-detail-col sub-cost-col" id="ls-subs-sub-markup">—</td>
+                                        <td class="cost-col numeric revenue-detail-col ls-sub-expenses-col" id="ls-subs-sub-expenses">—</td>
+                                        <td class="cost-col numeric revenue-detail-col" id="ls-subs-total-gna">$0</td>
+                                        <td class="cost-col numeric" id="ls-subs-total-revenue">$0</td>
+                                    </tr>
+                                </tbody>
+                                <tbody id="ls-subs-tbody" class="indent-level-2 hidden">
+                                </tbody>
+
+                                <tbody id="survey-section">
+                                    <!-- SURVEY -->
+                                    <tr class="summary-row indent-level-1 clickable-row" onclick="toggleSubsRow('survey')">
+                                        <td class="frozen-col indent-1">
+                                            <span id="survey-toggle-icon">▼</span> Subsurface Utility Subs
+                                            <span class="acc-pct-wrapper" onclick="event.stopPropagation();">
+                                                <input type="number" id="subsurface-utility-subs-pct" value="0.25" min="0" max="10" step="0.01"
+                                                       class="acc-pct-input" title="% of Assumed Construction Cost">%
+                                            </span>
+                                            <span class="calc-info-btn" onclick="event.stopPropagation(); showCalcInfo('subsurfaceUtility')" title="How is this calculated?">i</span>
+                                        </td>
+                                        <td class="mh-col account-code-col"></td><td class="mh-col"></td><td class="mh-col"></td><td class="mh-col"></td><td class="mh-col subs-pct-col"></td><td class="mh-col col-all-rate"></td><td class="mh-col col-selected-rate"></td><td class="mh-col"></td><td class="mh-col"></td><td class="mh-col complexity-col"></td>
+                                        <td class="mh-col mh-col-keep numeric" id="survey-total-mh">0</td>
+                                        <td class="mh-col mh-col-keep numeric mh-detail-col">—</td>
+                                        <td class="mh-col mh-col-keep numeric mh-detail-col">—</td>
+                                        <td class="mh-col mh-toggle-cell"></td>
+                                        <td class="cost-col numeric" id="survey-avg-rate">$0</td>
+                                        <td class="cost-col numeric revenue-detail-col" id="survey-total-raw-labor">$0</td>
+                                        <td class="cost-col numeric revenue-detail-col" id="survey-total-burden">$0</td>
+                                        <td class="cost-col numeric revenue-detail-col" id="survey-total-expenses">$0</td>
+                                        <td class="cost-col numeric revenue-detail-col" id="survey-total-cost">$0</td>
+                                        <td class="cost-col numeric revenue-detail-col" id="survey-total-margin">$0</td>
+                                        <td class="cost-col numeric revenue-detail-col" id="survey-kie-revenue">$0</td>
+                                        <td class="cost-col numeric revenue-detail-col sub-cost-col" id="survey-sub-labor">—</td>
+                                        <td class="cost-col numeric revenue-detail-col sub-cost-col" id="survey-sub-gen-expenses">—</td>
+                                        <td class="cost-col numeric revenue-detail-col sub-cost-col" id="survey-sub-total-cost">—</td>
+                                        <td class="cost-col numeric revenue-detail-col sub-cost-col" id="survey-sub-revenue">—</td>
+                                        <td class="cost-col numeric revenue-detail-col sub-cost-col" id="survey-sub-markup">—</td>
+                                        <td class="cost-col numeric revenue-detail-col ls-sub-expenses-col" id="survey-sub-expenses">—</td>
+                                        <td class="cost-col numeric revenue-detail-col" id="survey-total-gna">$0</td>
+                                        <td class="cost-col numeric" id="survey-total-revenue">$0</td>
+                                    </tr>
+                                </tbody>
+                                <tbody id="survey-tbody" class="indent-level-2 hidden">
+                                </tbody>
+
+                                <tbody id="subsurface-utility-section">
+                                    <!-- SUBSURFACE UTILITY SUBS -->
+                                    <tr class="summary-row indent-level-1 clickable-row" onclick="toggleSubsRow('subsurface-utility')">
+                                        <td class="frozen-col indent-1">
+                                            <span id="subsurface-utility-toggle-icon">▼</span> Geotech Drilling Subs
+                                            <span class="acc-pct-wrapper" onclick="event.stopPropagation();">
+                                                <input type="number" id="geotech-subs-pct" value="0.5" min="0" max="10" step="0.01"
+                                                       class="acc-pct-input" title="% of Assumed Construction Cost">%
+                                            </span>
+                                            <span class="calc-info-btn" onclick="event.stopPropagation(); showCalcInfo('geotechSubs')" title="How is this calculated?">i</span>
+                                        </td>
+                                        <td class="mh-col account-code-col"></td><td class="mh-col"></td><td class="mh-col"></td><td class="mh-col"></td><td class="mh-col subs-pct-col"></td><td class="mh-col col-all-rate"></td><td class="mh-col col-selected-rate"></td><td class="mh-col"></td><td class="mh-col"></td><td class="mh-col complexity-col"></td>
+                                        <td class="mh-col mh-col-keep numeric" id="subsurface-utility-total-mh">0</td>
+                                        <td class="mh-col mh-col-keep numeric mh-detail-col">—</td>
+                                        <td class="mh-col mh-col-keep numeric mh-detail-col">—</td>
+                                        <td class="mh-col mh-toggle-cell"></td>
+                                        <td class="cost-col numeric" id="subsurface-utility-avg-rate">$0</td>
+                                        <td class="cost-col numeric revenue-detail-col" id="subsurface-utility-total-raw-labor">$0</td>
+                                        <td class="cost-col numeric revenue-detail-col" id="subsurface-utility-total-burden">$0</td>
+                                        <td class="cost-col numeric revenue-detail-col" id="subsurface-utility-total-expenses">$0</td>
+                                        <td class="cost-col numeric revenue-detail-col" id="subsurface-utility-total-cost">$0</td>
+                                        <td class="cost-col numeric revenue-detail-col" id="subsurface-utility-total-margin">$0</td>
+                                        <td class="cost-col numeric revenue-detail-col" id="subsurface-utility-kie-revenue">$0</td>
+                                        <td class="cost-col numeric revenue-detail-col sub-cost-col" id="subsurface-utility-sub-labor">—</td>
+                                        <td class="cost-col numeric revenue-detail-col sub-cost-col" id="subsurface-utility-sub-gen-expenses">—</td>
+                                        <td class="cost-col numeric revenue-detail-col sub-cost-col" id="subsurface-utility-sub-total-cost">—</td>
+                                        <td class="cost-col numeric revenue-detail-col sub-cost-col" id="subsurface-utility-sub-revenue">—</td>
+                                        <td class="cost-col numeric revenue-detail-col sub-cost-col" id="subsurface-utility-sub-markup">—</td>
+                                        <td class="cost-col numeric revenue-detail-col ls-sub-expenses-col" id="subsurface-utility-sub-expenses">—</td>
+                                        <td class="cost-col numeric revenue-detail-col" id="subsurface-utility-total-gna">$0</td>
+                                        <td class="cost-col numeric" id="subsurface-utility-total-revenue">$0</td>
+                                    </tr>
+                                </tbody>
+                                <tbody id="subsurface-utility-tbody" class="indent-level-2 hidden">
+                                </tbody>
+
+
+                                <tbody id="ipc-section">
+                                    <!-- IPC -->
+                                    <tr class="section-header-row clickable-row" onclick="toggleSubsRow('ipc')">
+                                        <td class="frozen-col section-header">
+                                            <span id="ipc-toggle-icon">▼</span> IPC
+                                            <span id="ipc-rate-label" style="font-size:9px; color:#aaa; font-weight:400; margin-left:4px; vertical-align:middle;">($6/MH)</span>
+                                            <label class="ipc-toggle-switch" title="Toggle IPC on/off">
+                                                <input type="checkbox" id="ipc-enabled-toggle" checked onclick="event.stopPropagation(); toggleIpcEnabled();">
+                                                <span class="ipc-toggle-slider"></span>
+                                            </label>
+                                            <span id="ipc-on-label" style="font-size:8px; color:#FFD200; font-weight:700; margin-left:2px; vertical-align:middle;">ON</span>
+                                            <span class="calc-info-btn" onclick="event.stopPropagation(); showCalcInfo('ipc')" title="How is this calculated?">i</span>
+                                        </td>
+                                        <td class="mh-col section-header account-code-col"></td><td class="mh-col section-header"></td><td class="mh-col section-header"></td><td class="mh-col section-header"></td><td class="mh-col section-header subs-pct-col"></td><td class="mh-col section-header col-all-rate"></td><td class="mh-col section-header col-selected-rate"></td><td class="mh-col section-header"></td><td class="mh-col section-header"></td><td class="mh-col section-header complexity-col"></td>
+                                        <td class="mh-col mh-col-keep section-header numeric" id="ipc-total-mh">0</td>
+                                        <td class="mh-col mh-col-keep section-header numeric mh-detail-col">—</td>
+                                        <td class="mh-col mh-col-keep section-header numeric mh-detail-col">—</td>
+                                        <td class="mh-col mh-toggle-cell section-header"></td>
+                                        <td class="cost-col section-header numeric" id="ipc-avg-rate">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col" id="ipc-total-raw-labor">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col" id="ipc-total-burden">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col" id="ipc-total-expenses">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col kie-detail-col" id="ipc-total-cost">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col" id="ipc-total-margin">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col kie-detail-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col sub-cost-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col sub-cost-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col sub-cost-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col sub-cost-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col sub-cost-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col sub-cost-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col ls-sub-expenses-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col" id="ipc-total-gna">$0</td>
+                                        <td class="cost-col section-header numeric" id="ipc-total-revenue">$0</td>
+                                    </tr>
+                                </tbody>
+                                <tbody id="ipc-tbody" class="indent-level-2 hidden"></tbody>
+
+                                <tbody id="odcs-section">
+                                    <!-- EXPENSES/ODC'S -->
+                                    <tr class="section-header-row clickable-row" onclick="toggleSubsRow('odcs')">
+                                        <td class="frozen-col section-header">
+                                            <span id="odcs-toggle-icon">▶</span> EXPENSES/ODC's <span style="font-size:9px;font-weight:400;color:#aaa;">(% of assumed const. cost)</span>
+                                            <span class="acc-pct-wrapper" style="display:none;" onclick="event.stopPropagation();">
+                                                <input type="number" id="odcs-pct" value="0.25" min="0" max="10" step="0.01" 
+                                                       class="acc-pct-input" title="% of Assumed Construction Cost">%
+                                            </span>
+                                            <span class="calc-info-btn" onclick="event.stopPropagation(); showCalcInfo('odcs')" title="How is this calculated?">i</span>
+                                        </td>
+                                        <td class="mh-col section-header account-code-col"></td><td class="mh-col section-header"></td><td class="mh-col section-header"></td><td class="mh-col section-header"></td><td class="mh-col section-header subs-pct-col"></td><td class="mh-col section-header col-all-rate"></td><td class="mh-col section-header col-selected-rate"></td><td class="mh-col section-header"></td><td class="mh-col section-header"></td><td class="mh-col section-header complexity-col"></td>
+                                        <td class="mh-col mh-col-keep section-header numeric" id="odcs-total-mh">0</td>
+                                        <td class="mh-col mh-col-keep section-header numeric mh-detail-col">—</td>
+                                        <td class="mh-col mh-col-keep section-header numeric mh-detail-col">—</td>
+                                        <td class="mh-col mh-toggle-cell section-header"></td>
+                                        <td class="cost-col section-header numeric" id="odcs-avg-rate">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col" id="odcs-total-raw-labor">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col" id="odcs-total-burden">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col" id="odcs-total-expenses">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col kie-detail-col" id="odcs-total-cost">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col" id="odcs-total-margin">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col kie-detail-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col sub-cost-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col sub-cost-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col sub-cost-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col sub-cost-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col sub-cost-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col sub-cost-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col ls-sub-expenses-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col" id="odcs-total-gna">$0</td>
+                                        <td class="cost-col section-header numeric" id="odcs-total-revenue">$0</td>
+                                    </tr>
+                                </tbody>
+                                <tbody id="odcs-tbody" class="indent-level-2 hidden"></tbody>
+
+                                <!-- ESDC -->
+                                <tbody>
+                                    <tr class="section-header-row">
+                                        <td class="frozen-col section-header">
+                                            ESDC
+                                            <label class="ipc-toggle-switch" title="Toggle: use % of assumed construction cost instead of benchmarks">
+                                                <input type="checkbox" id="esdc-pct-override-toggle" checked onclick="event.stopPropagation(); toggleEsdcTscdOverride('esdc', this.checked);">
+                                                <span class="ipc-toggle-slider"></span>
+                                            </label>
+                                            <span id="esdc-pct-label" style="font-size:8px; color:#FFD200; font-weight:700; margin-left:2px; vertical-align:middle;">use %</span>
+                                            <button class="escalation-details-btn" onclick="showDisciplineBenchmark('esdc')" title="Select benchmark projects">📊</button>
+                                            <span class="calc-info-btn" onclick="event.stopPropagation(); showCalcInfo('esdc')" title="How is this calculated?">i</span>
+                                        </td>
+                                        <td class="mh-col section-header account-code-col"></td><td class="mh-col section-header"></td><td class="mh-col section-header"></td><td class="mh-col section-header"></td><td class="mh-col section-header subs-pct-col"></td><td class="mh-col section-header col-all-rate"></td><td class="mh-col section-header col-selected-rate"></td><td class="mh-col section-header"></td><td class="mh-col section-header"></td>
+                                        <td class="mh-col section-header numeric complexity-col">
+                                            <input type="number" class="l4-input" id="unified-l4-esdc"
+                                                   value="30" min="0" max="100" step="5"
+                                                   onchange="updateUnifiedL4('esdc')"
+                                                   title="Complexity: % of senior engineers (L4-L6) in team"
+                                                   onclick="event.stopPropagation()">
+                                        </td>
+                                        <td class="mh-col mh-col-keep section-header numeric" id="esdc-total-mh">0</td>
+                                        <td class="mh-col mh-col-keep section-header numeric mh-detail-col">—</td>
+                                        <td class="mh-col mh-col-keep section-header numeric mh-detail-col">—</td>
+                                        <td class="mh-col mh-toggle-cell section-header"></td>
+                                        <td class="cost-col section-header numeric" id="esdc-avg-rate" style="position:relative;"><span id="esdc-rate-value">$64.90</span><button class="complexity-plus-btn" onclick="event.stopPropagation(); openComplexityPopup('esdc')" title="Adjust complexity %">+</button></td>
+                                        <td class="cost-col section-header numeric revenue-detail-col" id="esdc-total-raw-labor">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col" id="esdc-total-burden">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col" id="esdc-total-expenses">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col" id="esdc-total-cost">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col" id="esdc-total-margin">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col sub-cost-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col sub-cost-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col sub-cost-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col sub-cost-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col sub-cost-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col sub-cost-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col ls-sub-expenses-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col" id="esdc-total-gna">$0</td>
+                                        <td class="cost-col section-header numeric" id="esdc-total-revenue">$0</td>
+                                    </tr>
+                                </tbody>
+
+                                <!-- TSCD -->
+                                <tbody>
+                                    <tr class="section-header-row">
+                                        <td class="frozen-col section-header">
+                                            TSCD
+                                            <label class="ipc-toggle-switch" title="Toggle: use % of assumed construction cost instead of benchmarks">
+                                                <input type="checkbox" id="tscd-pct-override-toggle" checked onclick="event.stopPropagation(); toggleEsdcTscdOverride('tscd', this.checked);">
+                                                <span class="ipc-toggle-slider"></span>
+                                            </label>
+                                            <span id="tscd-pct-label" style="font-size:8px; color:#FFD200; font-weight:700; margin-left:2px; vertical-align:middle;">use %</span>
+                                            <button class="escalation-details-btn" onclick="showDisciplineBenchmark('tscd')" title="Select benchmark projects">📊</button>
+                                            <span class="calc-info-btn" onclick="event.stopPropagation(); showCalcInfo('tscd')" title="How is this calculated?">i</span>
+                                        </td>
+                                        <td class="mh-col section-header account-code-col"></td><td class="mh-col section-header"></td><td class="mh-col section-header"></td><td class="mh-col section-header"></td><td class="mh-col section-header subs-pct-col"></td><td class="mh-col section-header col-all-rate"></td><td class="mh-col section-header col-selected-rate"></td><td class="mh-col section-header"></td><td class="mh-col section-header"></td>
+                                        <td class="mh-col section-header numeric complexity-col">
+                                            <input type="number" class="l4-input" id="unified-l4-tscd"
+                                                   value="30" min="0" max="100" step="5"
+                                                   onchange="updateUnifiedL4('tscd')"
+                                                   title="Complexity: % of senior engineers (L4-L6) in team"
+                                                   onclick="event.stopPropagation()">
+                                        </td>
+                                        <td class="mh-col mh-col-keep section-header numeric" id="tscd-total-mh">0</td>
+                                        <td class="mh-col mh-col-keep section-header numeric mh-detail-col">—</td>
+                                        <td class="mh-col mh-col-keep section-header numeric mh-detail-col">—</td>
+                                        <td class="mh-col mh-toggle-cell section-header"></td>
+                                        <td class="cost-col section-header numeric" id="tscd-avg-rate" style="position:relative;"><span id="tscd-rate-value">$64.90</span><button class="complexity-plus-btn" onclick="event.stopPropagation(); openComplexityPopup('tscd')" title="Adjust complexity %">+</button></td>
+                                        <td class="cost-col section-header numeric revenue-detail-col" id="tscd-total-raw-labor">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col" id="tscd-total-burden">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col" id="tscd-total-expenses">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col" id="tscd-total-cost">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col" id="tscd-total-margin">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col sub-cost-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col sub-cost-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col sub-cost-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col sub-cost-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col sub-cost-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col sub-cost-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col ls-sub-expenses-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col" id="tscd-total-gna">$0</td>
+                                        <td class="cost-col section-header numeric" id="tscd-total-revenue">$0</td>
+                                    </tr>
+                                </tbody>
+
+                                <!-- PURSUIT COSTS & SUCCESS FEE -->
+                                <tbody id="pursuit-section">
+                                    <tr class="section-header-row clickable-row" onclick="toggleSubsRow('pursuit')">
+                                        <td class="frozen-col section-header">
+                                            <span id="pursuit-toggle-icon">▶</span> PURSUIT &amp; SUCCESS FEE <span style="font-size:9px;font-weight:400;color:#aaa;">(% of IPV)</span>
+                                            <span class="acc-pct-wrapper" style="display:none;" onclick="event.stopPropagation();">
+                                                <input type="number" id="pursuit-pct-input" value="0.25" min="0" max="10" step="0.05"
+                                                       class="acc-pct-input" title="% of Initial Project Value" onchange="updatePursuitRevenue()">%
+                                            </span>
+                                            <span class="calc-info-btn" onclick="event.stopPropagation(); showCalcInfo('pursuit')" title="How is this calculated?">i</span>
+                                        </td>
+                                        <td class="mh-col section-header account-code-col"></td><td class="mh-col section-header"></td><td class="mh-col section-header"></td><td class="mh-col section-header"></td><td class="mh-col section-header subs-pct-col"></td><td class="mh-col section-header col-all-rate"></td><td class="mh-col section-header col-selected-rate"></td><td class="mh-col section-header"></td><td class="mh-col section-header"></td><td class="mh-col section-header complexity-col"></td>
+                                        <td class="mh-col mh-col-keep section-header numeric" id="pursuit-total-mh">0</td>
+                                        <td class="mh-col mh-col-keep section-header numeric mh-detail-col">—</td>
+                                        <td class="mh-col mh-col-keep section-header numeric mh-detail-col">—</td>
+                                        <td class="mh-col mh-toggle-cell section-header"></td>
+                                        <td class="cost-col section-header numeric" id="pursuit-avg-rate">-</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col" id="pursuit-total-raw-labor">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col" id="pursuit-total-burden">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col" id="pursuit-total-expenses">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col kie-detail-col" id="pursuit-total-cost">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col" id="pursuit-total-margin">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col kie-detail-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col sub-cost-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col sub-cost-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col sub-cost-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col sub-cost-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col sub-cost-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col sub-cost-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col ls-sub-expenses-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col" id="pursuit-total-gna">$0</td>
+                                        <td class="cost-col section-header numeric" id="pursuit-total-revenue">$0</td>
+                                    </tr>
+                                </tbody>
+                                <tbody id="pursuit-tbody" class="indent-level-2 hidden"></tbody>
+
+                                <!-- ESCALATION -->
+                                <tbody>
+                                    <tr class="section-header-row">
+                                        <td class="frozen-col section-header">
+                                            ESCALATION
+                                            <button class="escalation-details-btn" onclick="openEscalationModal()" title="View Escalation Breakdown">📊</button>
+                                            <span class="calc-info-btn" onclick="event.stopPropagation(); showCalcInfo('escalation')" title="How is this calculated?">i</span>
+                                        </td>
+                                        <td class="mh-col section-header account-code-col"></td><td class="mh-col section-header"></td><td class="mh-col section-header"></td><td class="mh-col section-header"></td><td class="mh-col section-header subs-pct-col"></td><td class="mh-col section-header col-all-rate"></td><td class="mh-col section-header col-selected-rate"></td><td class="mh-col section-header"></td><td class="mh-col section-header"></td><td class="mh-col section-header complexity-col"></td>
+                                        <td class="mh-col mh-col-keep section-header numeric" id="escalation-total-mh">0</td>
+                                        <td class="mh-col mh-col-keep section-header numeric mh-detail-col">—</td>
+                                        <td class="mh-col mh-col-keep section-header numeric mh-detail-col">—</td>
+                                        <td class="mh-col mh-toggle-cell section-header"></td>
+                                        <td class="cost-col section-header numeric" id="escalation-avg-rate">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col" id="escalation-total-raw-labor">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col" id="escalation-total-burden">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col" id="escalation-total-expenses">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col kie-detail-col" id="escalation-total-cost">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col" id="escalation-total-margin">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col kie-detail-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col sub-cost-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col sub-cost-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col sub-cost-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col sub-cost-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col sub-cost-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col sub-cost-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col ls-sub-expenses-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col" id="escalation-total-gna">$0</td>
+                                        <td class="cost-col section-header numeric" id="escalation-total-revenue">$0</td>
+                                    </tr>
+                                </tbody>
+
+                                <!-- CONTINGENCY -->
+                                <tbody>
+                                    <tr class="section-header-row">
+                                        <td class="frozen-col section-header">CONTINGENCY
+                                            <span style="font-size:9px; color:#aaa; font-weight:400; margin-left:4px; vertical-align:middle;">(</span><input type="number" id="contingency-inline-pct" value="5" min="0" max="100" step="1" style="width:32px; font-size:9px; color:#000; background:#e0e0e0; border:1px solid #555; border-radius:3px; text-align:center; padding:1px 2px; vertical-align:middle;" onchange="syncContingencyFromInline(this.value)" oninput="syncContingencyFromInline(this.value)"><span style="font-size:9px; color:#aaa; font-weight:400; vertical-align:middle;">%)</span>
+                                            <span class="calc-info-btn" onclick="event.stopPropagation(); showCalcInfo('contingency')" title="How is this calculated?">i</span>
+                                        </td>
+                                        <td class="mh-col section-header account-code-col"></td><td class="mh-col section-header"></td><td class="mh-col section-header"></td><td class="mh-col section-header"></td><td class="mh-col section-header subs-pct-col"></td><td class="mh-col section-header col-all-rate"></td><td class="mh-col section-header col-selected-rate"></td><td class="mh-col section-header"></td><td class="mh-col section-header"></td><td class="mh-col section-header complexity-col"></td>
+                                        <td class="mh-col mh-col-keep section-header numeric" id="contingency-total-mh">0</td>
+                                        <td class="mh-col mh-col-keep section-header numeric mh-detail-col">—</td>
+                                        <td class="mh-col mh-col-keep section-header numeric mh-detail-col">—</td>
+                                        <td class="mh-col mh-toggle-cell section-header"></td>
+                                        <td class="cost-col section-header numeric" id="contingency-avg-rate">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col" id="contingency-total-raw-labor">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col" id="contingency-total-burden">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col" id="contingency-total-expenses">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col kie-detail-col" id="contingency-total-cost">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col" id="contingency-total-margin">$0</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col kie-detail-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col sub-cost-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col sub-cost-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col sub-cost-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col sub-cost-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col sub-cost-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col sub-cost-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col ls-sub-expenses-col">—</td>
+                                        <td class="cost-col section-header numeric revenue-detail-col" id="contingency-total-gna">$0</td>
+                                        <td class="cost-col section-header numeric" id="contingency-total-revenue">$0</td>
+                                    </tr>
+                                </tbody>
+                                <tfoot id="unified-totals-footer">
+                                    <tr class="totals-row">
+                                        <td class="frozen-col totals-label"><strong>GRAND TOTAL</strong></td>
+                                        <td class="mh-col account-code-col"></td><td class="mh-col"></td><td class="mh-col"></td><td class="mh-col"></td><td class="mh-col subs-pct-col"></td><td class="mh-col col-all-rate"></td><td class="mh-col col-selected-rate"></td><td class="mh-col"></td><td class="mh-col"></td><td class="mh-col complexity-col"></td>
+                                        <td class="mh-col mh-col-keep numeric" id="grand-total-mh">0</td>
+                                        <td class="mh-col mh-col-keep numeric mh-detail-col" id="grand-total-kie-mh">0</td>
+                                        <td class="mh-col mh-col-keep numeric mh-detail-col" id="grand-total-sub-mh">0</td>
+                                        <td class="mh-col mh-toggle-cell"></td>
+                                        <td class="cost-col numeric">-</td>
+                                        <td class="cost-col numeric revenue-detail-col" id="grand-total-raw-labor">$0</td>
+                                        <td class="cost-col numeric revenue-detail-col" id="grand-total-burden">$0</td>
+                                        <td class="cost-col numeric revenue-detail-col" id="grand-total-expenses">$0</td>
+                                        <td class="cost-col numeric revenue-detail-col" id="grand-total-cost">$0</td>
+                                        <td class="cost-col numeric revenue-detail-col" id="grand-total-margin">$0</td>
+                                        <td class="cost-col numeric revenue-detail-col" id="grand-total-kie-revenue">$0</td>
+                                        <td class="cost-col numeric revenue-detail-col sub-cost-col" id="grand-total-sub-labor">$0</td>
+                                        <td class="cost-col numeric revenue-detail-col sub-cost-col" id="grand-total-sub-gen-expenses">$0</td>
+                                        <td class="cost-col numeric revenue-detail-col sub-cost-col" id="grand-total-sub-total-cost">$0</td>
+                                        <td class="cost-col numeric revenue-detail-col sub-cost-col" id="grand-total-sub-revenue">$0</td>
+                                        <td class="cost-col numeric revenue-detail-col sub-cost-col" id="grand-total-sub-markup">$0</td>
+                                        <td class="cost-col numeric revenue-detail-col ls-sub-expenses-col" id="grand-total-sub-expenses">$0</td>
+                                        <td class="cost-col numeric revenue-detail-col" id="grand-total-gna">$0</td>
+                                        <td class="cost-col numeric" id="grand-total-revenue">$0</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+
+                        <!-- Actions -->
+                        <div class="unified-actions">
+                            <button class="btn" onclick="resetUnifiedEstimate()">Reset All</button>
+                            <button class="btn" onclick="generateCheckFile()" title="Compare Dillon file vs app data">Check File</button>
+                            <button class="btn" onclick="generateProjectFinancials()" title="Download project financial summary">Project Financials</button>
+                            <button class="btn" onclick="generateC2CReport()" title="Generate Cost/Cost Ratio report">C2C Ratio</button>
+                            <button class="btn" onclick="openSensitivityModal()" title="Sensitivity Analysis">Sensitivity</button>
+                            <button class="btn" onclick="generateNarrative()" title="Generate design fee estimate narrative">Narrative</button>
+                        </div>
+                        <!-- Inline Comment Panel (below the button row) -->
+                        <div id="comment-panel" style="display:none; margin-top:8px;"></div>
+                    </div>
+
+                    <div class="benchmarking-layout" style="display: none;">
+                        <!-- LEFT COLUMN: MH BENCHMARK ESTIMATOR -->
+                        <div class="benchmarking-column mh-column">
+                            <div id="mh-estimator" class="mh-estimator">
+                                <div class="mh-estimator-header">
+                                    <h3>👥 MH BENCHMARK ESTIMATOR</h3>
+                                    <span id="mh-estimator-status">Configure project parameters</span>
+                                </div>
+
+                                <div id="mh-estimator-body" class="mh-estimator-body">
+                            <!-- Input Parameters -->
+                            <div class="mh-input-grid">
+                                <div class="mh-input-group">
+                                    <label>Project Cost ($)</label>
+                                    <input type="text" id="mh-project-cost" placeholder="500,000,000" inputmode="numeric" onchange="updateMHProjectCost()">
+                                </div>
+                                <div class="mh-input-group">
+                                    <label>Design Duration (Months)*</label>
+                                    <input type="number" id="mh-design-duration" value="20" min="6" max="48" onchange="updateMHInputs()">
+                                </div>
+                                <div class="mh-input-group">
+                                    <label>Project Type</label>
+                                    <select id="mh-project-type" onchange="updateMHInputs()">
+                                        <option value="highway" selected>Highway/Interstate</option>
+                                        <option value="transit">Transit/Rail</option>
+                                        <option value="bridge">Bridge</option>
+                                        <option value="utility">Utility</option>
+                                    </select>
+                                </div>
+                                <div class="mh-input-group">
+                                    <label>Complexity</label>
+                                    <select id="mh-complexity" onchange="updateMHInputs()">
+                                        <option value="Low">Low</option>
+                                        <option value="Low-Med">Low-Medium</option>
+                                        <option value="Med" selected>Medium</option>
+                                        <option value="Med-High">Medium-High</option>
+                                        <option value="High">High</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Discipline Quantities Table -->
+                            <div class="mh-table-wrapper">
+                                <table class="mh-estimate-table" id="mh-estimate-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Discipline<span class="header-help" data-tooltip="This is the standard list of KIE Disciplines">?</span></th>
+                                            <th>Account Code<span class="header-help" data-tooltip="Standard KIE account codes">?</span></th>
+                                            <th class="numeric">Quantity<span class="header-help" data-tooltip="This is auto populated from the RFP and needs to be checked by the Discipline Lead">?</span></th>
+                                            <th>Unit<span class="header-help" data-tooltip="Unit rate based on account code used">?</span></th>
+                                            <th class="benchmark-select-header">Benchmark<span class="header-help" data-tooltip="Please click and choose a project">?</span></th>
+                                            <th class="numeric rate-header" title="Production rate using ALL available benchmark projects">All Projects Rate</th>
+                                            <th class="numeric rate-header" title="Production rate using SELECTED benchmark projects only">Selected Rate</th>
+                                            <th class="numeric">Est. MH</th>
+                                            <th class="numeric rate-header">Percent complexity<span class="header-help" data-tooltip="Percentage of Level 4-6 engineers needed">?</span></th>
+                                            <th>Projects Used</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="mh-estimate-tbody">
+                                        <!-- Populated by JavaScript -->
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- Summary Bar -->
+                            <div class="mh-summary-bar">
+                                <div>
+                                    <span class="total-label">TOTAL ESTIMATED MAN-HOURS</span>
+                                    <div id="mh-total-range" style="font-size: 11px; color: #4da6ff; margin-top: 4px; display: none;"></div>
+                                </div>
+                                <div class="total-mh" id="mh-total-display">0</div>
+                            </div>
+
+                            <!-- Actions -->
+                            <div class="mh-actions">
+                                <button class="btn btn-sm" onclick="resetMHEstimate()">Reset</button>
+                                <button class="btn-mh" onclick="applyMHEstimate()">Apply to Budget</button>
+                            </div>
+                        </div>
+                            </div>
+                        </div><!-- end mh-column -->
+
+                        <!-- RIGHT COLUMN: COST BY DISCIPLINE -->
+                        <div class="benchmarking-column cost-extension-column">
+                            <div class="cost-extension-panel">
+                                <div class="cost-extension-header">
+                                    <h3>💰 COST BY DISCIPLINE</h3>
+                                    <span class="cost-extension-status">Enter cost per discipline</span>
+                                </div>
+                                <div class="cost-extension-body">
+                                    <div class="cost-extension-inputs">
+                                        <div class="cost-extension-group">
+                                            <label for="cost-est-construction">Estimated Construction Cost (District)*</label>
+                                            <input type="text" id="cost-est-construction" placeholder="0" inputmode="numeric">
+                                        </div>
+                                        <div class="cost-extension-group">
+                                            <label for="cost-burden-rate">Burden Rate</label>
+                                            <div class="cost-extension-percent">
+                                                <input type="number" id="cost-burden-rate" value="66" min="0" max="200" step="1">
+                                                <span>%</span>
+                                            </div>
+                                        </div>
+                                        <div class="cost-extension-group">
+                                            <label for="cost-gna-rate">G&amp;A Rate</label>
+                                            <div class="cost-extension-percent">
+                                                <input type="number" id="cost-gna-rate" value="104" min="0" max="300" step="1">
+                                                <span>%</span>
+                                            </div>
+                                        </div>
+                                        <div class="cost-extension-group">
+                                            <label for="cost-contingency">Contingency</label>
+                                            <div class="cost-extension-percent">
+                                                <input type="number" id="cost-contingency" value="5" min="0" max="100" step="1">
+                                                <span>%</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="budget-table-wrapper">
+                                        <table id="budget-table"></table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div><!-- end cost-extension-column -->
+
+                        <div class="benchmarking-secondary">
+                            <!-- COST ESTIMATOR -->
+                            <div class="benchmarking-column cost-column">
+                            <div id="budget-calculator" class="budget-calculator">
+                                <div class="calculator-header">
+                                    <h3>💰 COST ESTIMATOR</h3>
+                                    <span id="calculator-status">Configure inputs below</span>
+                                </div>
+
+                                <div id="calculator-body" class="calculator-body">
+                                    <div class="calc-grid">
+                                        <div class="calc-group">
+                                            <label>Total Construction Cost ($)</label>
+                                            <input type="text" id="calc-construction-cost" placeholder="5,000,000" inputmode="numeric">
+                                        </div>
+
+                                        <div class="calc-group">
+                                            <label>Design Fee (% of Construction)</label>
+                                            <input type="number" id="calc-design-fee-pct" value="15" min="1" max="30" step="0.5">
+                                        </div>
+
+                                        <div class="calc-group">
+                                            <label>Project Type</label>
+                                            <select id="calc-project-type" onchange="updateComplexityDefaults()">
+                                                <option value="Bridge">Bridge</option>
+                                                <option value="Highway/Roadway" selected>Highway/Roadway</option>
+                                                <option value="Drainage/Utilities">Drainage/Utilities</option>
+                                            </select>
+                                        </div>
+
+                                        <div class="calc-group">
+                                            <label>Project Complexity (Reference)</label>
+                                            <select id="calc-global-complexity">
+                                                <option value="Low">Low</option>
+                                                <option value="Medium" selected>Medium</option>
+                                                <option value="High">High</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div class="calc-total-fee-box">
+                                        <span>Total Design Fee:</span>
+                                        <span id="calc-total-fee" class="fee-value">$0</span>
+                                    </div>
+
+                                    <div class="calc-actions">
+                                        <button class="btn btn-sm" onclick="showComplexityOverrides()">Advanced Settings</button>
+                                        <button class="btn btn-primary btn-sm" onclick="calculateBudgets()">Calculate Estimates</button>
+                                    </div>
+
+                                    <!-- Advanced Complexity Overrides (hidden by default) -->
+                                    <div id="complexity-overrides" class="hidden complexity-overrides-panel">
+                                        <div class="complexity-overrides-label">
+                                            Override auto-assigned complexity levels per discipline:
+                                        </div>
+                                        <div id="complexity-grid" class="complexity-override-grid"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Budget Summary Table -->
+                            <div class="budget-summary-section">
+                                <h4>📋 Budget Breakdown</h4>
+                                <div class="budget-total-row">
+                                    <span>TOTAL PROJECT BUDGET:</span>
+                                    <span id="total-budget" class="budget-total-value">$0</span>
+                                </div>
+                            </div>
+                        </div><!-- end cost-column -->
+                        </div><!-- end benchmarking-secondary -->
+                    </div><!-- end benchmarking-layout -->
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- Results Section -->
+        <div id="results-section" class="hidden" style="margin-top: 20px;">
+            <!-- KPIs -->
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <div class="kpi-value" id="kpi-budget">$0</div>
+                    <div class="kpi-label">TOTAL BUDGET</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-value" id="kpi-wbs">0</div>
+                    <div class="kpi-label">WBS ELEMENTS</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-value" id="kpi-disc">0</div>
+                    <div class="kpi-label">DISCIPLINES</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-value" id="kpi-months">0</div>
+                    <div class="kpi-label">MONTHS</div>
+                </div>
+            </div>
+
+            <!-- AI Insights Panel -->
+            <div class="insights-panel">
+                <div class="insights-header" onclick="toggleInsightsPanel()">
+                    <span>🤖 AI INSIGHTS & FORECASTING</span>
+                    <span class="insights-toggle-icon">▼</span>
+                </div>
+                <div id="insights-body" class="insights-body hidden">
+                    <div class="insights-grid">
+                        <!-- Risk Score -->
+                        <div class="card-base insight-card">
+                            <div class="insight-card-header">
+                                <span class="insight-icon">⚠️</span>
+                                <span class="insight-title">Risk Assessment</span>
+                            </div>
+                            <div id="insight-risk-score" class="insight-value risk-medium">MEDIUM</div>
+                            <div id="insight-risk-details" class="insight-details">Analyzing project complexity...</div>
+                        </div>
+
+                        <!-- Cost Forecast -->
+                        <div class="card-base insight-card">
+                            <div class="insight-card-header">
+                                <span class="insight-icon">💰</span>
+                                <span class="insight-title">Cost Forecast</span>
+                            </div>
+                            <div id="insight-cost-forecast" class="insight-value">$0</div>
+                            <div id="insight-cost-details" class="insight-details">Projected final cost...</div>
+                        </div>
+
+                        <!-- Schedule Forecast -->
+                        <div class="card-base insight-card">
+                            <div class="insight-card-header">
+                                <span class="insight-icon">📅</span>
+                                <span class="insight-title">Schedule Forecast</span>
+                            </div>
+                            <div id="insight-schedule-forecast" class="insight-value">On Track</div>
+                            <div id="insight-schedule-details" class="insight-details">Completion estimate...</div>
+                        </div>
+
+                        <!-- Budget Health -->
+                        <div class="card-base insight-card">
+                            <div class="insight-card-header">
+                                <span class="insight-icon">📊</span>
+                                <span class="insight-title">Budget Distribution</span>
+                            </div>
+                            <div id="insight-budget-health" class="insight-value">Balanced</div>
+                            <div id="insight-budget-details" class="insight-details">Analyzing discipline allocation...</div>
+                        </div>
+                    </div>
+
+                    <!-- AI Suggestions -->
+                    <div class="insights-suggestions">
+                        <div class="suggestions-header">
+                            <span>💡 AI Optimization Suggestions</span>
+                            <button class="btn btn-sm btn-ai" onclick="generateAIInsights()" id="generate-insights-btn">
+                                Generate Insights
+                            </button>
+                        </div>
+                        <div id="ai-suggestions-list" class="suggestions-list">
+                            <div class="suggestion-placeholder">
+                                Click "Generate Insights" to get AI-powered recommendations for your project.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- WBS Table -->
+            <div class="terminal">
+                <div class="terminal-header">
+                    <span>■ WBS COST TABLE</span>
+                    <div>
+                        <button class="btn btn-sm" onclick="expandAllWBS()">EXPAND ALL</button>
+                        <button class="btn btn-sm" onclick="collapseAllWBS()" style="margin-left: 8px;">COLLAPSE ALL</button>
+                        <span style="margin: 0 12px; color: #666;">|</span>
+                        <button class="btn btn-sm" onclick="importData()">IMPORT</button>
+                        <button id="wbs-edit-toggle" class="btn btn-sm" onclick="toggleWBSEditMode()" style="margin-left: 8px;">✏️ EDIT MODE</button>
+                        <button class="btn btn-sm" onclick="editWBS()" style="margin-left: 8px;">⚙️ WIZARD</button>
+                    </div>
+                </div>
+                
+                <!-- WBS Edit Toolbar (shown in edit mode) -->
+                <div id="wbs-edit-toolbar" class="wbs-edit-toolbar hidden">
+                    <div class="wbs-edit-toolbar-section">
+                        <span class="toolbar-label">ADD:</span>
+                        <button class="toolbar-btn" onclick="showAddDisciplineModal()">+ Discipline</button>
+                        <button class="toolbar-btn" onclick="showAddPackageModal()">+ Package</button>
+                        <button class="toolbar-btn" onclick="showAddPhaseModal()">+ Phase</button>
+                    </div>
+                    <div class="wbs-edit-toolbar-section">
+                        <span class="toolbar-label">ACTIONS:</span>
+                        <button class="toolbar-btn" onclick="recalculateBudgets()">🔄 Recalculate</button>
+                        <button class="toolbar-btn danger" onclick="confirmClearWBS()">🗑️ Clear All</button>
+                    </div>
+                    <div class="wbs-edit-toolbar-tip">
+                        💡 Click any value in the table to edit directly
+                    </div>
+                </div>
+                
+                <div class="terminal-body">
+                    <div class="results-table">
+                        <table id="wbs-table"></table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chart -->
+            <div class="terminal" style="margin-top: 20px;">
+                <div class="terminal-header">
+                    <span>■ PERFORMANCE CHART</span>
+                </div>
+                <div class="terminal-body">
+                    <div class="filters">
+                        <div class="filter-group">
+                            <label>PHASE</label>
+                            <select id="filter-phase" onchange="updateChart()">
+                                <option value="all">All Phases</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>DISCIPLINE</label>
+                            <select id="filter-discipline" onchange="updateChart()">
+                                <option value="all">All Disciplines</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>VIEW</label>
+                            <select id="view-type" onchange="updateChart()">
+                                <option value="cumulative">Cumulative</option>
+                                <option value="monthly">Monthly</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>CHART</label>
+                            <select id="chart-type" onchange="updateChart()">
+                                <option value="line">Line</option>
+                                <option value="bar">Bar</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="chart-container">
+                        <canvas id="performance-chart" height="300"></canvas>
+                    </div>
+                    
+                    <div style="margin-top: 16px; font-size: 12px; display: flex; gap: 24px;">
+                        <span><span style="color: #ffd700;">━━</span> PLANNED (BCWS)</span>
+                        <span><span style="color: #00ff00;">┅┅</span> ACTUAL (ACWP) - TBD</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Gantt Chart -->
+            <div class="terminal" style="margin-top: 20px;">
+                <div class="terminal-header">
+                    <span>■ PROJECT SCHEDULE</span>
+                    <div>
+                        <button class="btn btn-sm" onclick="expandAllGantt()">EXPAND ALL</button>
+                        <button class="btn btn-sm" onclick="collapseAllGantt()" style="margin-left: 8px;">COLLAPSE ALL</button>
+                    </div>
+                </div>
+                <div class="terminal-body">
+                    <div id="gantt-container" class="gantt-container">
+                        <!-- Gantt chart will be rendered here -->
+                    </div>
+                    <div class="gantt-legend">
+                        <div class="gantt-legend-item">
+                            <div class="gantt-legend-color discipline"></div>
+                            <span>Discipline Timeline</span>
+                        </div>
+                        <div class="gantt-legend-item">
+                            <div class="gantt-legend-color package"></div>
+                            <span>Package Deliverable</span>
+                        </div>
+                        <div class="gantt-legend-item" style="margin-left: auto; color: #666;">
+                            <span>Click discipline rows to expand/collapse</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    
+
+    <!-- RFP Wizard Modal -->
+    <div id="rfp-modal" class="modal-base rfp-modal" onclick="if(event.target===this)closeRfpWizard()">
+        <div class="modal-base-content">
+            <div class="modal-base-header">
+                <h2>📄 RFP Wizard - Extract Project Data</h2>
+                <button class="modal-base-close" onclick="closeRfpWizard()">×</button>
+            </div>
+            <div class="modal-base-body">
+                <!-- Stage Indicator -->
+                <div class="rfp-stage-indicator">
+                    <div class="rfp-stage active" data-stage="1">1. Upload PDF</div>
+                    <div class="rfp-stage" data-stage="2">2. Select Pages</div>
+                    <div class="rfp-stage" data-stage="3">3. Review & Apply</div>
+                </div>
+
+                <!-- Stage 1: Upload -->
+                <div id="rfp-stage-1" class="rfp-stage-content active">
+                    <div class="rfp-dropzone" id="rfp-dropzone" onclick="document.getElementById('rfp-file-input').click()">
+                        <div class="rfp-dropzone-icon">📁</div>
+                        <div class="rfp-dropzone-text">Drag & drop your RFP PDF here</div>
+                        <div class="rfp-dropzone-hint">or click to browse</div>
+                    </div>
+                    <input type="file" id="rfp-file-input" accept=".pdf" style="display: none;" onchange="handleRfpFileSelect(event)">
+                    
+                    <div id="rfp-file-info" class="rfp-file-info">
+                        <div class="rfp-file-icon">📄</div>
+                        <div class="rfp-file-details">
+                            <div id="rfp-file-name" class="rfp-file-name">document.pdf</div>
+                            <div id="rfp-file-meta" class="rfp-file-meta">2.4 MB</div>
+                        </div>
+                        <button class="rfp-file-remove" onclick="removeRfpFile()">Remove</button>
+                    </div>
+
+                    <div class="rfp-modal-actions">
+                        <button class="rfp-btn" onclick="closeRfpWizard()">Cancel</button>
+                        <button id="rfp-next-1" class="rfp-btn rfp-btn-primary" onclick="goToRfpStage(2)" disabled>Next: Select Pages →</button>
+                    </div>
+                </div>
+
+                <!-- Stage 2: Page Selection -->
+                <div id="rfp-stage-2" class="rfp-stage-content">
+                    <div class="rfp-page-info">
+                        <div class="rfp-page-count" id="rfp-page-count">0</div>
+                        <div class="rfp-page-label">Total pages in document</div>
+                    </div>
+
+                    <div class="rfp-page-input-group">
+                        <label>Which pages contain scope/project information?</label>
+                        <input type="text" id="rfp-page-range" placeholder="e.g., 1-10 or 5,7,12-15 or leave blank for all">
+                        <div class="rfp-page-hint">
+                            Tip: Usually the scope of work, deliverables, and schedule are in the first 10-20 pages. 
+                            Leave blank to analyze all pages.
+                        </div>
+                    </div>
+
+                    <!-- Text Preview Section -->
+                    <div id="rfp-text-preview-section" style="display: none; margin-top: 20px;">
+                        <div class="rfp-preview-card" style="background: #1a1a1a; border: 1px solid #333;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                <h4 style="margin: 0; color: #ffd700;">Extracted Text Preview</h4>
+                                <button class="rfp-btn" style="padding: 6px 12px; font-size: 11px;" onclick="toggleTextPreview()">
+                                    <span id="rfp-preview-toggle-text">Show</span> Preview
+                                </button>
+                            </div>
+                            <div id="rfp-text-preview-stats" style="display: flex; gap: 16px; margin-bottom: 12px; font-size: 11px; color: #888;">
+                                <span>Pages: <strong id="rfp-preview-page-count" style="color: #ffd700;">0</strong></span>
+                                <span>Characters: <strong id="rfp-preview-char-count" style="color: #ffd700;">0</strong></span>
+                                <span>Est. Tokens: <strong id="rfp-preview-token-est" style="color: #ffd700;">~0</strong></span>
+                            </div>
+                            <div id="rfp-text-preview-content" style="display: none;">
+                                <div style="background: #000; border: 1px solid #444; border-radius: 4px; padding: 12px; max-height: 300px; overflow-y: auto; font-size: 11px; color: #ccc; line-height: 1.6; font-family: 'Courier New', monospace; white-space: pre-wrap; word-wrap: break-word;">
+                                    <div id="rfp-text-preview-snippet"></div>
+                                    <div id="rfp-text-preview-full" style="display: none;"></div>
+                                </div>
+                                <div style="margin-top: 8px; display: flex; justify-content: space-between; align-items: center;">
+                                    <button class="rfp-btn" style="padding: 6px 12px; font-size: 11px;" onclick="toggleFullTextPreview()">
+                                        <span id="rfp-full-text-toggle">Show</span> Full Text
+                                    </button>
+                                    <button class="rfp-btn" style="padding: 6px 12px; font-size: 11px; background: transparent; border-color: #666; color: #888;" onclick="copyExtractedText()">Copy Text</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="rfp-modal-actions">
+                        <button class="rfp-btn" onclick="goToRfpStage(1)">← Back</button>
+                        <button id="rfp-preview-text-btn" class="rfp-btn" onclick="previewExtractedText()" style="display: none;">Preview Text</button>
+                        <button class="rfp-btn rfp-btn-primary" onclick="analyzeRfpDocument()">Analyze with AI →</button>
+                    </div>
+                </div>
+
+                <!-- Stage 3: Preview -->
+                <div id="rfp-stage-3" class="rfp-stage-content">
+                    <!-- Loading State -->
+                    <div id="rfp-loading" class="rfp-loading visible">
+                        <div class="rfp-spinner"></div>
+                        <div class="rfp-loading-text">Analyzing document with AI...</div>
+                    </div>
+
+                    <!-- Preview Content -->
+                    <div id="rfp-preview" style="display: none;">
+                        <div class="rfp-preview-grid">
+                            <div class="rfp-preview-card">
+                                <h4>Phases <span id="rfp-conf-phases" class="rfp-confidence high">HIGH</span></h4>
+                                <textarea id="rfp-preview-phases" placeholder="e.g., Base, ESDC, TSCD"></textarea>
+                            </div>
+                            <div class="rfp-preview-card">
+                                <h4>Disciplines <span id="rfp-conf-disciplines" class="rfp-confidence high">HIGH</span></h4>
+                                <textarea id="rfp-preview-disciplines" placeholder="e.g., Structures, Civil, Traffic"></textarea>
+                            </div>
+                            <div class="rfp-preview-card full-width">
+                                <h4>Discipline-Specific Scopes <span id="rfp-conf-disciplines-scope" class="rfp-confidence medium">MED</span></h4>
+                                <div style="color: #666; font-size: 10px; margin-bottom: 12px; font-style: italic;">
+                                    Detailed scope of work for each discipline. Edit as needed for accuracy.
+                                </div>
+                                <div id="rfp-discipline-scopes-container" style="display: flex; flex-direction: column; gap: 12px;">
+                                    <!-- Discipline scopes will be dynamically added here -->
+                                </div>
+                            </div>
+                            <div class="rfp-preview-card">
+                                <h4>Packages <span id="rfp-conf-packages" class="rfp-confidence medium">MED</span></h4>
+                                <textarea id="rfp-preview-packages" placeholder="e.g., Preliminary, Interim, Final, RFC"></textarea>
+                            </div>
+                            <div class="rfp-preview-card">
+                                <h4>Budgets</h4>
+                                <div style="color: #666; font-size: 11px; padding: 10px; background: #000; border-radius: 4px;">
+                                    Budgets will be set to $0 initially. Use the Cost Estimator in Step 4 to calculate budgets based on construction cost.
+                                </div>
+                            </div>
+                            <div class="rfp-preview-card full-width">
+                                <h4>Scope Summary <span id="rfp-conf-scope" class="rfp-confidence medium">MED</span></h4>
+                                <textarea id="rfp-preview-scope" placeholder="Project scope and work description extracted from RFP..."></textarea>
+                            </div>
+                            <div class="rfp-preview-card full-width">
+                                <h4>Schedule Notes <span id="rfp-conf-schedule" class="rfp-confidence medium">MED</span></h4>
+                                <textarea id="rfp-preview-schedule" placeholder="Schedule information extracted from RFP..."></textarea>
+                            </div>
+                        </div>
+
+                        <!-- Quantity Estimates Section -->
+                        <div id="rfp-quantities-section" class="rfp-quantities-section" style="display: none;">
+                            <h4>📐 Quantity Estimates for MH Benchmark <span id="rfp-conf-quantities" class="rfp-confidence medium">MED</span></h4>
+                            <p class="rfp-quantities-desc">AI-estimated quantities from RFP. Review and adjust values before applying.</p>
+                            <div class="rfp-quantities-grid" id="rfp-quantities-grid">
+                                <!-- Populated by JS -->
+                            </div>
+                            <div class="rfp-quantities-project-info" id="rfp-project-info-section">
+                                <div class="rfp-project-info-grid">
+                                    <div class="rfp-project-info-item">
+                                        <label>Est. Project Cost ($M)</label>
+                                        <input type="text" id="rfp-qty-projectCostM" value="0" />
+                                    </div>
+                                    <div class="rfp-project-info-item">
+                                        <label>Design Duration (Months)*</label>
+                                        <input type="number" id="rfp-qty-designDurationMonths" value="20" min="6" max="60" />
+                                    </div>
+                                    <div class="rfp-project-info-item">
+                                        <label>Project Type</label>
+                                        <select id="rfp-qty-projectType">
+                                            <option value="highway">Highway/Interstate</option>
+                                            <option value="transit">Transit/Rail</option>
+                                            <option value="bridge">Bridge</option>
+                                            <option value="utility">Utility</option>
+                                        </select>
+                                    </div>
+                                    <div class="rfp-project-info-item">
+                                        <label>Complexity</label>
+                                        <select id="rfp-qty-complexity">
+                                            <option value="Low">Low</option>
+                                            <option value="Medium" selected>Medium</option>
+                                            <option value="High">High</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="rfp-truncation-notice" class="rfp-notes" style="display: none; background: #2a1a00; border-color: #ff8800;">
+                            <h4>⚠️ Document Truncated</h4>
+                            <p id="rfp-truncation-text">Only the first portion of the document was analyzed due to size limits.</p>
+                        </div>
+
+                        <div id="rfp-notes" class="rfp-notes" style="display: none;">
+                            <h4>📝 AI Notes</h4>
+                            <p id="rfp-notes-text">Analysis notes will appear here...</p>
+                        </div>
+
+                        <div id="rfp-risks" class="rfp-risks-section" style="display: none;">
+                            <h4>⚠️ Identified Risks</h4>
+                            <div id="rfp-risks-list" class="rfp-risks-list">
+                                <!-- Populated by JS -->
+                            </div>
+                        </div>
+
+                        <div id="rfp-usage-stats" class="rfp-notes" style="display: none;">
+                            <h4>📊 Usage Statistics</h4>
+                            <div class="rfp-usage-grid">
+                                <div class="rfp-usage-item">
+                                    <span class="rfp-usage-label">API Calls</span>
+                                    <span class="rfp-usage-value" id="rfp-stats-calls">0</span>
+                                </div>
+                                <div class="rfp-usage-item">
+                                    <span class="rfp-usage-label">Model</span>
+                                    <span class="rfp-usage-value" id="rfp-stats-model">-</span>
+                                </div>
+                                <div class="rfp-usage-item">
+                                    <span class="rfp-usage-label">Prompt Tokens</span>
+                                    <span class="rfp-usage-value" id="rfp-stats-prompt">0</span>
+                                </div>
+                                <div class="rfp-usage-item">
+                                    <span class="rfp-usage-label">Completion Tokens</span>
+                                    <span class="rfp-usage-value" id="rfp-stats-completion">0</span>
+                                </div>
+                                <div class="rfp-usage-item">
+                                    <span class="rfp-usage-label">Total Tokens</span>
+                                    <span class="rfp-usage-value" id="rfp-stats-tokens">0</span>
+                                </div>
+                                <div class="rfp-usage-item">
+                                    <span class="rfp-usage-label">Processing Time</span>
+                                    <span class="rfp-usage-value time" id="rfp-stats-time">0s</span>
+                                </div>
+                                <div class="rfp-usage-item full-width">
+                                    <span class="rfp-usage-label">Estimated Cost</span>
+                                    <span class="rfp-usage-value cost" id="rfp-stats-cost">$0.0000</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="rfp-modal-actions">
+                            <button class="rfp-btn" onclick="goToRfpStage(2)">← Re-analyze</button>
+                            <button class="rfp-btn" onclick="generateDesignFeeBook()">📥 Export</button>
+                            <button class="rfp-btn rfp-btn-primary" onclick="applyRfpData()">Apply to Project ✓</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+    <!-- Feedback FAB -->
+    <div id="feedback-fab-wrapper" style="position:fixed; bottom:20px; right:20px; z-index:9998; display:flex; flex-direction:column; align-items:center; gap:4px;">
+        <button onclick="document.getElementById('feedback-form-popup').style.display='flex'" title="Send Feedback" style="width:56px; height:56px; border-radius:50%; background:#193246; border:3px solid #ffd700; color:#ffd700; font-size:22px; cursor:pointer; box-shadow:0 4px 16px rgba(0,0,0,0.4); display:flex; align-items:center; justify-content:center;">
+            ✉
+        </button>
+        <span style="font-size:9px; color:#193246; font-weight:700; text-align:center; line-height:1.2; white-space:nowrap; background:#ffd700; border-radius:3px; padding:1px 4px;">Feedback</span>
+    </div>
+
+    <!-- Feedback Form Popup -->
+    <div id="feedback-form-popup" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
+        <div style="background:#fff; border-radius:8px; padding:28px 32px; width:420px; max-width:95vw; box-shadow:0 8px 32px rgba(0,0,0,0.3); position:relative;">
+            <button onclick="document.getElementById('feedback-form-popup').style.display='none'" style="position:absolute; top:10px; right:14px; background:none; border:none; font-size:20px; cursor:pointer; color:#666;">×</button>
+            <h3 style="margin:0 0 4px; font-size:16px; color:#193246; font-weight:700;">Send Feedback</h3>
+            <p style="margin:0 0 16px; font-size:12px; color:#666;">Questions or issues with this tool? Let us know.</p>
+            <div style="margin-bottom:12px;">
+                <label style="font-size:11px; font-weight:600; color:#333; display:block; margin-bottom:4px;">Your Name</label>
+                <input id="fb-name" type="text" placeholder="Your name" style="width:100%; box-sizing:border-box; padding:8px 10px; border:1px solid #ccc; border-radius:4px; font-size:13px; color:#333;">
+            </div>
+            <div style="margin-bottom:12px;">
+                <label style="font-size:11px; font-weight:600; color:#333; display:block; margin-bottom:4px;">Subject</label>
+                <input id="fb-subject" type="text" placeholder="e.g. Bug report, Feature request..." style="width:100%; box-sizing:border-box; padding:8px 10px; border:1px solid #ccc; border-radius:4px; font-size:13px; color:#333;">
+            </div>
+            <div style="margin-bottom:20px;">
+                <label style="font-size:11px; font-weight:600; color:#333; display:block; margin-bottom:4px;">Message</label>
+                <textarea id="fb-message" rows="4" placeholder="Describe your feedback..." style="width:100%; box-sizing:border-box; padding:8px 10px; border:1px solid #ccc; border-radius:4px; font-size:13px; color:#333; resize:vertical;"></textarea>
+            </div>
+            <button onclick="submitFeedbackEmail()" style="width:100%; padding:10px; background:#193246; color:#ffd700; border:none; border-radius:4px; font-size:14px; font-weight:700; cursor:pointer;">Send Email</button>
+        </div>
+    </div>
+
+
+    <!-- WBS Add Discipline Modal -->
+    <div id="wbs-add-discipline-modal" class="modal-base wbs-add-modal" onclick="if(event.target===this)closeAddModal('discipline')">
+        <div class="modal-base-content">
+            <div class="modal-base-header">
+                <h3>Add New Discipline</h3>
+                <button class="modal-base-close" onclick="closeAddModal('discipline')">✕</button>
+            </div>
+            <div class="modal-base-body">
+                <label>Discipline Name</label>
+                <input type="text" id="add-discipline-name" placeholder="e.g., Environmental">
+                <label>Initial Budget ($)</label>
+                <input type="number" id="add-discipline-budget" placeholder="0" value="0">
+                <div class="wbs-add-modal-actions">
+                    <button class="btn btn-sm" onclick="closeAddModal('discipline')">Cancel</button>
+                    <button class="btn btn-sm btn-primary" onclick="confirmAddDiscipline()">Add Discipline</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- WBS Add Package Modal -->
+    <div id="wbs-add-package-modal" class="modal-base wbs-add-modal" onclick="if(event.target===this)closeAddModal('package')">
+        <div class="modal-base-content">
+            <div class="modal-base-header">
+                <h3>Add New Package</h3>
+                <button class="modal-base-close" onclick="closeAddModal('package')">✕</button>
+            </div>
+            <div class="modal-base-body">
+                <label>Package Name</label>
+                <input type="text" id="add-package-name" placeholder="e.g., Quality Assurance">
+                <label>Default Claim % (distributed from existing)</label>
+                <input type="number" id="add-package-claim" placeholder="0" value="0" min="0" max="100">
+                <div class="wbs-add-modal-actions">
+                    <button class="btn btn-sm" onclick="closeAddModal('package')">Cancel</button>
+                    <button class="btn btn-sm btn-primary" onclick="confirmAddPackage()">Add Package</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- WBS Add Phase Modal -->
+    <div id="wbs-add-phase-modal" class="modal-base wbs-add-modal" onclick="if(event.target===this)closeAddModal('phase')">
+        <div class="modal-base-content">
+            <div class="modal-base-header">
+                <h3>Add New Phase</h3>
+                <button class="modal-base-close" onclick="closeAddModal('phase')">✕</button>
+            </div>
+            <div class="modal-base-body">
+                <label>Phase Name</label>
+                <input type="text" id="add-phase-name" placeholder="e.g., Construction Support">
+                <div class="wbs-add-modal-actions">
+                    <button class="btn btn-sm" onclick="closeAddModal('phase')">Cancel</button>
+                    <button class="btn btn-sm btn-primary" onclick="confirmAddPhase()">Add Phase</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reports Panel Modal -->
+    <div id="reports-modal" class="modal-base reports-modal" onclick="if(event.target===this)closeReportsPanel()">
+        <div class="modal-base-content">
+            <div class="modal-base-header">
+                <h3>📄 Export Report</h3>
+                <button class="modal-base-close" onclick="closeReportsPanel()">✕</button>
+            </div>
+            
+            <div class="modal-base-body">
+                <!-- Design Fee Book -->
+                <div class="reports-section">
+                    <div class="reports-section-title">Design Fee Book</div>
+                    <div class="reports-grid">
+                        <div class="card-base report-card report-card-featured" onclick="closeReportsPanel(); generateDesignFeeBook();">
+                            <div class="card-base-icon" style="font-size: 32px;">📄</div>
+                            <div class="report-card-info">
+                                <div class="card-base-title" style="color: #c9a227; font-size: 14px;">Design Fee Book</div>
+                                <div class="card-base-desc">KEG Design Fee Review Document: Ch1 Project Overview, Ch2 Commercial Status, Ch3 Team/Scope, Ch4 Schedule, Ch5 Design Fee Estimate, Ch6 Resources, Ch7 Risk Register + Appendices</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- RFP Results Panel Modal -->
+    <div id="rfp-results-modal" class="modal-base rfp-results-modal" onclick="if(event.target===this)closeRfpResultsPanel()">
+        <div class="modal-base-content rfp-results-content">
+            <div class="modal-base-header">
+                <h3>📋 RFP Extracted Data</h3>
+                <button class="modal-base-close" onclick="closeRfpResultsPanel()">✕</button>
+            </div>
+            
+            <div class="modal-base-body rfp-results-body">
+                <div id="rfp-results-empty" class="rfp-results-empty">
+                    <div class="rfp-results-empty-icon">📄</div>
+                    <div class="rfp-results-empty-text">No RFP data available</div>
+                    <div class="rfp-results-empty-hint">Use the RFP Wizard to analyze an RFP document</div>
+                    <button class="btn btn-sm btn-primary" onclick="closeRfpResultsPanel(); openRfpWizard();">Open RFP Wizard</button>
+                </div>
+                
+                <div id="rfp-results-content" class="rfp-results-sections hidden">
+                    <!-- Project Overview Section -->
+                    <div class="rfp-result-section">
+                        <div class="rfp-result-section-header" onclick="toggleRfpResultSection('overview')">
+                            <span>📊 Project Overview</span>
+                            <span class="rfp-section-toggle">▼</span>
+                        </div>
+                        <div id="rfp-result-overview" class="rfp-result-section-body">
+                            <div class="rfp-result-kpi-grid" id="rfp-result-kpis"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Scope Section -->
+                    <div class="rfp-result-section">
+                        <div class="rfp-result-section-header" onclick="toggleRfpResultSection('scope')">
+                            <span>📋 Project Scope</span>
+                            <span class="rfp-section-toggle">▼</span>
+                        </div>
+                        <div id="rfp-result-scope" class="rfp-result-section-body">
+                            <div id="rfp-result-scope-text" class="rfp-result-text"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Quantities Section -->
+                    <div class="rfp-result-section">
+                        <div class="rfp-result-section-header" onclick="toggleRfpResultSection('quantities')">
+                            <span>📐 Key Quantities</span>
+                            <span class="rfp-section-toggle">▼</span>
+                        </div>
+                        <div id="rfp-result-quantities" class="rfp-result-section-body">
+                            <div id="rfp-result-quantities-grid" class="rfp-result-quantities-grid"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Schedule Section -->
+                    <div class="rfp-result-section">
+                        <div class="rfp-result-section-header" onclick="toggleRfpResultSection('schedule')">
+                            <span>📅 Schedule Information</span>
+                            <span class="rfp-section-toggle">▼</span>
+                        </div>
+                        <div id="rfp-result-schedule" class="rfp-result-section-body">
+                            <div id="rfp-result-schedule-text" class="rfp-result-text"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Disciplines Section -->
+                    <div class="rfp-result-section">
+                        <div class="rfp-result-section-header" onclick="toggleRfpResultSection('disciplines')">
+                            <span>🔧 Discipline Scopes</span>
+                            <span class="rfp-section-toggle">▼</span>
+                        </div>
+                        <div id="rfp-result-disciplines" class="rfp-result-section-body">
+                            <div id="rfp-result-disciplines-list" class="rfp-result-disciplines-list"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Risks Section -->
+                    <div class="rfp-result-section">
+                        <div class="rfp-result-section-header" onclick="toggleRfpResultSection('risks')">
+                            <span>⚠️ Identified Risks</span>
+                            <span class="rfp-section-toggle">▼</span>
+                        </div>
+                        <div id="rfp-result-risks" class="rfp-result-section-body">
+                            <div id="rfp-result-risks-list" class="rfp-result-risks-list"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Project Info Section -->
+                    <div class="rfp-result-section">
+                        <div class="rfp-result-section-header" onclick="toggleRfpResultSection('project-info')">
+                            <span>📋 Project Information & Key Dates</span>
+                            <span class="rfp-section-toggle">▼</span>
+                        </div>
+                        <div id="rfp-result-project-info" class="rfp-result-section-body">
+                            <div class="rfp-result-text empty">No project info extracted.</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Commercial Terms Section -->
+                    <div class="rfp-result-section">
+                        <div class="rfp-result-section-header" onclick="toggleRfpResultSection('commercial-terms')">
+                            <span>⚖️ Commercial Terms</span>
+                            <span class="rfp-section-toggle">▼</span>
+                        </div>
+                        <div id="rfp-result-commercial-terms" class="rfp-result-section-body">
+                            <div class="rfp-result-text empty">No commercial terms extracted.</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Confidence Scores Section -->
+                    <div class="rfp-result-section">
+                        <div class="rfp-result-section-header" onclick="toggleRfpResultSection('confidence')">
+                            <span>📈 AI Confidence Scores</span>
+                            <span class="rfp-section-toggle">▼</span>
+                        </div>
+                        <div id="rfp-result-confidence" class="rfp-result-section-body">
+                            <div id="rfp-result-confidence-grid" class="rfp-result-confidence-grid"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Actions -->
+                    <div class="rfp-result-actions">
+                        <button class="btn btn-sm" onclick="closeRfpResultsPanel(); openRfpWizard();">Re-analyze RFP</button>
+                        <button class="btn btn-sm btn-primary" onclick="closeRfpResultsPanel(); generateDesignFeeBook();">Export PDF Report</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Projects Manager Modal -->
+    <div id="projects-modal" class="modal-base projects-modal" onclick="if(event.target===this)closeProjectManager()">
+        <div class="modal-base-content">
+            <div class="modal-base-header">
+                <h3>📁 Project Manager</h3>
+                <button class="modal-base-close" onclick="closeProjectManager()">✕</button>
+            </div>
+            
+            <div class="modal-base-body">
+                <!-- Save Current Project -->
+                <div class="projects-section">
+                    <div class="projects-section-title">Save Current Project</div>
+                    <div class="projects-save-form">
+                        <input type="text" id="project-save-name" placeholder="Enter project name...">
+                        <button class="btn btn-primary btn-sm" onclick="saveNamedProject()">SAVE</button>
+                    </div>
+                </div>
+                
+                <!-- Saved Projects List -->
+                <div class="projects-section">
+                    <div class="projects-section-title">Saved Projects</div>
+                    <div id="projects-list" class="projects-list">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+                
+                <!-- Compare Projects -->
+                <div id="compare-section" class="projects-section hidden">
+                    <div class="projects-section-title">Compare Selected Projects</div>
+                    <div id="compare-view" class="compare-view">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recovery Modal -->
+    <div id="recovery-modal" class="modal-base recovery-modal" onclick="if(event.target===this)dismissRecovery()">
+        <div class="modal-base-content">
+            <h3>💾 Recover Previous Session?</h3>
+            <p>We found unsaved work from a previous session. Would you like to restore it?</p>
+            <div class="recovery-preview" id="recovery-preview">
+                <!-- Populated dynamically -->
+            </div>
+            <div class="recovery-modal-actions">
+                <button class="btn btn-danger" onclick="discardRecovery()">Start Fresh</button>
+                <button class="btn btn-primary" onclick="restoreRecovery()">Restore Session</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Autosave Indicator -->
+    <div id="autosave-indicator" class="autosave-indicator">
+        <span id="autosave-icon">●</span>
+        <span id="autosave-text">Saved</span>
+    </div>
+
+    <!-- API Key Modal -->
+    <div id="chat-api-modal" class="modal-base chat-api-modal" onclick="if(event.target===this)hideApiKeyModal()">
+        <div class="modal-base-content">
+            <h3>🔑 OpenAI API Key Required</h3>
+            <p>Enter your OpenAI API key to enable the AI assistant. Your key is stored locally in your browser and never sent anywhere except OpenAI.</p>
+            <input 
+                type="password" 
+                id="api-key-input" 
+                placeholder="sk-..." 
+                onkeydown="if(event.key==='Enter')saveApiKey()"
+            >
+            <div class="chat-api-modal-actions">
+                <button class="btn" onclick="hideApiKeyModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveApiKey()">Save Key</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Structures Data Entry Modal -->
+    <div id="structures-modal" class="modal-base" onclick="if(event.target===this)closeStructuresModal()">
+        <div class="modal-base-content" style="max-width: 1100px; width: 95%;">
+            <div class="modal-base-header">
+                <h3>Structures - Data Entry</h3>
+                <button class="modal-base-close" onclick="closeStructuresModal()">&#10005;</button>
+            </div>
+            <div class="modal-base-body">
+                <table id="structures-entry-table" style="width: 100%; border-collapse: collapse; margin-bottom: 12px;">
+                    <thead>
+                        <tr style="background: #000000; border-bottom: 2px solid #FFD200;">
+                            <th style="text-align: left; padding: 8px; color: #FFD200; font-size: 11px;">Structure Name/Number</th>
+                            <th style="text-align: right; padding: 8px; color: #FFD200; font-size: 11px;">eQTY</th>
+                            <th style="text-align: center; padding: 8px; color: #FFD200; font-size: 11px;">UOM</th>
+                            <th style="text-align: center; padding: 8px; color: #FFD200; font-size: 11px;">Type</th>
+                            <th style="text-align: center; padding: 8px; color: #FFD200; font-size: 11px;">Span Arrangement</th>
+                            <th style="text-align: center; padding: 8px; color: #FFD200; font-size: 11px;">Scope</th>
+                            <th style="text-align: center; padding: 8px; color: #FFD200; font-size: 11px;">Benchmark</th>
+                            <th style="text-align: right; padding: 8px; color: #FFD200; font-size: 11px;">Production</th>
+                            <th style="text-align: right; padding: 8px; color: #FFD200; font-size: 11px;">Forecast MHs</th>
+                            <th style="text-align: center; padding: 8px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="structures-entry-tbody">
+                    </tbody>
+                </table>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+                    <button class="btn-action" onclick="addStructureRow()" style="font-size: 12px; background: #FFF2D9; border: 1px solid #FFC212; color: #000000; padding: 6px 14px; border-radius: 5px; cursor: pointer; font-weight: 600;">+ Add Structure</button>
+                    <button class="btn-action" onclick="saveStructureEntries()" style="font-size: 12px; background: #000000; border: 1px solid #000000; color: #FFD200; font-weight: bold; padding: 6px 14px; border-radius: 5px; cursor: pointer;">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Escalation Breakdown Modal -->
+    <div id="escalation-modal" class="modal-base escalation-modal" onclick="if(event.target===this)closeEscalationModal()">
+        <div class="modal-base-content" style="max-width: 900px; width: 95%;">
+            <div class="modal-base-header">
+                <h3>📊 Escalation Breakdown</h3>
+                <button class="modal-base-close" onclick="closeEscalationModal()">✕</button>
+            </div>
+            
+            <div class="modal-base-body">
+                <!-- No duration message (shown when Design Duration not set in Cost Parameters) -->
+                <div id="escalation-no-duration-msg" class="escalation-no-duration-msg" style="display: none;">
+                    <p>Design duration is required to calculate escalation. Please enter <strong>Design Duration</strong> in the <strong>Cost Calculation Parameters</strong> section (Budget step), then open this breakdown again.</p>
+                    <button type="button" class="btn btn-primary" onclick="closeEscalationModal()">OK</button>
+                </div>
+
+                <div id="escalation-modal-content">
+                <!-- Formula Explanation -->
+                <div class="escalation-formula-section">
+                    <h4>Compounded Escalation Formula</h4>
+                    <p class="formula-explanation">
+                        Each year's escalation is calculated as: <code>Base Cost × ((1 + Rate)<sup>Effective Years</sup> - 1)</code><br>
+                        Year 1 has no escalation (baseline year) unless NTP is after the March 1 following today's date.<br>
+                        Subsequent years compound from the baseline, e.g., Year 2 = 1 year of escalation, Year 3 = 2 years compounded, etc.
+                    </p>
+                    <div class="escalation-global-settings">
+                        <div class="input-group" style="display: inline-block; width: auto; margin-right: 16px;">
+                            <label>NTP Date</label>
+                            <input type="date" id="escalation-ntp-date" onchange="recalculateEscalation()" title="Notice to Proceed date - Year 1 has no escalation unless NTP is after March 1 of next fiscal year">
+                        </div>
+                        <div class="input-group" style="display: inline-block; width: auto; margin-right: 16px;">
+                            <label>Base Annual Rate (%)</label>
+                            <input type="number" id="escalation-base-rate" value="5" min="0" max="20" step="0.1" onchange="recalculateEscalation()">
+                        </div>
+                        <div class="input-group" style="display: inline-block; width: auto;">
+                            <label>Project Duration (Months)</label>
+                            <input type="number" id="escalation-duration-months" value="36" min="1" max="120" step="1" onchange="recalculateEscalation()">
+                        </div>
+                        <p style="font-size: 11px; color: #888; margin-top: 8px;">
+                            <strong>Note:</strong> Year 1 has no escalation unless NTP is after March 1 of the following fiscal year. Financial escalation year starts March 1.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- S-Curve Chart -->
+                <div class="escalation-chart-section">
+                    <h4>KIE Labor Cost Distribution (S-Curve)</h4>
+                    <div style="position: relative; height: 200px; width: 100%;">
+                        <canvas id="escalation-bell-curve-chart"></canvas>
+                    </div>
+                    <p style="margin:8px 0 0; font-size:10px; color:#888; line-height:1.5; font-style:italic;">
+                        S-Curve: Logistic sigmoid S(t) = 1 / (1 + e<sup>-k(t - t<sub>mid</sub>)</sup>), where k = 10/N (N = duration in months, t<sub>mid</sub> = N/2).
+                        Produces a standard design engineering distribution: ~4% cumulative at 20% of duration, ~50% at midpoint, ~96% at 80%.
+                        Monthly cost = incremental S-curve difference, normalized so total = 100%. Escalation is compounded annually at the base rate, applied per the March 1 fiscal year boundary.
+                    </p>
+                </div>
+
+                <!-- Year-by-Year Breakdown Table -->
+                <div class="escalation-table-section">
+                    <h4>Year-by-Year Breakdown</h4>
+                    <table class="escalation-breakdown-table">
+                        <thead>
+                            <tr>
+                                <th>Year</th>
+                                <th>KIE Labor Cost</th>
+                                <th title="Click to edit and override the S-curve distribution">Cost Distribution (%) <span style="font-size: 9px; color: #ffc107;">✎</span></th>
+                                <th>Effective Escalation</th>
+                                <th>Rate (%/yr)</th>
+                                <th>Compounded Factor</th>
+                                <th>Escalation Amount ($)</th>
+                                <th>Escalation Revenue ($)</th>
+                                <th>Manual Override ($)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="escalation-breakdown-tbody">
+                            <!-- Populated by JavaScript -->
+                        </tbody>
+                        <tfoot>
+                            <tr class="escalation-total-row">
+                                <td><strong>TOTAL</strong></td>
+                                <td id="escalation-modal-total-hours">0</td>
+                                <td>100%</td>
+                                <td>-</td>
+                                <td>-</td>
+                                <td>-</td>
+                                <td id="escalation-modal-total-amount">$0</td>
+                                <td id="escalation-modal-total-revenue">$0</td>
+                                <td id="escalation-modal-total-override">-</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+
+                <!-- Actions -->
+                <div class="escalation-modal-actions">
+                    <button class="btn" onclick="resetEscalationToDefault()">Reset to Default</button>
+                    <button class="btn btn-secondary" onclick="resetHourDistribution()" title="Reset cost distribution to S-curve">Reset Distribution</button>
+                    <button class="btn btn-primary" onclick="applyEscalationChanges()">Apply Changes</button>
+                </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sensitivity Analysis Modal -->
+    <div id="sensitivity-modal" class="modal-base sensitivity-modal" onclick="if(event.target===this)closeSensitivityModal()">
+        <div class="modal-base-content" style="max-width: 1100px; width: 95%;">
+            <div class="modal-base-header">
+                <h3>Sensitivity Analysis</h3>
+                <button class="modal-base-close" onclick="closeSensitivityModal()">&#10005;</button>
+            </div>
+            <div class="modal-base-body">
+                <!-- No data message -->
+                <div id="sensitivity-no-data-msg" class="sensitivity-no-data-msg" style="display: none;">
+                    <p style="font-size: 14px; margin-bottom: 12px;">No project cost data available for sensitivity analysis.</p>
+                    <p style="font-size: 12px; color: #888;">Enter a construction cost and configure disciplines in the Cost Estimator first.</p>
+                    <button class="btn btn-primary" onclick="closeSensitivityModal()" style="margin-top: 16px;">OK</button>
+                </div>
+
+                <div id="sensitivity-modal-content">
+                    <!-- Tab Navigation -->
+                    <div class="sensitivity-tabs">
+                        <button class="sensitivity-tab active" onclick="switchSensitivityTab(0)">Cost vs. Fee</button>
+                        <button class="sensitivity-tab" onclick="switchSensitivityTab(1)">Duration vs. Fee</button>
+                        <button class="sensitivity-tab" onclick="switchSensitivityTab(2)">MH vs. Budget</button>
+                    </div>
+
+                    <!-- Tab 1: Construction Cost vs Design Fee -->
+                    <div class="sensitivity-panel active" id="sensitivity-panel-0">
+                        <!-- Inputs for design cost components -->
+                        <div class="sensitivity-inputs-row">
+                            <div class="sensitivity-input-group">
+                                <label for="sensitivity-pursuit-cost">Pursuit Cost ($)</label>
+                                <input type="number" id="sensitivity-pursuit-cost" value="0" min="0" step="1000" onchange="renderCostVsFeeChart()">
+                            </div>
+                            <div class="sensitivity-input-group">
+                                <label for="sensitivity-success-fee">Success Fee (%)</label>
+                                <input type="number" id="sensitivity-success-fee" value="2" min="0" max="100" step="0.5" onchange="renderCostVsFeeChart()">
+                            </div>
+                            <div class="sensitivity-input-group">
+                                <label for="sensitivity-design-margin">Design Margin (%)</label>
+                                <input type="number" id="sensitivity-design-margin" value="10" min="0" max="100" step="0.5" onchange="renderCostVsFeeChart()">
+                            </div>
+                        </div>
+                        <div class="sensitivity-chart-section">
+                            <h4>Construction Cost vs. Design Fee Ratio</h4>
+                            <p class="sensitivity-chart-desc">Shows how cost/cost ratio changes when construction revenue varies +/-30%</p>
+                            <div style="height: 350px; position: relative;">
+                                <canvas id="sensitivity-chart-cost-fee"></canvas>
+                            </div>
+                        </div>
+                        <div class="sensitivity-summary" id="sensitivity-summary-0"></div>
+                    </div>
+
+                    <!-- Tab 2: Design Duration vs Design Fee -->
+                    <div class="sensitivity-panel" id="sensitivity-panel-1">
+                        <div class="sensitivity-chart-section">
+                            <h4>Design Duration vs. Design Fee</h4>
+                            <p class="sensitivity-chart-desc">Shows escalation impact as design duration changes</p>
+                            <div style="height: 350px; position: relative;">
+                                <canvas id="sensitivity-chart-duration-fee"></canvas>
+                            </div>
+                        </div>
+                        <div class="sensitivity-summary" id="sensitivity-summary-1"></div>
+                    </div>
+
+                    <!-- Tab 3: MH Estimates vs Budget -->
+                    <div class="sensitivity-panel" id="sensitivity-panel-2">
+                        <div class="sensitivity-chart-section">
+                            <h4>MH Estimates vs. Budget</h4>
+                            <p class="sensitivity-chart-desc">Shows total revenue impact when manhour estimates vary +/-30%</p>
+                            <div style="height: 350px; position: relative;">
+                                <canvas id="sensitivity-chart-mh-budget"></canvas>
+                            </div>
+                        </div>
+                        <div class="sensitivity-summary" id="sensitivity-summary-2"></div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="sensitivity-modal-actions">
+                        <button class="btn btn-primary" onclick="closeSensitivityModal()">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Narrative Modal -->
+    <div id="narrative-modal" style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.6); overflow-y:auto; padding:20px;" onclick="if(event.target===this)closeNarrativeModal()">
+        <div style="background:#fff; color:#222; max-width:900px; margin:0 auto; border-radius:8px; box-shadow:0 8px 40px rgba(0,0,0,0.4); overflow:hidden;">
+            <div style="display:flex; justify-content:space-between; align-items:center; background:#1a1a2e; color:#ffd700; padding:14px 20px;">
+                <span style="font-size:15px; font-weight:700; letter-spacing:0.5px;">Design Fee Estimate Narrative</span>
+                <div style="display:flex; gap:10px; align-items:center;">
+                    <button onclick="downloadNarrativePDF()" style="background:#ffd700; color:#000; border:none; padding:6px 14px; border-radius:4px; font-weight:700; cursor:pointer; font-size:12px;">⬇ Download PDF</button>
+                    <button onclick="closeNarrativeModal()" style="background:none; border:none; color:#ffd700; font-size:18px; cursor:pointer; line-height:1;">✕</button>
+                </div>
+            </div>
+            <div id="narrative-content" style="padding:32px 40px; font-family:Georgia,serif; font-size:13px; line-height:1.75; color:#222;"></div>
+        </div>
+    </div>
+
+    <!-- WIP Disclaimer Modal -->
+    <div id="wip-disclaimer-overlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.75);z-index:99999;display:flex;align-items:center;justify-content:center;">
+        <div style="background:#1a1a1a;border:1px solid #ffd700;border-left:5px solid #ffd700;border-radius:8px;padding:36px 40px;max-width:580px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,0.6);">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:1.5px;color:#ffd700;margin-bottom:16px;">⚡ Optimized</div>
+            <p style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#e0e0e0;line-height:1.75;margin:0 0 28px;">
+                This partial environment is curated specifically for implementation teams to ensure high-performance execution of daily deliverables. Underlying logic layers are currently undergoing final architectural refinement to ensure seamless integration with the organization standards and will be defined later.
+            </p>
+            <button onclick="document.getElementById('wip-disclaimer-overlay').remove()"
+                    style="background:#ffd700;color:#000;border:none;border-radius:4px;padding:10px 28px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;cursor:pointer;letter-spacing:0.5px;">
+                Acknowledge
+            </button>
+        </div>
+    </div>
+
+    <!-- Vite Entry Point -->
+</body>
+</html>

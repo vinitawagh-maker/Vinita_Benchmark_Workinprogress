@@ -1,0 +1,16 @@
+{
+  "discipline": "",
+  "eqty_metric": {
+    "name": "",
+    "uom": ""
+  },
+  "projects": [
+    {
+      "project": "",
+      "fct_mhrs": null,
+      "eqty": null,
+      "uom": "",
+      "production_mhrs_per_ea": null
+    }
+  ]
+}

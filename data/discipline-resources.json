@@ -1,0 +1,216 @@
+{
+  "description": "Discipline resource codes and billing rates (Low/High)",
+  "lastUpdated": "2026-03-18",
+  "disciplines": [
+    {
+      "discipline": "Roadway",
+      "keyQuantity": "Total Alignment Length",
+      "unit": "LF",
+      "disciplineLead": null,
+      "notes": "",
+      "lowResource": {
+        "code": "Civ.01",
+        "rate": 63.00
+      },
+      "highResource": {
+        "code": "Civ.02",
+        "rate": 72.00
+      }
+    },
+    {
+      "discipline": "Drainage",
+      "keyQuantity": "Total Project Area",
+      "unit": "Acres",
+      "disciplineLead": null,
+      "notes": "",
+      "lowResource": {
+        "code": "Civ.01",
+        "rate": 63.00
+      },
+      "highResource": {
+        "code": "Civ.02",
+        "rate": 72.00
+      }
+    },
+    {
+      "discipline": "Walls",
+      "keyQuantity": "Wall Area",
+      "unit": "SF",
+      "disciplineLead": null,
+      "notes": "Retaining Walls",
+      "lowResource": {
+        "code": "Str.01",
+        "rate": 66.00
+      },
+      "highResource": {
+        "code": "Str.02",
+        "rate": 76.00
+      }
+    },
+    {
+      "discipline": "Noise Walls",
+      "keyQuantity": "Noise Wall Area",
+      "unit": "SF",
+      "disciplineLead": null,
+      "notes": "",
+      "lowResource": {
+        "code": "Civ.01",
+        "rate": 63.00
+      },
+      "highResource": {
+        "code": "Civ.02",
+        "rate": 72.00
+      }
+    },
+    {
+      "discipline": "Bridges",
+      "keyQuantity": "Bridge Deck Area",
+      "unit": "SF",
+      "disciplineLead": null,
+      "notes": "Structures and Misc. Structures",
+      "lowResource": {
+        "code": "Str.01",
+        "rate": 66.00
+      },
+      "highResource": {
+        "code": "Str.02",
+        "rate": 76.00
+      }
+    },
+    {
+      "discipline": "MOT",
+      "keyQuantity": "Alignment Length",
+      "unit": "LF",
+      "disciplineLead": null,
+      "notes": "Match Roadway",
+      "lowResource": {
+        "code": "Civ.01",
+        "rate": 63.00
+      },
+      "highResource": {
+        "code": "Civ.02",
+        "rate": 72.00
+      }
+    },
+    {
+      "discipline": "Utilities",
+      "keyQuantity": "Relocation Count",
+      "unit": "EA",
+      "disciplineLead": null,
+      "notes": "",
+      "lowResource": {
+        "code": "Civ.01",
+        "rate": 63.00
+      },
+      "highResource": {
+        "code": "Civ.02",
+        "rate": 72.00
+      }
+    },
+    {
+      "discipline": "Track",
+      "keyQuantity": "Track Feet",
+      "unit": "TF",
+      "disciplineLead": null,
+      "notes": "",
+      "lowResource": {
+        "code": "Systrk.01",
+        "rate": 82.80
+      },
+      "highResource": {
+        "code": "Systrk.02",
+        "rate": 95.22
+      }
+    },
+    {
+      "discipline": "Traffic",
+      "keyQuantity": "Alignment Length",
+      "unit": "LF",
+      "disciplineLead": null,
+      "notes": "Match Roadway",
+      "lowResource": {
+        "code": "Civ.01",
+        "rate": 63.00
+      },
+      "highResource": {
+        "code": "Civ.02",
+        "rate": 72.00
+      }
+    },
+    {
+      "discipline": "Geotechnical",
+      "keyQuantity": "EA of Walls + EA Bridge",
+      "unit": "EA",
+      "disciplineLead": null,
+      "notes": "",
+      "lowResource": {
+        "code": "Geo.01",
+        "rate": 71.00
+      },
+      "highResource": {
+        "code": "Geo.02",
+        "rate": 82.00
+      }
+    },
+    {
+      "discipline": "Environmental",
+      "keyQuantity": "Permits",
+      "unit": "EA",
+      "disciplineLead": null,
+      "notes": "",
+      "lowResource": {
+        "code": "Civ.01",
+        "rate": 63.00
+      },
+      "highResource": {
+        "code": "Civ.02",
+        "rate": 72.00
+      }
+    },
+    {
+      "discipline": "Digital Delivery",
+      "keyQuantity": "Anticipated Contract Amount",
+      "unit": "K$",
+      "disciplineLead": null,
+      "notes": "",
+      "lowResource": {
+        "code": "DD.01",
+        "rate": 58.00
+      },
+      "highResource": {
+        "code": "DD.02",
+        "rate": 64.00
+      }
+    },
+    {
+      "discipline": "ESDC",
+      "keyQuantity": "Project Cost",
+      "unit": "K$",
+      "disciplineLead": null,
+      "notes": "Fixed weighted rate $64.90 (50% complexity)",
+      "lowResource": {
+        "code": "TW.01",
+        "rate": 64.90
+      },
+      "highResource": {
+        "code": "TW.02",
+        "rate": 64.90
+      }
+    },
+    {
+      "discipline": "TSCD",
+      "keyQuantity": "Project Cost",
+      "unit": "K$",
+      "disciplineLead": null,
+      "notes": "Fixed weighted rate $64.90 (50% complexity)",
+      "lowResource": {
+        "code": "TW.01",
+        "rate": 64.90
+      },
+      "highResource": {
+        "code": "TW.02",
+        "rate": 64.90
+      }
+    }
+  ]
+}
